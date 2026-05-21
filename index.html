@@ -179,7 +179,70 @@
       <div class="grid2">
         <div class="field"><label>Marca / Fabricante *</label><input type="text" id="f-marca" placeholder="Ex: Volt3d, Polymaker, Bambu Lab"></div>
         <div class="field"><label>Modelo / Material *</label>
-          <select id="f-modelo"><option>PLA</option><option>PLA+</option><option>PETG</option><option>ABS</option><option>ASA</option><option>TPU</option><option>Nylon</option><option>Resina</option><option>Outro</option></select>
+          <select id="f-modelo" onchange="preencherTempFilamento()">
+            <optgroup label="── PLA e variações ──">
+              <option value="PLA">PLA — padrão</option>
+              <option value="PLA+">PLA+ (PLA Pro)</option>
+              <option value="PLA Silk">PLA Silk — brilho metálico</option>
+              <option value="PLA Silk Bicolor">PLA Silk Bicolor</option>
+              <option value="PLA Matte">PLA Matte — acabamento fosco</option>
+              <option value="PLA Wood">PLA Wood — efeito madeira</option>
+              <option value="PLA Marble">PLA Marble — efeito mármore</option>
+              <option value="PLA Glow">PLA Glow — brilha no escuro</option>
+              <option value="PLA Color Change">PLA Muda de Cor (temperatura)</option>
+              <option value="PLA Metal">PLA Metal — efeito metálico</option>
+              <option value="PLA Carbon">PLA Carbon Fiber</option>
+              <option value="PLA HT">PLA HT — alta temperatura</option>
+            </optgroup>
+            <optgroup label="── PETG e variações ──">
+              <option value="PETG">PETG — padrão</option>
+              <option value="PETG+">PETG+</option>
+              <option value="PETG Carbon">PETG Carbon Fiber</option>
+              <option value="PETG-CF">PETG-CF reforçado</option>
+            </optgroup>
+            <optgroup label="── ABS e variações ──">
+              <option value="ABS">ABS — padrão</option>
+              <option value="ABS+">ABS+</option>
+              <option value="ASA">ASA — resistente UV</option>
+              <option value="ABS-GF">ABS fibra de vidro</option>
+            </optgroup>
+            <optgroup label="── Flexíveis ──">
+              <option value="TPU 95A">TPU 95A — semiflexível</option>
+              <option value="TPU 87A">TPU 87A — flexível</option>
+              <option value="TPE">TPE — muito flexível</option>
+              <option value="TPU Carbon">TPU Carbon Fiber</option>
+            </optgroup>
+            <optgroup label="── Técnicos / Engenharia ──">
+              <option value="Nylon PA6">Nylon PA6</option>
+              <option value="Nylon PA12">Nylon PA12</option>
+              <option value="Nylon CF">Nylon Carbon Fiber</option>
+              <option value="PC">PC — Policarbonato</option>
+              <option value="PC-ABS">PC-ABS</option>
+              <option value="PEEK">PEEK — alta performance</option>
+              <option value="PEI">PEI (Ultem)</option>
+              <option value="PP">PP — Polipropileno</option>
+              <option value="HIPS">HIPS — suporte solúvel</option>
+              <option value="PVA">PVA — suporte solúvel em água</option>
+              <option value="Tritan">Tritan — resistência química</option>
+            </optgroup>
+            <optgroup label="── Especiais / Decorativos ──">
+              <option value="PLA Rainbow">PLA Rainbow</option>
+              <option value="PLA Glitter">PLA Glitter</option>
+              <option value="PLA Bronze">PLA Bronze</option>
+              <option value="PLA Cobre">PLA Cobre</option>
+              <option value="PLA Aço">PLA Aço</option>
+              <option value="PLA Fluorescente">PLA Fluorescente</option>
+              <option value="PLA Transparente">PLA Transparente / Crystal</option>
+            </optgroup>
+            <optgroup label="── Resina (SLA/MSLA) ──">
+              <option value="Resina Standard">Resina Standard</option>
+              <option value="Resina ABS-Like">Resina ABS-Like</option>
+              <option value="Resina Flexível">Resina Flexível</option>
+              <option value="Resina Castable">Resina Castable (joalheria)</option>
+              <option value="Resina 8K">Resina 8K alta definição</option>
+            </optgroup>
+            <option value="Outro">Outro</option>
+          </select>
         </div>
         <div class="field">
           <label>Nome da cor</label>
@@ -194,8 +257,9 @@
         <div class="field"><label>Quantidade em estoque (g) *</label><input type="number" id="f-qtd" placeholder="Ex: 1000" step="50" min="0"></div>
         <div class="field"><label>Preço pago pelo rolo (R$)</label><input type="number" id="f-preco" placeholder="Ex: 89.90" step="0.50" min="0"></div>
         <div class="field"><label>Peso do rolo (g)</label><input type="number" id="f-peso-rolo" placeholder="1000" value="1000" step="50"></div>
-        <div class="field"><label>Temperatura de impressão (°C)</label><input type="number" id="f-temp" placeholder="Ex: 215" step="5"></div>
-        <div class="field"><label>Temperatura mesa / cama (°C)</label><input type="number" id="f-temp-mesa" placeholder="Ex: 60" step="5"></div>
+        <div class="field"><label>Temperatura de impressão (°C)</label><input type="number" id="f-temp" placeholder="Ex: 215" step="5" oninput="this.dataset.auto='0'"></div>
+        <div class="field"><label>Temperatura mesa / cama (°C)</label><input type="number" id="f-temp-mesa" placeholder="Ex: 60" step="5" oninput="this.dataset.auto='0'"></div>
+        <div id="f-temp-info" style="display:none;grid-column:1/-1;font-size:12px;color:var(--blue-text);background:var(--blue-bg);border:0.5px solid var(--blue-border);border-radius:6px;padding:6px 10px;"></div>
         <div class="field"><label>Data de compra</label><input type="date" id="f-data"></div>
         <div class="field"><label>Observação</label><input type="text" id="f-obs" placeholder="Ex: ótimo acabamento, evitar umidade"></div>
       </div>
@@ -293,6 +357,44 @@ let editFilIdx = -1, editProdIdx = -1;
 
 const COR = { preto:'#1a1a1a',branco:'#f5f5f5',cinza:'#888888',prata:'#c0c0c0',vermelho:'#e53935',azul:'#1e88e5',verde:'#43a047',amarelo:'#fdd835',laranja:'#fb8c00',roxo:'#8e24aa',rosa:'#e91e63',marrom:'#6d4c41',transparente:'#d0d0d0',natural:'#f5deb3',bege:'#f5deb3',ciano:'#00bcd4',violeta:'#7c4dff',dourado:'#ffc107',magenta:'#e91e63' };
 function autoCorHex(){ const n=(document.getElementById('f-cor-nome').value||'').toLowerCase(); for(const[k,v] of Object.entries(COR)){if(n.includes(k)){document.getElementById('f-cor-hex').value=v;break;}} }
+
+const TEMP_FIL = {
+  'PLA':{t:'190-220',m:'50-60'},'PLA+':{t:'200-230',m:'50-60'},'PLA Silk':{t:'210-230',m:'45-60'},
+  'PLA Silk Bicolor':{t:'215-235',m:'45-60'},'PLA Matte':{t:'195-220',m:'45-60'},
+  'PLA Wood':{t:'190-220',m:'45-60'},'PLA Marble':{t:'190-220',m:'45-60'},
+  'PLA Glow':{t:'190-220',m:'50-60'},'PLA Color Change':{t:'190-220',m:'50-60'},
+  'PLA Metal':{t:'200-230',m:'50-60'},'PLA Carbon':{t:'195-220',m:'50-60'},
+  'PLA HT':{t:'220-240',m:'60-80'},'PLA Rainbow':{t:'190-220',m:'50-60'},
+  'PLA Glitter':{t:'195-220',m:'50-60'},'PLA Bronze':{t:'195-220',m:'50-60'},
+  'PLA Cobre':{t:'195-220',m:'50-60'},'PLA Aço':{t:'195-220',m:'50-60'},
+  'PLA Fluorescente':{t:'190-220',m:'50-60'},'PLA Transparente':{t:'190-215',m:'45-55'},
+  'PETG':{t:'220-250',m:'70-85'},'PETG+':{t:'225-250',m:'70-85'},
+  'PETG Carbon':{t:'230-255',m:'70-85'},'PETG-CF':{t:'230-255',m:'70-85'},
+  'ABS':{t:'230-260',m:'95-110'},'ABS+':{t:'230-255',m:'90-110'},
+  'ASA':{t:'235-260',m:'90-110'},'ABS-GF':{t:'240-260',m:'95-110'},
+  'TPU 95A':{t:'220-235',m:'40-60'},'TPU 87A':{t:'210-230',m:'40-55'},
+  'TPE':{t:'210-230',m:'40-60'},'TPU Carbon':{t:'220-240',m:'45-60'},
+  'Nylon PA6':{t:'240-260',m:'70-90'},'Nylon PA12':{t:'240-260',m:'60-80'},
+  'Nylon CF':{t:'250-270',m:'70-90'},'PC':{t:'260-310',m:'100-120'},
+  'PC-ABS':{t:'240-270',m:'90-110'},'PEEK':{t:'360-400',m:'120-160'},
+  'PEI':{t:'340-380',m:'120-160'},'PP':{t:'220-250',m:'85-100'},
+  'HIPS':{t:'220-240',m:'90-110'},'PVA':{t:'185-200',m:'45-60'},
+  'Tritan':{t:'250-260',m:'75-85'},
+  'Resina Standard':{t:'—',m:'—'},'Resina ABS-Like':{t:'—',m:'—'},
+  'Resina Flexível':{t:'—',m:'—'},'Resina Castable':{t:'—',m:'—'},'Resina 8K':{t:'—',m:'—'}
+};
+
+function preencherTempFilamento(){
+  const modelo = document.getElementById('f-modelo').value;
+  const d = TEMP_FIL[modelo];
+  if(!d) return;
+  const tEl=document.getElementById('f-temp');
+  const mEl=document.getElementById('f-temp-mesa');
+  const info=document.getElementById('f-temp-info');
+  if(tEl&&(!tEl.value||tEl.dataset.auto==='1')){ tEl.value=d.t==='—'?'':d.t.split('-')[0]; tEl.dataset.auto='1'; }
+  if(mEl&&(!mEl.value||mEl.dataset.auto==='1')){ mEl.value=d.m==='—'?'':d.m.split('-')[0]; mEl.dataset.auto='1'; }
+  if(info){ info.textContent=d.t!=='—'?'Referência: bico '+d.t+'°C / mesa '+d.m+'°C':'Resina — sem temperatura FDM'; info.style.display='block'; }
+}
 function fmt(v){ return 'R$ '+parseFloat(v||0).toFixed(2).replace('.',','); }
 
 function showTab(t){
@@ -380,7 +482,11 @@ function showFormFil(idx){
   document.getElementById('f-preco').value=f.preco||'';
   document.getElementById('f-peso-rolo').value=f.pesoRolo||1000;
   document.getElementById('f-temp').value=f.temp||'';
+  document.getElementById('f-temp').dataset.auto='0';
   document.getElementById('f-temp-mesa').value=f.tempMesa||'';
+  document.getElementById('f-temp-mesa').dataset.auto='0';
+  const info=document.getElementById('f-temp-info'); if(info) info.style.display='none';
+  if(idx<0) preencherTempFilamento();
   document.getElementById('f-data').value=f.data||'';
   document.getElementById('f-obs').value=f.obs||'';
   document.getElementById('form-fil').scrollIntoView({behavior:'smooth'});
