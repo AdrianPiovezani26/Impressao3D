@@ -81,6 +81,23 @@
   ::-webkit-scrollbar-track{background:var(--bg);}
   ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
   ::-webkit-scrollbar-thumb:hover{background:var(--neon);}
+  /* Compras e Parceiros */
+  .subtab-nav{display:flex;gap:4px;margin-bottom:1rem;border-bottom:1px solid var(--border2);padding-bottom:8px;flex-wrap:wrap;}
+  .subtab-btn{padding:6px 14px;border-radius:var(--radius);border:1px solid transparent;background:transparent;color:var(--text2);cursor:pointer;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;transition:all 0.2s;}
+  .subtab-btn.active{background:var(--neon-dim);color:var(--neon);border-color:var(--border2);}
+  .subtab-btn:hover:not(.active){background:rgba(57,255,20,0.05);color:var(--text);}
+  .subtab{display:none;}.subtab.active{display:block;}
+  .xml-drop{border:2px dashed var(--border2);border-radius:var(--radius-lg);padding:2rem;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--bg3);}
+  .xml-drop:hover,.xml-drop.drag{border-color:var(--neon);box-shadow:var(--neon-glow-sm);}
+  .xml-drop i{font-size:36px;display:block;margin-bottom:8px;color:var(--text3);}
+  .xml-preview{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:1rem;margin-top:1rem;}
+  .xml-item-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;flex-wrap:wrap;}
+  .xml-item-row:last-child{border-bottom:none;}
+  .xml-item-row input[type=checkbox]{accent-color:var(--neon);width:16px;height:16px;cursor:pointer;}
+  .parceiro-tipo{display:flex;gap:8px;margin-bottom:12px;}
+  .tipo-btn{flex:1;padding:8px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:12px;font-weight:600;text-align:center;transition:all 0.2s;text-transform:uppercase;}
+  .tipo-btn.sel{border-color:var(--neon);color:var(--neon);background:var(--neon-dim);}
+
   .fil-multi-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;flex-wrap:wrap;}
   .fil-multi-item select{flex:2;min-width:180px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:13px;background:var(--bg2);color:var(--text);}
   .fil-multi-item input{flex:1;min-width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:13px;background:var(--bg2);color:var(--text);}
@@ -103,6 +120,8 @@
   <button onclick="showTab('pedidos')" id="btn-pedidos"><i class="ti ti-clipboard-list"></i> Pedidos</button>
   <button onclick="showTab('vendas')" id="btn-vendas"><i class="ti ti-shopping-cart"></i> Vendas</button>
   <button onclick="showTab('contas')" id="btn-contas"><i class="ti ti-coin"></i> Contas a Receber</button>
+  <button onclick="showTab('compras')" id="btn-compras"><i class="ti ti-shopping-bag"></i> Compras</button>
+  <button onclick="showTab('parceiros')" id="btn-parceiros"><i class="ti ti-users"></i> Parceiros</button>
   <button onclick="showTab('config')" id="btn-config"><i class="ti ti-settings"></i> Configurações</button>
 </nav>
 
@@ -371,6 +390,246 @@
     <button class="btn-del" onclick="limparTudo()"><i class="ti ti-trash"></i> Apagar todos os dados</button>
   </div>
 </div>
+<!-- COMPRAS -->
+<div id="tab-compras" class="tab">
+  <div class="subtab-nav">
+    <button class="subtab-btn active" onclick="showSubtab('compras','lancamento')"><i class="ti ti-plus"></i> Lancamento</button>
+    <button class="subtab-btn" onclick="showSubtab('compras','historico')"><i class="ti ti-history"></i> Historico</button>
+    <button class="subtab-btn" onclick="showSubtab('compras','xml')"><i class="ti ti-file-invoice"></i> Importar XML NF</button>
+  </div>
+
+  <!-- Sub: Lancamento -->
+  <div id="subtab-compras-lancamento" class="subtab active">
+    <div class="card">
+      <div class="stitle" style="margin-bottom:1rem;">Registrar Compra</div>
+      <div class="grid2">
+        <div class="field"><label>Tipo de item</label>
+          <select id="cp-tipo" onchange="toggleTipoCompra()">
+            <option value="filamento">Filamento</option>
+            <option value="acessorio">Acessorio / Insumo</option>
+          </select>
+        </div>
+        <div class="field"><label>Fornecedor</label>
+          <select id="cp-fornecedor"><option value="">Selecionar fornecedor...</option></select>
+        </div>
+        <div class="field"><label>Data da Compra</label><input type="date" id="cp-data"></div>
+        <div class="field"><label>Numero NF / Pedido</label><input type="text" id="cp-nf" placeholder="Ex: NF-001234"></div>
+      </div>
+
+      <!-- Campos filamento -->
+      <div id="cp-campos-filamento">
+        <div class="sep"></div>
+        <div class="stitle" style="font-size:11px;margin-bottom:.75rem;">Dados do Filamento</div>
+        <div class="grid2">
+          <div class="field"><label>Filamento do estoque</label>
+            <select id="cp-fil-estoque" onchange="preencherDadosFilCompra()">
+              <option value="">Selecionar filamento cadastrado...</option>
+            </select>
+          </div>
+          <div class="field"><label>Ou — novo filamento (marca / modelo)</label>
+            <input type="text" id="cp-fil-desc" placeholder="Ex: Volt3d PLA Preto"></div>
+          <div class="field"><label>Quantidade de rolos</label><input type="number" id="cp-rolos" placeholder="1" value="1" min="1" step="1" oninput="calcTotalCompra()"></div>
+          <div class="field"><label>Peso por rolo (g)</label><input type="number" id="cp-peso-rolo" placeholder="1000" value="1000" step="50" oninput="calcTotalCompra()"></div>
+          <div class="field"><label>Preco por rolo (R$)</label><input type="number" id="cp-preco-rolo" placeholder="89.90" step="0.50" oninput="calcTotalCompra()"></div>
+          <div class="field"><label>Total da compra (R$)</label><input type="number" id="cp-total" readonly></div>
+        </div>
+        <div class="field"><label>Dar entrada no estoque automaticamente?</label>
+          <select id="cp-entrada-estoque">
+            <option value="sim">Sim — atualizar estoque do filamento selecionado</option>
+            <option value="nao">Nao — apenas registrar a compra</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Campos acessorio -->
+      <div id="cp-campos-acessorio" style="display:none;">
+        <div class="sep"></div>
+        <div class="stitle" style="font-size:11px;margin-bottom:.75rem;">Dados do Acessorio / Insumo</div>
+        <div class="grid2">
+          <div class="field"><label>Nome do item *</label><input type="text" id="cp-ac-nome" placeholder="Ex: Cama de vidro, Bico 0.4mm, Cola 3D"></div>
+          <div class="field"><label>Categoria</label>
+            <select id="cp-ac-cat">
+              <option>Bico / Nozzle</option><option>Cama de impressao</option><option>Correia / Belt</option>
+              <option>Extrusor</option><option>Lubrificante</option><option>Cola / Adesivo</option>
+              <option>Cabo / Eletrico</option><option>Ventilador / Fan</option><option>Sensor</option>
+              <option>Ferramenta</option><option>Embalagem</option><option>EPI / Seguranca</option>
+              <option>Outro acessorio</option>
+            </select>
+          </div>
+          <div class="field"><label>Quantidade</label><input type="number" id="cp-ac-qtd" placeholder="1" value="1" min="1" oninput="calcTotalCompra()"></div>
+          <div class="field"><label>Preco unitario (R$)</label><input type="number" id="cp-ac-preco" placeholder="0.00" step="0.50" oninput="calcTotalCompra()"></div>
+          <div class="field"><label>Total da compra (R$)</label><input type="number" id="cp-total-ac" readonly></div>
+          <div class="field"><label>Unidade</label>
+            <select id="cp-ac-unidade"><option>un</option><option>cx</option><option>kg</option><option>ml</option><option>m</option><option>par</option></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+      <div class="grid2">
+        <div class="field"><label>Forma de Pagamento</label>
+          <select id="cp-pgto"><option>Pix</option><option>Cartao de Credito</option><option>Cartao de Debito</option><option>Boleto</option><option>Transferencia</option><option>Dinheiro</option></select>
+        </div>
+        <div class="field"><label>Observacao</label><input type="text" id="cp-obs" placeholder="Ex: compra online, frete gratis"></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-ok" onclick="salvarCompra()"><i class="ti ti-device-floppy"></i> Registrar Compra</button>
+        <button class="btn" onclick="limparFormCompra()"><i class="ti ti-refresh"></i> Limpar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sub: Historico -->
+  <div id="subtab-compras-historico" class="subtab">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
+      <span class="stitle" style="margin:0;">Historico de Compras</span>
+      <select id="filtro-cp-tipo" onchange="renderCompras()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);">
+        <option value="">Todos os tipos</option><option value="filamento">Filamentos</option><option value="acessorio">Acessorios</option>
+      </select>
+    </div>
+    <div id="resumo-compras" style="margin-bottom:1rem;"></div>
+    <div id="lista-compras"></div>
+  </div>
+
+  <!-- Sub: XML -->
+  <div id="subtab-compras-xml" class="subtab">
+    <div class="card">
+      <div class="stitle" style="margin-bottom:.5rem;">Importar XML de Nota Fiscal</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:1rem;">Importe o XML da NF-e para preencher os dados automaticamente. Os itens serao identificados e voce escolhe o que importar.</div>
+      <div class="xml-drop" id="xml-drop" onclick="document.getElementById('xml-file').click()"
+        ondragover="event.preventDefault();this.classList.add('drag')"
+        ondragleave="this.classList.remove('drag')"
+        ondrop="event.preventDefault();this.classList.remove('drag');processarXML(event.dataTransfer.files[0])">
+        <i class="ti ti-file-type-xml"></i>
+        <div style="font-size:14px;font-weight:600;color:var(--text);">Arraste o arquivo XML aqui</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:4px;">ou clique para selecionar</div>
+      </div>
+      <input type="file" id="xml-file" accept=".xml" style="display:none;" onchange="processarXML(this.files[0])">
+      <div id="xml-resultado"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PARCEIROS -->
+<div id="tab-parceiros" class="tab">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
+    <span class="stitle" style="margin:0;">Parceiros — Clientes e Fornecedores</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <select id="filtro-parceiro-tipo" onchange="renderParceiros()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);">
+        <option value="">Todos</option><option value="cliente">Clientes</option><option value="fornecedor">Fornecedores</option><option value="ambos">Clientes e Fornecedores</option>
+      </select>
+      <button class="btn" onclick="showFormParceiro(-1)"><i class="ti ti-plus"></i> Novo Parceiro</button>
+    </div>
+  </div>
+
+  <div id="form-parceiro" style="display:none;" class="card">
+    <div class="stitle" id="form-parceiro-titulo" style="margin-bottom:1rem;">Cadastrar Parceiro</div>
+
+    <!-- Tipo -->
+    <div class="field">
+      <label>Tipo de Parceiro</label>
+      <div class="parceiro-tipo" id="parceiro-tipos">
+        <div class="tipo-btn sel" onclick="toggleTipoParceiro('cliente',this)"><i class="ti ti-user"></i> Cliente</div>
+        <div class="tipo-btn" onclick="toggleTipoParceiro('fornecedor',this)"><i class="ti ti-truck"></i> Fornecedor</div>
+        <div class="tipo-btn" onclick="toggleTipoParceiro('ambos',this)"><i class="ti ti-users"></i> Ambos</div>
+      </div>
+      <input type="hidden" id="par-tipo" value="cliente">
+    </div>
+
+    <!-- Dados principais -->
+    <div class="stitle" style="font-size:11px;margin-bottom:.75rem;">Dados Principais</div>
+    <div class="grid2">
+      <div class="field"><label>Tipo de Pessoa</label>
+        <select id="par-pessoa" onchange="togglePessoa()">
+          <option value="PF">Pessoa Fisica</option>
+          <option value="PJ">Pessoa Juridica</option>
+        </select>
+      </div>
+      <div class="field" id="par-campo-razao"><label id="par-label-razao">Nome Completo *</label><input type="text" id="par-razao" placeholder="Nome completo ou Razao Social"></div>
+      <div class="field" id="par-campo-fantasia"><label>Nome Fantasia</label><input type="text" id="par-fantasia" placeholder="Nome fantasia da empresa"></div>
+      <div class="field"><label id="par-label-doc">CPF *</label>
+        <input type="text" id="par-doc" placeholder="000.000.000-00" oninput="mascaraDoc(this)">
+      </div>
+      <div class="field" id="par-campo-ie"><label>Inscricao Estadual</label><input type="text" id="par-ie" placeholder="Isento ou numero"></div>
+      <div class="field" id="par-campo-im"><label>Inscricao Municipal</label><input type="text" id="par-im" placeholder="Numero"></div>
+      <div class="field" id="par-campo-cnae"><label>CNAE Principal</label><input type="text" id="par-cnae" placeholder="Ex: 3299-0/99"></div>
+      <div class="field"><label>Regime Tributario</label>
+        <select id="par-regime">
+          <option value="">Nao informado</option>
+          <option value="1">Simples Nacional</option>
+          <option value="2">Simples Nacional — excesso</option>
+          <option value="3">Regime Normal</option>
+          <option value="4">MEI</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Contato -->
+    <div class="sep"></div>
+    <div class="stitle" style="font-size:11px;margin-bottom:.75rem;">Contato</div>
+    <div class="grid2">
+      <div class="field"><label>E-mail</label><input type="email" id="par-email" placeholder="contato@email.com"></div>
+      <div class="field"><label>Telefone / WhatsApp</label><input type="text" id="par-tel" placeholder="(44) 99999-9999" oninput="mascaraTel(this)"></div>
+      <div class="field"><label>Site / Instagram</label><input type="text" id="par-site" placeholder="www.site.com.br ou @usuario"></div>
+      <div class="field"><label>Contato responsavel</label><input type="text" id="par-contato" placeholder="Nome do responsavel"></div>
+    </div>
+
+    <!-- Endereco -->
+    <div class="sep"></div>
+    <div class="stitle" style="font-size:11px;margin-bottom:.75rem;">Endereco</div>
+    <div class="grid2">
+      <div class="field"><label>CEP</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="par-cep" placeholder="00000-000" oninput="mascaraCEP(this)" style="flex:1;">
+          <button class="btn" onclick="buscarCEP()" style="white-space:nowrap;"><i class="ti ti-search"></i> Buscar</button>
+        </div>
+      </div>
+      <div class="field"><label>Logradouro</label><input type="text" id="par-end" placeholder="Rua, Avenida..."></div>
+      <div class="field"><label>Numero</label><input type="text" id="par-num" placeholder="123"></div>
+      <div class="field"><label>Complemento</label><input type="text" id="par-comp" placeholder="Apto, Sala..."></div>
+      <div class="field"><label>Bairro</label><input type="text" id="par-bairro" placeholder="Bairro"></div>
+      <div class="field"><label>Cidade</label><input type="text" id="par-cidade" placeholder="Cidade"></div>
+      <div class="field"><label>Estado (UF)</label>
+        <select id="par-uf"><option value="">UF</option>
+          <option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option>
+          <option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option>
+          <option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option>
+          <option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option>
+          <option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option>
+          <option>SE</option><option>TO</option>
+        </select>
+      </div>
+      <div class="field"><label>Codigo IBGE do Municipio</label><input type="text" id="par-ibge" placeholder="Ex: 4104808"></div>
+    </div>
+
+    <!-- Dados bancarios -->
+    <div class="sep"></div>
+    <div class="stitle" style="font-size:11px;margin-bottom:.75rem;">Dados Bancarios (opcional)</div>
+    <div class="grid2">
+      <div class="field"><label>Banco</label><input type="text" id="par-banco" placeholder="Ex: 001 - Banco do Brasil"></div>
+      <div class="field"><label>Agencia</label><input type="text" id="par-agencia" placeholder="0000-0"></div>
+      <div class="field"><label>Conta</label><input type="text" id="par-conta" placeholder="00000-0"></div>
+      <div class="field"><label>Tipo de Conta</label>
+        <select id="par-tipo-conta"><option>Corrente</option><option>Poupanca</option><option>Pagamento</option></select>
+      </div>
+      <div class="field"><label>Chave Pix</label><input type="text" id="par-pix" placeholder="CPF, CNPJ, e-mail, tel ou chave aleatoria"></div>
+    </div>
+
+    <!-- Obs -->
+    <div class="field"><label>Observacoes</label>
+      <textarea id="par-obs" rows="2" placeholder="Informacoes adicionais, condicoes comerciais..."></textarea>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">
+      <button class="btn-ok" onclick="salvarParceiro()"><i class="ti ti-device-floppy"></i> Salvar</button>
+      <button class="btn" onclick="document.getElementById('form-parceiro').style.display='none'">Cancelar</button>
+    </div>
+  </div>
+
+  <div id="resumo-parceiros" style="margin-bottom:1rem;"></div>
+  <div id="lista-parceiros"></div>
+</div>
+
 </div>
 
 <script>
@@ -408,6 +667,8 @@ function showTab(t){
   if(t==='vendas'){renderVendas();buildProdOpts();}
   if(t==='contas')renderContas();
   if(t==='config')loadCfg();
+  if(t==='compras'){buildFilSelectCompra();buildFornecedorSelect();document.getElementById('cp-data').value=hoje();}
+  if(t==='parceiros')renderParceiros();
 }
 
 /* ---- FILAMENTOS ---- */
@@ -723,7 +984,7 @@ function checkEstoque(){
   document.getElementById('header-alert').style.display=critico?'block':'none';
 }
 function exportarDados(){
-  const blob=new Blob([JSON.stringify({filamentos,produtos,pedidos,vendas,faturas,cfg,exportadoEm:new Date().toISOString()},null,2)],{type:'application/json'});
+  const blob=new Blob([JSON.stringify({filamentos,produtos,pedidos,vendas,faturas,compras,parceiros,cfg,exportadoEm:new Date().toISOString()},null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='akp3d_backup_'+hoje()+'.json';a.click();
 }
 function lerImporte(input){
@@ -734,9 +995,9 @@ function lerImporte(input){
       const d=JSON.parse(e.target.result);
       if(d.filamentos)filamentos=d.filamentos;if(d.produtos)produtos=d.produtos;
       if(d.pedidos)pedidos=d.pedidos;if(d.vendas)vendas=d.vendas;
-      if(d.faturas)faturas=d.faturas;if(d.cfg)cfg=d.cfg;
+      if(d.faturas)faturas=d.faturas;if(d.compras)compras=d.compras;if(d.parceiros)parceiros=d.parceiros;if(d.cfg)cfg=d.cfg;
       S.set('filamentos',filamentos);S.set('produtos',produtos);S.set('pedidos',pedidos);
-      S.set('vendas',vendas);S.set('faturas',faturas);S.set('cfg',cfg);
+      S.set('vendas',vendas);S.set('faturas',faturas);S.set('compras',compras);S.set('parceiros',parceiros);S.set('cfg',cfg);
       alert('Dados importados com sucesso!');buildFilSelect();checkEstoque();renderFils();
     }catch{alert('Arquivo invalido.');}
   };
@@ -745,10 +1006,411 @@ function lerImporte(input){
 function limparTudo(){
   if(confirm('Apagar TODOS os dados? Esta acao nao pode ser desfeita!')){
     filamentos=[];produtos=[];pedidos=[];vendas=[];faturas=[];cfg={};
-    ['filamentos','produtos','pedidos','vendas','faturas','cfg'].forEach(k=>localStorage.removeItem('akp3d_'+k));
+    ['filamentos','produtos','pedidos','vendas','faturas','compras','parceiros','cfg'].forEach(k=>localStorage.removeItem('akp3d_'+k));
     alert('Dados apagados.');buildFilSelect();checkEstoque();renderFils();
   }
 }
+
+
+/* ========== COMPRAS ========== */
+let compras = S.get('compras') || [];
+let parceiros = S.get('parceiros') || [];
+let editParceiroIdx = -1;
+
+function showSubtab(tab, sub) {
+  document.querySelectorAll('#tab-'+tab+' .subtab').forEach(e => e.classList.remove('active'));
+  document.querySelectorAll('#tab-'+tab+' .subtab-btn').forEach(e => e.classList.remove('active'));
+  document.getElementById('subtab-'+tab+'-'+sub).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if(sub === 'historico') renderCompras();
+}
+
+function toggleTipoCompra() {
+  const tipo = document.getElementById('cp-tipo').value;
+  document.getElementById('cp-campos-filamento').style.display = tipo === 'filamento' ? 'block' : 'none';
+  document.getElementById('cp-campos-acessorio').style.display = tipo === 'acessorio' ? 'block' : 'none';
+}
+
+function buildFilSelectCompra() {
+  const s = document.getElementById('cp-fil-estoque');
+  if(!s) return;
+  s.innerHTML = '<option value="">Selecionar filamento cadastrado...</option>' +
+    filamentos.map((f,i) => `<option value="${i}">${f.marca} ${f.modelo} — ${f.corNome}</option>`).join('');
+}
+
+function preencherDadosFilCompra() {
+  const idx = parseInt(document.getElementById('cp-fil-estoque').value);
+  if(isNaN(idx) || !filamentos[idx]) return;
+  const f = filamentos[idx];
+  document.getElementById('cp-preco-rolo').value = f.preco;
+  document.getElementById('cp-peso-rolo').value = f.pesoRolo;
+  document.getElementById('cp-fil-desc').value = f.marca + ' ' + f.modelo + ' ' + f.corNome;
+  calcTotalCompra();
+}
+
+function calcTotalCompra() {
+  const tipo = document.getElementById('cp-tipo').value;
+  if(tipo === 'filamento') {
+    const rolos = parseFloat(document.getElementById('cp-rolos').value) || 0;
+    const preco = parseFloat(document.getElementById('cp-preco-rolo').value) || 0;
+    document.getElementById('cp-total').value = (rolos * preco).toFixed(2);
+  } else {
+    const qtd = parseFloat(document.getElementById('cp-ac-qtd').value) || 0;
+    const preco = parseFloat(document.getElementById('cp-ac-preco').value) || 0;
+    document.getElementById('cp-total-ac').value = (qtd * preco).toFixed(2);
+  }
+}
+
+function buildFornecedorSelect() {
+  const s = document.getElementById('cp-fornecedor');
+  if(!s) return;
+  const fors = parceiros.filter(p => p.tipo === 'fornecedor' || p.tipo === 'ambos');
+  s.innerHTML = '<option value="">Selecionar fornecedor...</option>' +
+    fors.map((p,i) => `<option value="${parceiros.indexOf(p)}">${p.razao}</option>`).join('');
+}
+
+function limparFormCompra() {
+  ['cp-nf','cp-fil-desc','cp-obs','cp-ac-nome'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['cp-rolos','cp-peso-rolo'].forEach(id => { const el=document.getElementById(id); if(el) el.value=el.placeholder||''; });
+  ['cp-preco-rolo','cp-total','cp-ac-preco','cp-ac-qtd','cp-total-ac'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  const fs = document.getElementById('cp-fil-estoque'); if(fs) fs.value = '';
+  document.getElementById('cp-data').value = hoje();
+}
+
+function salvarCompra() {
+  const tipo = document.getElementById('cp-tipo').value;
+  const fornIdx = parseInt(document.getElementById('cp-fornecedor').value);
+  const fornNome = (!isNaN(fornIdx) && parceiros[fornIdx]) ? parceiros[fornIdx].razao : '';
+  let compra = {
+    id: Date.now(), tipo, data: document.getElementById('cp-data').value,
+    nf: document.getElementById('cp-nf').value, fornNome,
+    pgto: document.getElementById('cp-pgto').value, obs: document.getElementById('cp-obs').value
+  };
+
+  if(tipo === 'filamento') {
+    const rolos = parseInt(document.getElementById('cp-rolos').value) || 1;
+    const pesoRolo = parseFloat(document.getElementById('cp-peso-rolo').value) || 1000;
+    const precoRolo = parseFloat(document.getElementById('cp-preco-rolo').value) || 0;
+    const total = rolos * precoRolo;
+    const filIdx = parseInt(document.getElementById('cp-fil-estoque').value);
+    const desc = document.getElementById('cp-fil-desc').value || (filamentos[filIdx] ? filamentos[filIdx].marca + ' ' + filamentos[filIdx].modelo : 'Filamento');
+    compra = {...compra, desc, rolos, pesoRolo, precoRolo, total, filIdx: isNaN(filIdx) ? -1 : filIdx};
+    // Atualizar estoque
+    const entrada = document.getElementById('cp-entrada-estoque').value;
+    if(entrada === 'sim' && !isNaN(filIdx) && filamentos[filIdx]) {
+      filamentos[filIdx].qtd = parseFloat(filamentos[filIdx].qtd||0) + (rolos * pesoRolo);
+      S.set('filamentos', filamentos);
+      renderFils();
+    }
+  } else {
+    const qtd = parseFloat(document.getElementById('cp-ac-qtd').value) || 1;
+    const precoUnit = parseFloat(document.getElementById('cp-ac-preco').value) || 0;
+    compra = {...compra,
+      desc: document.getElementById('cp-ac-nome').value || 'Item',
+      cat: document.getElementById('cp-ac-cat').value,
+      unidade: document.getElementById('cp-ac-unidade').value,
+      qtd, precoUnit, total: qtd * precoUnit
+    };
+  }
+
+  if(!compra.desc) { alert('Informe o item comprado'); return; }
+  compras.unshift(compra);
+  S.set('compras', compras);
+  alert('Compra registrada com sucesso!' + (tipo==='filamento' && document.getElementById('cp-entrada-estoque').value==='sim' ? ' Estoque atualizado.' : ''));
+  limparFormCompra();
+}
+
+function renderCompras() {
+  const filtro = document.getElementById('filtro-cp-tipo').value;
+  const lista = filtro ? compras.filter(c => c.tipo === filtro) : compras;
+  const totGasto = compras.reduce((s,c) => s + (c.total||0), 0);
+  const totFil = compras.filter(c=>c.tipo==='filamento').reduce((s,c)=>s+(c.total||0),0);
+  const totAc = compras.filter(c=>c.tipo==='acessorio').reduce((s,c)=>s+(c.total||0),0);
+  document.getElementById('resumo-compras').innerHTML = compras.length ?
+    `<div class="grid3" style="margin-bottom:1rem;">
+      <div class="metric"><div class="lbl">Total investido</div><div class="val">${fmt(totGasto)}</div></div>
+      <div class="metric"><div class="lbl">Em filamentos</div><div class="val">${fmt(totFil)}</div></div>
+      <div class="metric"><div class="lbl">Em acessorios</div><div class="val">${fmt(totAc)}</div></div>
+    </div>` : '';
+  const el = document.getElementById('lista-compras');
+  if(!lista.length) { el.innerHTML = '<div class="empty"><i class="ti ti-shopping-bag"></i>Nenhuma compra registrada.</div>'; return; }
+  el.innerHTML = lista.map((c,i) => `<div class="item-card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+      <div>
+        <strong style="font-size:15px;">${c.desc}</strong>
+        <span class="tag ${c.tipo==='filamento'?'tag-blue':'tag-amber'}" style="margin-left:8px;">${c.tipo==='filamento'?'Filamento':'Acessorio'}</span>
+        ${c.cat ? `<span class="tag tag-blue" style="margin-left:4px;">${c.cat}</span>` : ''}
+        <br><span style="font-size:12px;color:var(--text2);">
+          ${fmtD(c.data)}
+          ${c.fornNome ? ' · ' + c.fornNome : ''}
+          ${c.nf ? ' · NF: ' + c.nf : ''}
+          ${c.tipo==='filamento' ? ` · ${c.rolos} rolo(s) × ${c.pesoRolo}g · ${fmt(c.precoRolo)}/rolo` : ` · Qtd: ${c.qtd} ${c.unidade||'un'}`}
+          ${c.pgto ? ' · ' + c.pgto : ''}
+        </span>
+        ${c.obs ? `<br><span style="font-size:11px;color:var(--text3);">${c.obs}</span>` : ''}
+      </div>
+      <strong style="font-size:18px;color:var(--neon);text-shadow:var(--neon-glow-sm);">${fmt(c.total)}</strong>
+    </div>
+    <button class="btn-del" onclick="delCompra(${compras.indexOf(c)})"><i class="ti ti-trash"></i> Remover</button>
+  </div>`).join('');
+}
+function delCompra(i) { if(confirm('Remover compra?')) { compras.splice(i,1); S.set('compras',compras); renderCompras(); } }
+
+/* --- XML NF-e --- */
+function processarXML(file) {
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(e.target.result, 'application/xml');
+      const res = document.getElementById('xml-resultado');
+
+      // Dados emitente
+      const emit = xml.querySelector('emit');
+      const dest = xml.querySelector('dest');
+      const ide  = xml.querySelector('ide');
+      const nNF  = ide ? ide.querySelector('nNF')?.textContent : '';
+      const dhEmi = ide ? ide.querySelector('dhEmi')?.textContent?.slice(0,10) : '';
+      const emitNome = emit ? (emit.querySelector('xFant')?.textContent || emit.querySelector('xNome')?.textContent) : '';
+      const emitCNPJ = emit ? emit.querySelector('CNPJ')?.textContent : '';
+      const vNF  = xml.querySelector('vNF')?.textContent || '';
+
+      // Itens
+      const itens = Array.from(xml.querySelectorAll('det'));
+
+      if(!itens.length) { res.innerHTML = '<div class="info"><i class="ti ti-alert-circle"></i> Nenhum item encontrado no XML.</div>'; return; }
+
+      let html = `<div class="xml-preview">
+        <div style="margin-bottom:12px;">
+          <div class="stitle" style="font-size:11px;margin-bottom:6px;">Dados da Nota Fiscal</div>
+          <div class="grid2">
+            <div style="font-size:13px;"><span style="color:var(--text2);">Emitente:</span> <strong>${emitNome||'—'}</strong></div>
+            <div style="font-size:13px;"><span style="color:var(--text2);">CNPJ:</span> <strong>${emitCNPJ||'—'}</strong></div>
+            <div style="font-size:13px;"><span style="color:var(--text2);">Numero NF:</span> <strong>${nNF||'—'}</strong></div>
+            <div style="font-size:13px;"><span style="color:var(--text2);">Data emissao:</span> <strong>${fmtD(dhEmi)||'—'}</strong></div>
+            <div style="font-size:13px;"><span style="color:var(--text2);">Valor total:</span> <strong style="color:var(--neon);">${vNF ? fmt(parseFloat(vNF)) : '—'}</strong></div>
+          </div>
+        </div>
+        <div class="sep"></div>
+        <div class="stitle" style="font-size:11px;margin-bottom:8px;">Itens da NF (selecione os que deseja importar como compra)</div>
+        <div id="xml-itens">`;
+
+      itens.forEach((item, i) => {
+        const prod = item.querySelector('prod');
+        const xProd = prod?.querySelector('xProd')?.textContent || '';
+        const qCom  = prod?.querySelector('qCom')?.textContent || '1';
+        const vUnCom = prod?.querySelector('vUnCom')?.textContent || '0';
+        const vProd  = prod?.querySelector('vProd')?.textContent || '0';
+        const NCM   = prod?.querySelector('NCM')?.textContent || '';
+        const uCom  = prod?.querySelector('uCom')?.textContent || 'un';
+        html += `<div class="xml-item-row">
+          <input type="checkbox" id="xml-cb-${i}" checked>
+          <div style="flex:1;">
+            <strong style="font-size:13px;">${xProd}</strong>
+            <span style="font-size:11px;color:var(--text2);margin-left:8px;">NCM: ${NCM}</span><br>
+            <span style="font-size:12px;color:var(--text2);">Qtd: ${qCom} ${uCom} · Un: ${fmt(parseFloat(vUnCom))} · Total: ${fmt(parseFloat(vProd))}</span>
+          </div>
+          <select id="xml-tipo-${i}" style="padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:11px;background:var(--bg2);color:var(--text);">
+            <option value="acessorio">Acessorio</option><option value="filamento">Filamento</option>
+          </select>
+          <input type="hidden" id="xml-xprod-${i}" value="${xProd.replace(/"/g,'&quot;')}">
+          <input type="hidden" id="xml-qtd-${i}" value="${qCom}">
+          <input type="hidden" id="xml-vunit-${i}" value="${vUnCom}">
+          <input type="hidden" id="xml-vtotal-${i}" value="${vProd}">
+          <input type="hidden" id="xml-ucom-${i}" value="${uCom}">
+        </div>`;
+      });
+
+      html += `</div>
+        <div class="sep"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <button class="btn-ok" onclick="importarItensXML(${itens.length},'${nNF||''}','${dhEmi||''}','${emitNome?.replace(/'/g,'') ||''}')"><i class="ti ti-download"></i> Importar Selecionados</button>
+          <button class="btn" onclick="document.getElementById('xml-resultado').innerHTML=''"><i class="ti ti-x"></i> Cancelar</button>
+        </div>
+      </div>`;
+
+      res.innerHTML = html;
+    } catch(err) {
+      document.getElementById('xml-resultado').innerHTML = '<div class="info"><i class="ti ti-alert-circle"></i> Erro ao ler XML: ' + err.message + '</div>';
+    }
+  };
+  reader.readAsText(file);
+  document.getElementById('xml-file').value = '';
+}
+
+function importarItensXML(n, nNF, data, emitente) {
+  let count = 0;
+  for(let i = 0; i < n; i++) {
+    const cb = document.getElementById('xml-cb-'+i);
+    if(!cb || !cb.checked) continue;
+    const tipo = document.getElementById('xml-tipo-'+i).value;
+    const desc = document.getElementById('xml-xprod-'+i).value;
+    const qtd  = parseFloat(document.getElementById('xml-qtd-'+i).value) || 1;
+    const vUnit = parseFloat(document.getElementById('xml-vunit-'+i).value) || 0;
+    const total = parseFloat(document.getElementById('xml-vtotal-'+i).value) || 0;
+    const uCom  = document.getElementById('xml-ucom-'+i).value;
+    compras.unshift({
+      id: Date.now() + i, tipo, desc, qtd, precoUnit: vUnit, total,
+      unidade: uCom, nf: nNF, data: data || hoje(),
+      fornNome: emitente, pgto: '', obs: 'Importado via XML NF-e', filIdx: -1
+    });
+    count++;
+  }
+  S.set('compras', compras);
+  alert(count + ' item(s) importado(s) com sucesso!');
+  document.getElementById('xml-resultado').innerHTML = '';
+  showSubtab('compras', 'historico');
+  document.querySelectorAll('#tab-compras .subtab-btn').forEach((b,i) => b.classList.toggle('active', i===1));
+  renderCompras();
+}
+
+/* ========== PARCEIROS ========== */
+function toggleTipoParceiro(tipo, el) {
+  document.querySelectorAll('.tipo-btn').forEach(b => b.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('par-tipo').value = tipo;
+}
+
+function togglePessoa() {
+  const pj = document.getElementById('par-pessoa').value === 'PJ';
+  document.getElementById('par-label-razao').textContent = pj ? 'Razao Social *' : 'Nome Completo *';
+  document.getElementById('par-label-doc').textContent = pj ? 'CNPJ *' : 'CPF *';
+  document.getElementById('par-doc').placeholder = pj ? '00.000.000/0000-00' : '000.000.000-00';
+  ['par-campo-fantasia','par-campo-ie','par-campo-im','par-campo-cnae'].forEach(id => {
+    document.getElementById(id).style.display = pj ? 'flex' : 'none';
+  });
+}
+
+function mascaraDoc(el) {
+  const pj = document.getElementById('par-pessoa').value === 'PJ';
+  let v = el.value.replace(/\D/g,'');
+  if(pj) {
+    v = v.slice(0,14);
+    v = v.replace(/^(\d{2})(\d)/,'$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/,'$1.$2.$3').replace(/\.(\d{3})(\d)/,'.$1/$2').replace(/(\d{4})(\d)/,'$1-$2');
+  } else {
+    v = v.slice(0,11);
+    v = v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})\.(\d{3})(\d)/,'$1.$2.$3').replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/,'$1.$2.$3-$4');
+  }
+  el.value = v;
+}
+
+function mascaraTel(el) {
+  let v = el.value.replace(/\D/g,'').slice(0,11);
+  if(v.length > 10) v = v.replace(/^(\d{2})(\d{5})(\d{4})$/,'($1) $2-$3');
+  else v = v.replace(/^(\d{2})(\d{4})(\d{4})$/,'($1) $2-$3');
+  el.value = v;
+}
+
+function mascaraCEP(el) {
+  let v = el.value.replace(/\D/g,'').slice(0,8);
+  v = v.replace(/(\d{5})(\d)/,'$1-$2');
+  el.value = v;
+}
+
+async function buscarCEP() {
+  const cep = document.getElementById('par-cep').value.replace(/\D/g,'');
+  if(cep.length !== 8) { alert('CEP invalido'); return; }
+  try {
+    const r = await fetch('https://viacep.com.br/ws/'+cep+'/json/');
+    const d = await r.json();
+    if(d.erro) { alert('CEP nao encontrado'); return; }
+    document.getElementById('par-end').value = d.logradouro || '';
+    document.getElementById('par-bairro').value = d.bairro || '';
+    document.getElementById('par-cidade').value = d.localidade || '';
+    document.getElementById('par-uf').value = d.uf || '';
+    document.getElementById('par-ibge').value = d.ibge || '';
+    document.getElementById('par-num').focus();
+  } catch { alert('Erro ao buscar CEP. Tente novamente.'); }
+}
+
+function showFormParceiro(idx) {
+  editParceiroIdx = idx;
+  document.getElementById('form-parceiro').style.display = 'block';
+  document.getElementById('form-parceiro-titulo').textContent = idx < 0 ? 'Cadastrar Parceiro' : 'Editar Parceiro';
+  const p = idx >= 0 ? parceiros[idx] : {};
+  const campos = ['par-razao','par-fantasia','par-doc','par-ie','par-im','par-cnae','par-email','par-tel','par-site','par-contato','par-cep','par-end','par-num','par-comp','par-bairro','par-cidade','par-ibge','par-banco','par-agencia','par-conta','par-pix','par-obs'];
+  const keys   = ['razao','fantasia','doc','ie','im','cnae','email','tel','site','contato','cep','end','num','comp','bairro','cidade','ibge','banco','agencia','conta','pix','obs'];
+  campos.forEach((id,i) => { const el=document.getElementById(id); if(el) el.value = p[keys[i]] || ''; });
+  document.getElementById('par-pessoa').value = p.pessoa || 'PF';
+  document.getElementById('par-tipo').value = p.tipo || 'cliente';
+  document.getElementById('par-regime').value = p.regime || '';
+  document.getElementById('par-uf').value = p.uf || '';
+  document.getElementById('par-tipo-conta').value = p.tipoConta || 'Corrente';
+  document.querySelectorAll('.tipo-btn').forEach(b => b.classList.remove('sel'));
+  const tipoIdx = {cliente:0,fornecedor:1,ambos:2}[p.tipo||'cliente'];
+  document.querySelectorAll('.tipo-btn')[tipoIdx]?.classList.add('sel');
+  togglePessoa();
+  document.getElementById('form-parceiro').scrollIntoView({behavior:'smooth'});
+}
+
+function salvarParceiro() {
+  const razao = document.getElementById('par-razao').value.trim();
+  if(!razao) { alert('Informe o nome / razao social'); return; }
+  const p = {
+    id: editParceiroIdx >= 0 ? parceiros[editParceiroIdx].id : Date.now(),
+    tipo: document.getElementById('par-tipo').value,
+    pessoa: document.getElementById('par-pessoa').value,
+    razao, fantasia: document.getElementById('par-fantasia').value,
+    doc: document.getElementById('par-doc').value, ie: document.getElementById('par-ie').value,
+    im: document.getElementById('par-im').value, cnae: document.getElementById('par-cnae').value,
+    regime: document.getElementById('par-regime').value,
+    email: document.getElementById('par-email').value, tel: document.getElementById('par-tel').value,
+    site: document.getElementById('par-site').value, contato: document.getElementById('par-contato').value,
+    cep: document.getElementById('par-cep').value, end: document.getElementById('par-end').value,
+    num: document.getElementById('par-num').value, comp: document.getElementById('par-comp').value,
+    bairro: document.getElementById('par-bairro').value, cidade: document.getElementById('par-cidade').value,
+    uf: document.getElementById('par-uf').value, ibge: document.getElementById('par-ibge').value,
+    banco: document.getElementById('par-banco').value, agencia: document.getElementById('par-agencia').value,
+    conta: document.getElementById('par-conta').value, tipoConta: document.getElementById('par-tipo-conta').value,
+    pix: document.getElementById('par-pix').value, obs: document.getElementById('par-obs').value
+  };
+  if(editParceiroIdx >= 0) parceiros[editParceiroIdx] = p; else parceiros.unshift(p);
+  S.set('parceiros', parceiros);
+  document.getElementById('form-parceiro').style.display = 'none';
+  renderParceiros();
+  buildFornecedorSelect();
+}
+
+function renderParceiros() {
+  const filtro = document.getElementById('filtro-parceiro-tipo').value;
+  const lista = filtro ? parceiros.filter(p => p.tipo === filtro) : parceiros;
+  const nCli = parceiros.filter(p=>p.tipo==='cliente'||p.tipo==='ambos').length;
+  const nFor = parceiros.filter(p=>p.tipo==='fornecedor'||p.tipo==='ambos').length;
+  document.getElementById('resumo-parceiros').innerHTML = parceiros.length ?
+    `<div class="grid3" style="margin-bottom:1rem;">
+      <div class="metric"><div class="lbl">Total de parceiros</div><div class="val">${parceiros.length}</div></div>
+      <div class="metric"><div class="lbl">Clientes</div><div class="val" style="color:var(--blue-text);">${nCli}</div></div>
+      <div class="metric"><div class="lbl">Fornecedores</div><div class="val" style="color:var(--amber-text);">${nFor}</div></div>
+    </div>` : '';
+  const el = document.getElementById('lista-parceiros');
+  if(!lista.length) { el.innerHTML = '<div class="empty"><i class="ti ti-users"></i>Nenhum parceiro cadastrado ainda.<br><br><button class="btn" onclick="showFormParceiro(-1)"><i class="ti ti-plus"></i> Cadastrar primeiro parceiro</button></div>'; return; }
+  const TCOR = {cliente:'tag-blue', fornecedor:'tag-amber', ambos:'tag-green'};
+  const TNOME = {cliente:'Cliente', fornecedor:'Fornecedor', ambos:'Cliente e Fornecedor'};
+  el.innerHTML = lista.map(p => `<div class="item-card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+      <div>
+        <strong style="font-size:15px;">${p.razao}</strong>
+        ${p.fantasia ? `<span style="font-size:12px;color:var(--text2);margin-left:8px;">(${p.fantasia})</span>` : ''}
+        <span class="tag ${TCOR[p.tipo]||'tag-blue'}" style="margin-left:8px;">${TNOME[p.tipo]||p.tipo}</span>
+        <span class="tag tag-blue" style="margin-left:4px;">${p.pessoa==='PJ'?'PJ':'PF'}</span>
+        <br><span style="font-size:12px;color:var(--text2);">
+          ${p.doc ? p.doc : ''}
+          ${p.email ? ' · ' + p.email : ''}
+          ${p.tel ? ' · ' + p.tel : ''}
+          ${p.cidade ? ' · ' + p.cidade + (p.uf?'/'+p.uf:'') : ''}
+        </span>
+        ${p.pix ? `<br><span style="font-size:11px;color:var(--text3);"><i class="ti ti-qrcode" style="font-size:11px;"></i> Pix: ${p.pix}</span>` : ''}
+      </div>
+      <div class="row-actions">
+        <button class="btn-edit" onclick="showFormParceiro(${parceiros.indexOf(p)})"><i class="ti ti-edit"></i></button>
+        <button class="btn-del" onclick="delParceiro(${parceiros.indexOf(p)})"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>
+    ${p.obs ? `<div style="font-size:11px;color:var(--text3);">${p.obs}</div>` : ''}
+  </div>`).join('');
+}
+function delParceiro(i) { if(confirm('Remover parceiro?')) { parceiros.splice(i,1); S.set('parceiros',parceiros); renderParceiros(); buildFornecedorSelect(); } }
 
 // INIT
 buildFilSelect();aplicarCfg();checkEstoque();renderFils();
