@@ -102,6 +102,15 @@
   .fil-multi-item select{flex:2;min-width:180px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:13px;background:var(--bg2);color:var(--text);}
   .fil-multi-item input{flex:1;min-width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:13px;background:var(--bg2);color:var(--text);}
   .fil-multi-item .rm{background:transparent;border:1px solid var(--red-border);color:var(--red-text);padding:4px 8px;border-radius:var(--radius);cursor:pointer;font-size:12px;white-space:nowrap;}
+
+  /* Estoque */
+  .estoque-bar-wrap{background:var(--bg3);border-radius:4px;height:8px;overflow:hidden;margin-top:4px;}
+  .estoque-bar{height:8px;border-radius:4px;transition:width 0.5s;}
+  .mov-entrada{border-left:3px solid var(--neon);}
+  .mov-saida{border-left:3px solid var(--red-text);}
+  .mov-ajuste{border-left:3px solid var(--amber-text);}
+  .alerta-box{background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius);padding:.75rem 1rem;font-size:13px;color:var(--red-text);margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+
 </style>
 </head>
 <body>
@@ -120,6 +129,7 @@
   <button onclick="showTab('pedidos')" id="btn-pedidos"><i class="ti ti-clipboard-list"></i> Pedidos</button>
   <button onclick="showTab('vendas')" id="btn-vendas"><i class="ti ti-shopping-cart"></i> Vendas</button>
   <button onclick="showTab('contas')" id="btn-contas"><i class="ti ti-coin"></i> Contas a Receber</button>
+  <button onclick="showTab('estoque')" id="btn-estoque"><i class="ti ti-chart-bar"></i> Estoque</button>
   <button onclick="showTab('compras')" id="btn-compras"><i class="ti ti-shopping-bag"></i> Compras</button>
   <button onclick="showTab('parceiros')" id="btn-parceiros"><i class="ti ti-users"></i> Parceiros</button>
   <button onclick="showTab('config')" id="btn-config"><i class="ti ti-settings"></i> Configurações</button>
@@ -390,6 +400,70 @@
     <button class="btn-del" onclick="limparTudo()"><i class="ti ti-trash"></i> Apagar todos os dados</button>
   </div>
 </div>
+<!-- ESTOQUE -->
+<div id="tab-estoque" class="tab">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
+    <span class="stitle" style="margin:0;">Controle de Estoque</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn" onclick="showAjusteEstoque()"><i class="ti ti-adjustments"></i> Ajuste Manual</button>
+      <button class="btn-ok" onclick="renderEstoque()"><i class="ti ti-refresh"></i> Atualizar</button>
+    </div>
+  </div>
+
+  <!-- Alertas de estoque critico -->
+  <div id="estoque-alertas" style="margin-bottom:1rem;"></div>
+
+  <!-- Resumo geral -->
+  <div id="estoque-resumo" style="margin-bottom:1rem;"></div>
+
+  <!-- Form ajuste manual -->
+  <div id="form-ajuste" style="display:none;" class="card">
+    <div class="stitle" style="font-size:11px;margin-bottom:1rem;">Ajuste Manual de Estoque</div>
+    <div class="grid2">
+      <div class="field"><label>Filamento</label>
+        <select id="aj-fil"><option value="">Selecionar filamento...</option></select>
+      </div>
+      <div class="field"><label>Tipo de movimentacao</label>
+        <select id="aj-tipo">
+          <option value="entrada">Entrada — adicionar ao estoque</option>
+          <option value="saida">Saida — retirar do estoque</option>
+          <option value="ajuste">Ajuste — correcao de inventario</option>
+        </select>
+      </div>
+      <div class="field"><label>Quantidade (g)</label>
+        <input type="number" id="aj-qtd" placeholder="Ex: 150" step="1" min="0">
+      </div>
+      <div class="field"><label>Motivo / Descricao</label>
+        <input type="text" id="aj-motivo" placeholder="Ex: Inventario, Descarte, Ajuste manual">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-ok" onclick="salvarAjuste()"><i class="ti ti-device-floppy"></i> Registrar</button>
+      <button class="btn" onclick="document.getElementById('form-ajuste').style.display='none'">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Cards de filamentos -->
+  <div id="estoque-cards" style="margin-bottom:1.5rem;"></div>
+
+  <!-- Historico de movimentacoes -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:8px;">
+    <span class="stitle" style="margin:0;font-size:11px;">Historico de Movimentacoes</span>
+    <div style="display:flex;gap:8px;">
+      <select id="filtro-mov-fil" onchange="renderMovimentacoes()" style="padding:6px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:12px;background:var(--bg2);color:var(--text);">
+        <option value="">Todos os filamentos</option>
+      </select>
+      <select id="filtro-mov-tipo" onchange="renderMovimentacoes()" style="padding:6px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:12px;background:var(--bg2);color:var(--text);">
+        <option value="">Todos os tipos</option>
+        <option value="entrada">Entradas</option>
+        <option value="saida">Saidas</option>
+        <option value="ajuste">Ajustes</option>
+      </select>
+    </div>
+  </div>
+  <div id="lista-movimentacoes"></div>
+</div>
+
 <!-- COMPRAS -->
 <div id="tab-compras" class="tab">
   <div class="subtab-nav">
@@ -667,6 +741,7 @@ function showTab(t){
   if(t==='vendas'){renderVendas();buildProdOpts();}
   if(t==='contas')renderContas();
   if(t==='config')loadCfg();
+  if(t==='estoque'){renderEstoque();}
   if(t==='compras'){buildFilSelectCompra();buildFornecedorSelect();document.getElementById('cp-data').value=hoje();}
   if(t==='parceiros')renderParceiros();
 }
@@ -778,7 +853,23 @@ function salvarProduto(){
   const fils=getFilsProd();
   const p={id:editProdIdx>=0?produtos[editProdIdx].id:Date.now(),nome,cat:document.getElementById('p-cat').value,fils,filNome:fils.map(f=>f.filNome).join(', ')||'—',horas:document.getElementById('p-horas').value,precoNum,preco:precoNum?fmt(precoNum):'—',obs:document.getElementById('p-obs').value};
   if(editProdIdx>=0)produtos[editProdIdx]=p;else produtos.unshift(p);
-  S.set('produtos',produtos);document.getElementById('form-prod').style.display='none';renderProds();
+  S.set('produtos',produtos);
+  document.getElementById('form-prod').style.display='none';
+  renderProds();
+  // Baixa de estoque ao cadastrar producao
+  if(fils.length > 0 && editProdIdx < 0) {
+    const filsComIdx = fils.filter(f => f.filIdx >= 0 && filamentos[f.filIdx] && f.peso > 0);
+    if(filsComIdx.length > 0) {
+      const resumo = filsComIdx.map(f => `• ${f.filNome}: ${f.peso}g`).join('\n');
+      if(confirm('Deseja dar baixa no estoque dos filamentos utilizados nesta peca?\n\n' + resumo + '\n\nClique OK para confirmar a saida.')) {
+        const ok = baixarEstoqueProduto(filsComIdx, 'Producao: ' + nome);
+        if(ok) {
+          buildFilSelect();
+          alert('Estoque atualizado com sucesso!');
+        }
+      }
+    }
+  }
 }
 function renderProds(){
   const el=document.getElementById('lista-produtos');
@@ -825,8 +916,17 @@ function salvarComoPedido(){
   const nome=document.getElementById('c-nome-peca').value||'Peca sem nome';
   const filIdx=parseInt(document.getElementById('c-fil-sel').value);
   const filNome=(!isNaN(filIdx)&&filamentos[filIdx])?`${filamentos[filIdx].marca} ${filamentos[filIdx].modelo} ${filamentos[filIdx].corNome}`:'';
-  pedidos.unshift({id:Date.now(),nome,preco:document.getElementById('r-preco').textContent,data:new Date().toLocaleDateString('pt-BR'),status:'pendente',horas:document.getElementById('c-horas').value||'—',filNome,peso:document.getElementById('c-peso').value||'—'});
-  S.set('pedidos',pedidos);alert('Pedido salvo: '+nome);
+  const peso=parseFloat(document.getElementById('c-peso').value)||0;
+  pedidos.unshift({id:Date.now(),nome,preco:document.getElementById('r-preco').textContent,data:new Date().toLocaleDateString('pt-BR'),status:'pendente',horas:document.getElementById('c-horas').value||'—',filNome,filIdx:isNaN(filIdx)?-1:filIdx,peso:peso||'—'});
+  S.set('pedidos',pedidos);
+  // Baixa de estoque ao criar pedido
+  if(!isNaN(filIdx) && filamentos[filIdx] && peso > 0) {
+    if(confirm(`Deseja dar baixa no estoque?\n\n• ${filNome}: ${peso}g\n\nClique OK para confirmar.`)) {
+      baixarEstoqueProduto([{filIdx, peso}], 'Pedido: ' + nome);
+      buildFilSelect();
+    }
+  }
+  alert('Pedido salvo: '+nome);
 }
 function salvarComoProduto(){
   const nome=document.getElementById('c-nome-peca').value||'Peca sem nome';
@@ -984,7 +1084,7 @@ function checkEstoque(){
   document.getElementById('header-alert').style.display=critico?'block':'none';
 }
 function exportarDados(){
-  const blob=new Blob([JSON.stringify({filamentos,produtos,pedidos,vendas,faturas,compras,parceiros,cfg,exportadoEm:new Date().toISOString()},null,2)],{type:'application/json'});
+  const blob=new Blob([JSON.stringify({filamentos,produtos,pedidos,vendas,faturas,compras,parceiros,movimentacoes,cfg,exportadoEm:new Date().toISOString()},null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='akp3d_backup_'+hoje()+'.json';a.click();
 }
 function lerImporte(input){
@@ -995,9 +1095,9 @@ function lerImporte(input){
       const d=JSON.parse(e.target.result);
       if(d.filamentos)filamentos=d.filamentos;if(d.produtos)produtos=d.produtos;
       if(d.pedidos)pedidos=d.pedidos;if(d.vendas)vendas=d.vendas;
-      if(d.faturas)faturas=d.faturas;if(d.compras)compras=d.compras;if(d.parceiros)parceiros=d.parceiros;if(d.cfg)cfg=d.cfg;
+      if(d.faturas)faturas=d.faturas;if(d.compras)compras=d.compras;if(d.parceiros)parceiros=d.parceiros;if(d.movimentacoes)movimentacoes=d.movimentacoes;if(d.cfg)cfg=d.cfg;
       S.set('filamentos',filamentos);S.set('produtos',produtos);S.set('pedidos',pedidos);
-      S.set('vendas',vendas);S.set('faturas',faturas);S.set('compras',compras);S.set('parceiros',parceiros);S.set('cfg',cfg);
+      S.set('vendas',vendas);S.set('faturas',faturas);S.set('compras',compras);S.set('parceiros',parceiros);S.set('movimentacoes',movimentacoes);S.set('cfg',cfg);
       alert('Dados importados com sucesso!');buildFilSelect();checkEstoque();renderFils();
     }catch{alert('Arquivo invalido.');}
   };
@@ -1006,11 +1106,206 @@ function lerImporte(input){
 function limparTudo(){
   if(confirm('Apagar TODOS os dados? Esta acao nao pode ser desfeita!')){
     filamentos=[];produtos=[];pedidos=[];vendas=[];faturas=[];cfg={};
-    ['filamentos','produtos','pedidos','vendas','faturas','compras','parceiros','cfg'].forEach(k=>localStorage.removeItem('akp3d_'+k));
+    ['filamentos','produtos','pedidos','vendas','faturas','compras','parceiros','movimentacoes','cfg'].forEach(k=>localStorage.removeItem('akp3d_'+k));
     alert('Dados apagados.');buildFilSelect();checkEstoque();renderFils();
   }
 }
 
+
+
+/* ========== ESTOQUE ========== */
+let movimentacoes = S.get('movimentacoes') || [];
+
+function registrarMovimentacao(filIdx, tipo, qtd, motivo, referencia) {
+  if(filIdx < 0 || filIdx >= filamentos.length || qtd <= 0) return;
+  const f = filamentos[filIdx];
+  const antes = parseFloat(f.qtd) || 0;
+  let depois = antes;
+  if(tipo === 'entrada') depois = antes + qtd;
+  else if(tipo === 'saida') depois = Math.max(0, antes - qtd);
+  else if(tipo === 'ajuste') depois = qtd; // ajuste = valor absoluto
+  filamentos[filIdx].qtd = depois;
+  S.set('filamentos', filamentos);
+  movimentacoes.unshift({
+    id: Date.now(),
+    filIdx, filNome: f.marca + ' ' + f.modelo + ' ' + f.corNome,
+    corHex: f.corHex, tipo, qtd,
+    antes: antes.toFixed(0), depois: depois.toFixed(0),
+    motivo: motivo || '',
+    referencia: referencia || '',
+    data: hoje(), hora: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})
+  });
+  S.set('movimentacoes', movimentacoes);
+  checkEstoque();
+}
+
+function baixarEstoqueProduto(fils, referencia) {
+  // fils = array de {filIdx, peso}
+  const insuficientes = [];
+  fils.forEach(f => {
+    if(f.filIdx >= 0 && filamentos[f.filIdx]) {
+      const atual = parseFloat(filamentos[f.filIdx].qtd) || 0;
+      if(atual < f.peso) insuficientes.push(filamentos[f.filIdx].marca + ' ' + filamentos[f.filIdx].modelo + ' ' + filamentos[f.filIdx].corNome + ' (disponivel: ' + atual + 'g, necessario: ' + f.peso + 'g)');
+    }
+  });
+  if(insuficientes.length) {
+    const msg = 'ATENCAO: Estoque insuficiente para:
+' + insuficientes.join('
+') + '
+
+Deseja continuar mesmo assim?';
+    if(!confirm(msg)) return false;
+  }
+  fils.forEach(f => {
+    if(f.filIdx >= 0 && filamentos[f.filIdx] && f.peso > 0) {
+      registrarMovimentacao(f.filIdx, 'saida', f.peso, 'Producao de peca', referencia);
+    }
+  });
+  return true;
+}
+
+function showAjusteEstoque() {
+  const s = document.getElementById('aj-fil');
+  s.innerHTML = '<option value="">Selecionar filamento...</option>' +
+    filamentos.map((f,i) => `<option value="${i}">${f.marca} ${f.modelo} — ${f.corNome} (${f.qtd}g)</option>`).join('');
+  document.getElementById('form-ajuste').style.display = 'block';
+  document.getElementById('form-ajuste').scrollIntoView({behavior:'smooth'});
+}
+
+function salvarAjuste() {
+  const filIdx = parseInt(document.getElementById('aj-fil').value);
+  const tipo = document.getElementById('aj-tipo').value;
+  const qtd = parseFloat(document.getElementById('aj-qtd').value) || 0;
+  const motivo = document.getElementById('aj-motivo').value.trim();
+  if(isNaN(filIdx) || filIdx < 0) { alert('Selecione um filamento'); return; }
+  if(qtd <= 0) { alert('Informe a quantidade'); return; }
+  registrarMovimentacao(filIdx, tipo, qtd, motivo || 'Ajuste manual', 'Ajuste manual');
+  document.getElementById('form-ajuste').style.display = 'none';
+  document.getElementById('aj-qtd').value = '';
+  document.getElementById('aj-motivo').value = '';
+  renderEstoque();
+  alert('Movimentacao registrada com sucesso!');
+}
+
+function renderEstoque() {
+  // Alertas
+  const criticos = filamentos.filter(f => {
+    const pct = f.pesoRolo > 0 ? (f.qtd / f.pesoRolo * 100) : 0;
+    return pct <= 15 && f.qtd >= 0;
+  });
+  const alertasEl = document.getElementById('estoque-alertas');
+  if(criticos.length) {
+    alertasEl.innerHTML = criticos.map(f =>
+      `<div class="alerta-box"><i class="ti ti-alert-triangle"></i><span><strong>${f.marca} ${f.modelo} ${f.corNome}</strong> — estoque critico: <strong>${f.qtd}g</strong> restantes (${f.pesoRolo>0?((f.qtd/f.pesoRolo)*100).toFixed(0):0}% do rolo)</span></div>`
+    ).join('');
+  } else {
+    alertasEl.innerHTML = '';
+  }
+
+  // Resumo
+  const totalG = filamentos.reduce((s,f) => s + parseFloat(f.qtd||0), 0);
+  const totalV = filamentos.reduce((s,f) => s + (parseFloat(f.qtd||0)/parseFloat(f.pesoRolo||1000))*parseFloat(f.preco||0), 0);
+  const totalMov = movimentacoes.length;
+  const totalSaida = movimentacoes.filter(m=>m.tipo==='saida').reduce((s,m)=>s+m.qtd,0);
+  document.getElementById('estoque-resumo').innerHTML = `
+    <div class="grid4" style="margin-bottom:1rem;">
+      <div class="metric"><div class="lbl">Filamentos em estoque</div><div class="val">${filamentos.length}</div></div>
+      <div class="metric"><div class="lbl">Total disponivel</div><div class="val">${totalG.toFixed(0)}g</div></div>
+      <div class="metric"><div class="lbl">Valor em estoque</div><div class="val">${fmt(totalV)}</div></div>
+      <div class="metric"><div class="lbl">Total consumido</div><div class="val" style="color:var(--amber-text);">${totalSaida.toFixed(0)}g</div></div>
+    </div>`;
+
+  // Cards por filamento
+  const cardsEl = document.getElementById('estoque-cards');
+  if(!filamentos.length) {
+    cardsEl.innerHTML = '<div class="empty"><i class="ti ti-package"></i>Nenhum filamento cadastrado.</div>';
+    return;
+  }
+  cardsEl.innerHTML = filamentos.map((f, idx) => {
+    const pct = f.pesoRolo > 0 ? Math.min(100, (f.qtd / f.pesoRolo * 100)) : 0;
+    const cor = pct > 50 ? '#39ff14' : pct > 15 ? '#ffaa00' : '#ff4444';
+    const stLabel = pct > 50 ? 'Ok' : pct > 15 ? 'Baixo' : 'Critico';
+    const stClass = pct > 50 ? 'tag-green' : pct > 15 ? 'tag-amber' : 'tag-red';
+    const custoG = f.preco > 0 && f.pesoRolo > 0 ? (f.preco / f.pesoRolo).toFixed(3) : '—';
+    const movsFil = movimentacoes.filter(m => m.filIdx === idx);
+    const totalEntradas = movsFil.filter(m=>m.tipo==='entrada').reduce((s,m)=>s+m.qtd,0);
+    const totalSaidas = movsFil.filter(m=>m.tipo==='saida').reduce((s,m)=>s+m.qtd,0);
+    return `<div class="card" style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="cor-dot" style="background:${f.corHex};width:18px;height:18px;"></span>
+          <div>
+            <strong style="font-size:14px;">${f.marca} ${f.modelo}</strong>
+            <span class="tag ${stClass}" style="margin-left:8px;">${stLabel}</span>
+            <br><span style="font-size:12px;color:var(--text2);">${f.corNome} · ${f.diam}mm · R$ ${custoG}/g</span>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:22px;font-weight:700;color:${cor};text-shadow:0 0 8px ${cor};">${f.qtd}g</div>
+          <div style="font-size:11px;color:var(--text3);">${pct.toFixed(0)}% do rolo (${f.pesoRolo}g)</div>
+        </div>
+      </div>
+      <div class="estoque-bar-wrap"><div class="estoque-bar" style="width:${pct}%;background:${cor};"></div></div>
+      <div class="grid3" style="margin-top:10px;">
+        <div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--neon);font-weight:700;">+${totalEntradas.toFixed(0)}g</span><br>entradas</div>
+        <div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--red-text);font-weight:700;">-${totalSaidas.toFixed(0)}g</span><br>consumido</div>
+        <div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--amber-text);font-weight:700;">${movsFil.length}</span><br>movimentacoes</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Filtros do historico
+  const selFil = document.getElementById('filtro-mov-fil');
+  const valAtual = selFil.value;
+  selFil.innerHTML = '<option value="">Todos os filamentos</option>' +
+    filamentos.map((f,i) => `<option value="${i}">${f.marca} ${f.modelo} ${f.corNome}</option>`).join('');
+  selFil.value = valAtual;
+
+  renderMovimentacoes();
+}
+
+function renderMovimentacoes() {
+  const filtroFil = document.getElementById('filtro-mov-fil').value;
+  const filtroTipo = document.getElementById('filtro-mov-tipo').value;
+  let lista = [...movimentacoes];
+  if(filtroFil !== '') lista = lista.filter(m => m.filIdx === parseInt(filtroFil));
+  if(filtroTipo) lista = lista.filter(m => m.tipo === filtroTipo);
+
+  const el = document.getElementById('lista-movimentacoes');
+  if(!lista.length) {
+    el.innerHTML = '<div class="empty" style="padding:1.5rem;"><i class="ti ti-history"></i>Nenhuma movimentacao registrada ainda.<br><span style="font-size:12px;">As movimentacoes sao criadas automaticamente ao produzir pecas ou fazer ajustes manuais.</span></div>';
+    return;
+  }
+  const iconeTipo = {entrada:'ti-arrow-down-circle', saida:'ti-arrow-up-circle', ajuste:'ti-adjustments'};
+  const corTipo = {entrada:'var(--neon)', saida:'var(--red-text)', ajuste:'var(--amber-text)'};
+  const labelTipo = {entrada:'Entrada', saida:'Saida', ajuste:'Ajuste'};
+  el.innerHTML = lista.slice(0,100).map(m => `
+    <div class="item-card mov-${m.tipo}" style="padding:.75rem 1rem;margin-bottom:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <i class="ti ${iconeTipo[m.tipo]||'ti-circle'}" style="font-size:20px;color:${corTipo[m.tipo]||'var(--text2)'};"></i>
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="cor-dot" style="background:${m.corHex||'#555'};"></span>
+              <strong style="font-size:13px;">${m.filNome}</strong>
+              <span class="tag ${m.tipo==='entrada'?'tag-green':m.tipo==='saida'?'tag-red':'tag-amber'}" style="font-size:10px;">${labelTipo[m.tipo]||m.tipo}</span>
+            </div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px;">
+              ${m.data} ${m.hora}
+              ${m.motivo ? ' · ' + m.motivo : ''}
+              ${m.referencia && m.referencia !== m.motivo ? ' · Ref: ' + m.referencia : ''}
+            </div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:16px;font-weight:700;color:${corTipo[m.tipo]||'var(--text2)'};">
+            ${m.tipo==='entrada'?'+':m.tipo==='saida'?'-':''}${m.qtd}g
+          </div>
+          <div style="font-size:11px;color:var(--text3);">${m.antes}g → ${m.depois}g</div>
+        </div>
+      </div>
+    </div>`).join('');
+}
 
 /* ========== COMPRAS ========== */
 let compras = S.get('compras') || [];
@@ -1098,8 +1393,7 @@ function salvarCompra() {
     // Atualizar estoque
     const entrada = document.getElementById('cp-entrada-estoque').value;
     if(entrada === 'sim' && !isNaN(filIdx) && filamentos[filIdx]) {
-      filamentos[filIdx].qtd = parseFloat(filamentos[filIdx].qtd||0) + (rolos * pesoRolo);
-      S.set('filamentos', filamentos);
+      registrarMovimentacao(filIdx, 'entrada', rolos * pesoRolo, 'Compra de filamento', compra.nf ? 'NF: ' + compra.nf : 'Compra');
       renderFils();
     }
   } else {
@@ -1157,6 +1451,46 @@ function renderCompras() {
 function delCompra(i) { if(confirm('Remover compra?')) { compras.splice(i,1); S.set('compras',compras); renderCompras(); } }
 
 /* --- XML NF-e --- */
+
+// Mapeamento entre nome do produto XML e filamentos cadastrados
+// Salvo em localStorage para lembrar escolhas futuras
+function getMapaXML() { return S.get('mapa_xml') || {}; }
+function salvarMapaXML(xProd, filIdx) {
+  const m = getMapaXML();
+  m[xProd.toLowerCase().trim()] = filIdx;
+  S.set('mapa_xml', m);
+}
+
+function matchFilamento(xProd) {
+  // 1. Verifica mapa salvo pelo usuario
+  const mapa = getMapaXML();
+  const chave = xProd.toLowerCase().trim();
+  if(mapa[chave] !== undefined && filamentos[mapa[chave]]) return mapa[chave];
+  // 2. Busca por correspondencia de nome (marca, modelo ou cor)
+  const desc = xProd.toLowerCase();
+  let melhor = -1, melhorScore = 0;
+  filamentos.forEach((f, idx) => {
+    let score = 0;
+    if(desc.includes(f.marca.toLowerCase())) score += 3;
+    if(desc.includes(f.modelo.toLowerCase())) score += 3;
+    if(f.corNome && desc.includes(f.corNome.toLowerCase())) score += 2;
+    // Palavras-chave de filamento
+    if(desc.includes('pla')) score += (f.modelo.toLowerCase().includes('pla') ? 2 : 0);
+    if(desc.includes('petg')) score += (f.modelo.toLowerCase().includes('petg') ? 2 : 0);
+    if(desc.includes('abs')) score += (f.modelo.toLowerCase().includes('abs') ? 2 : 0);
+    if(desc.includes('tpu')) score += (f.modelo.toLowerCase().includes('tpu') ? 2 : 0);
+    if(score > melhorScore) { melhorScore = score; melhor = idx; }
+  });
+  return melhorScore >= 3 ? melhor : -1;
+}
+
+function filOpts(selecionado) {
+  return '<option value="-1">-- Nao vincular ao estoque --</option>' +
+    filamentos.map((f,i) =>
+      `<option value="${i}" ${i===selecionado?'selected':''}>${f.marca} ${f.modelo} — ${f.corNome} (${f.qtd}g)</option>`
+    ).join('');
+}
+
 function processarXML(file) {
   if(!file) return;
   const reader = new FileReader();
@@ -1166,25 +1500,43 @@ function processarXML(file) {
       const xml = parser.parseFromString(e.target.result, 'application/xml');
       const res = document.getElementById('xml-resultado');
 
-      // Dados emitente
       const emit = xml.querySelector('emit');
-      const dest = xml.querySelector('dest');
       const ide  = xml.querySelector('ide');
-      const nNF  = ide ? ide.querySelector('nNF')?.textContent : '';
-      const dhEmi = ide ? ide.querySelector('dhEmi')?.textContent?.slice(0,10) : '';
-      const emitNome = emit ? (emit.querySelector('xFant')?.textContent || emit.querySelector('xNome')?.textContent) : '';
-      const emitCNPJ = emit ? emit.querySelector('CNPJ')?.textContent : '';
-      const vNF  = xml.querySelector('vNF')?.textContent || '';
+      const nNF   = ide?.querySelector('nNF')?.textContent || '';
+      const dhEmi = ide?.querySelector('dhEmi')?.textContent?.slice(0,10) || '';
+      const emitNome = emit ? (emit.querySelector('xFant')?.textContent || emit.querySelector('xNome')?.textContent || '') : '';
+      const emitCNPJ = emit?.querySelector('CNPJ')?.textContent || '';
+      const vNF = xml.querySelector('vNF')?.textContent || '';
 
-      // Itens
       const itens = Array.from(xml.querySelectorAll('det'));
+      if(!itens.length) {
+        res.innerHTML = '<div class="info"><i class="ti ti-alert-circle"></i> Nenhum item encontrado no XML.</div>';
+        return;
+      }
 
-      if(!itens.length) { res.innerHTML = '<div class="info"><i class="ti ti-alert-circle"></i> Nenhum item encontrado no XML.</div>'; return; }
+      // Pre-processar itens e fazer match automatico
+      const dadosItens = itens.map((item, i) => {
+        const prod = item.querySelector('prod');
+        const xProd  = prod?.querySelector('xProd')?.textContent || '';
+        const qCom   = prod?.querySelector('qCom')?.textContent || '1';
+        const vUnCom = prod?.querySelector('vUnCom')?.textContent || '0';
+        const vProd  = prod?.querySelector('vProd')?.textContent || '0';
+        const NCM    = prod?.querySelector('NCM')?.textContent || '';
+        const uCom   = prod?.querySelector('uCom')?.textContent || 'un';
+        // Detectar se e filamento por nome ou NCM (NCM 3916 e 3920 = plasticos)
+        const pareceFilamento = /pla|petg|abs|tpu|tpe|nylon|filament|resina|silk|matte/i.test(xProd) ||
+          NCM.startsWith('3916') || NCM.startsWith('3920');
+        const filMatch = pareceFilamento ? matchFilamento(xProd) : -1;
+        // Calcular gramas a partir da quantidade e unidade
+        let gramas = parseFloat(qCom) || 1;
+        if(uCom.toLowerCase() === 'kg') gramas = gramas * 1000;
+        return { xProd, qCom, vUnCom, vProd, NCM, uCom, pareceFilamento, filMatch, gramas };
+      });
 
       let html = `<div class="xml-preview">
         <div style="margin-bottom:12px;">
           <div class="stitle" style="font-size:11px;margin-bottom:6px;">Dados da Nota Fiscal</div>
-          <div class="grid2">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
             <div style="font-size:13px;"><span style="color:var(--text2);">Emitente:</span> <strong>${emitNome||'—'}</strong></div>
             <div style="font-size:13px;"><span style="color:var(--text2);">CNPJ:</span> <strong>${emitCNPJ||'—'}</strong></div>
             <div style="font-size:13px;"><span style="color:var(--text2);">Numero NF:</span> <strong>${nNF||'—'}</strong></div>
@@ -1193,75 +1545,165 @@ function processarXML(file) {
           </div>
         </div>
         <div class="sep"></div>
-        <div class="stitle" style="font-size:11px;margin-bottom:8px;">Itens da NF (selecione os que deseja importar como compra)</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+          <div class="stitle" style="font-size:11px;margin:0;">Itens da NF — vincule filamentos e selecione o que importar</div>
+          <div style="font-size:11px;color:var(--text2);">
+            <span style="color:var(--neon);">●</span> Vinculo automatico detectado &nbsp;
+            <span style="color:var(--amber-text);">●</span> Vincule manualmente
+          </div>
+        </div>
         <div id="xml-itens">`;
 
-      itens.forEach((item, i) => {
-        const prod = item.querySelector('prod');
-        const xProd = prod?.querySelector('xProd')?.textContent || '';
-        const qCom  = prod?.querySelector('qCom')?.textContent || '1';
-        const vUnCom = prod?.querySelector('vUnCom')?.textContent || '0';
-        const vProd  = prod?.querySelector('vProd')?.textContent || '0';
-        const NCM   = prod?.querySelector('NCM')?.textContent || '';
-        const uCom  = prod?.querySelector('uCom')?.textContent || 'un';
-        html += `<div class="xml-item-row">
-          <input type="checkbox" id="xml-cb-${i}" checked>
-          <div style="flex:1;">
-            <strong style="font-size:13px;">${xProd}</strong>
-            <span style="font-size:11px;color:var(--text2);margin-left:8px;">NCM: ${NCM}</span><br>
-            <span style="font-size:12px;color:var(--text2);">Qtd: ${qCom} ${uCom} · Un: ${fmt(parseFloat(vUnCom))} · Total: ${fmt(parseFloat(vProd))}</span>
+      dadosItens.forEach((d, i) => {
+        const temMatch = d.filMatch >= 0;
+        const borderColor = d.pareceFilamento ? (temMatch ? 'var(--green-border)' : 'var(--amber-border)') : 'var(--border)';
+        const badgeMatch = temMatch
+          ? `<span class="tag tag-green" style="font-size:10px;"><i class="ti ti-link"></i> ${filamentos[d.filMatch].marca} ${filamentos[d.filMatch].modelo} ${filamentos[d.filMatch].corNome}</span>`
+          : (d.pareceFilamento ? `<span class="tag tag-amber" style="font-size:10px;"><i class="ti ti-alert-circle"></i> Vincule ao filamento</span>` : '');
+
+        html += `<div class="xml-item-row" style="border-left:3px solid ${borderColor};padding-left:10px;margin-bottom:8px;background:var(--bg3);border-radius:0 var(--radius) var(--radius) 0;">
+          <input type="checkbox" id="xml-cb-${i}" ${d.pareceFilamento||'checked'?'checked':''}>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
+              <strong style="font-size:13px;">${d.xProd}</strong>
+              ${d.pareceFilamento ? '<span class="tag tag-blue" style="font-size:10px;">Filamento</span>' : '<span class="tag" style="font-size:10px;background:var(--bg2);color:var(--text2);border:1px solid var(--border2);">Acessorio</span>'}
+              ${badgeMatch}
+            </div>
+            <div style="font-size:12px;color:var(--text2);">
+              NCM: ${d.NCM} &nbsp;·&nbsp; Qtd: <strong>${d.qCom} ${d.uCom}</strong>
+              ${d.uCom.toLowerCase()==='kg'||d.uCom.toLowerCase()==='g' ? ` (${d.gramas.toFixed(0)}g)` : ''}
+              &nbsp;·&nbsp; Un: ${fmt(parseFloat(d.vUnCom))} &nbsp;·&nbsp; Total: ${fmt(parseFloat(d.vProd))}
+            </div>
+            ${d.pareceFilamento ? `
+            <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <label style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;">Vincular ao filamento:</label>
+              <select id="xml-fil-${i}" onchange="onChangeXmlFil(${i},'${d.xProd.replace(/'/g,"\'")}')"
+                style="flex:1;min-width:180px;padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:12px;background:var(--bg2);color:var(--text);">
+                ${filOpts(d.filMatch)}
+              </select>
+              <label style="font-size:11px;color:var(--text2);">Qtd em gramas:</label>
+              <input type="number" id="xml-gramas-${i}" value="${d.gramas.toFixed(0)}" min="0" step="50"
+                style="width:90px;padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:12px;background:var(--bg2);color:var(--text);">
+            </div>` : ''}
           </div>
-          <select id="xml-tipo-${i}" style="padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:11px;background:var(--bg2);color:var(--text);">
-            <option value="acessorio">Acessorio</option><option value="filamento">Filamento</option>
+          <select id="xml-tipo-${i}" onchange="onChangeXmlTipo(${i})"
+            style="padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:11px;background:var(--bg2);color:var(--text);">
+            <option value="filamento" ${d.pareceFilamento?'selected':''}>Filamento</option>
+            <option value="acessorio" ${!d.pareceFilamento?'selected':''}>Acessorio</option>
           </select>
-          <input type="hidden" id="xml-xprod-${i}" value="${xProd.replace(/"/g,'&quot;')}">
-          <input type="hidden" id="xml-qtd-${i}" value="${qCom}">
-          <input type="hidden" id="xml-vunit-${i}" value="${vUnCom}">
-          <input type="hidden" id="xml-vtotal-${i}" value="${vProd}">
-          <input type="hidden" id="xml-ucom-${i}" value="${uCom}">
+          <input type="hidden" id="xml-xprod-${i}" value="${d.xProd.replace(/"/g,'&quot;')}">
+          <input type="hidden" id="xml-qtd-${i}" value="${d.qCom}">
+          <input type="hidden" id="xml-vunit-${i}" value="${d.vUnCom}">
+          <input type="hidden" id="xml-vtotal-${i}" value="${d.vProd}">
+          <input type="hidden" id="xml-ucom-${i}" value="${d.uCom}">
         </div>`;
       });
 
       html += `</div>
         <div class="sep"></div>
+        <div style="background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:var(--radius);padding:8px 12px;font-size:12px;color:var(--blue-text);margin-bottom:12px;">
+          <i class="ti ti-info-circle"></i> O vinculo entre produto do XML e filamento do estoque sera <strong>memorizado</strong>. Proximas importacoes do mesmo produto serao vinculadas automaticamente.
+        </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-          <button class="btn-ok" onclick="importarItensXML(${itens.length},'${nNF||''}','${dhEmi||''}','${emitNome?.replace(/'/g,'') ||''}')"><i class="ti ti-download"></i> Importar Selecionados</button>
+          <button class="btn-ok" onclick="importarItensXML(${dadosItens.length},'${nNF||''}','${dhEmi||''}','${emitNome.replace(/'/g,'')||''}')">
+            <i class="ti ti-download"></i> Importar e Atualizar Estoque
+          </button>
           <button class="btn" onclick="document.getElementById('xml-resultado').innerHTML=''"><i class="ti ti-x"></i> Cancelar</button>
         </div>
       </div>`;
 
       res.innerHTML = html;
     } catch(err) {
-      document.getElementById('xml-resultado').innerHTML = '<div class="info"><i class="ti ti-alert-circle"></i> Erro ao ler XML: ' + err.message + '</div>';
+      document.getElementById('xml-resultado').innerHTML =
+        '<div class="info"><i class="ti ti-alert-circle"></i> Erro ao ler XML: ' + err.message + '</div>';
     }
   };
   reader.readAsText(file);
   document.getElementById('xml-file').value = '';
 }
 
+function onChangeXmlFil(i, xProd) {
+  // Salva o vinculo no mapa para uso futuro
+  const filIdx = parseInt(document.getElementById('xml-fil-'+i)?.value);
+  if(!isNaN(filIdx) && filIdx >= 0) salvarMapaXML(xProd, filIdx);
+}
+
+function onChangeXmlTipo(i) {
+  // Ao mudar para filamento, mostrar campo de vinculo se nao existir
+  const tipo = document.getElementById('xml-tipo-'+i).value;
+  const gramasEl = document.getElementById('xml-gramas-'+i);
+  const filEl = document.getElementById('xml-fil-'+i);
+  if(tipo === 'filamento' && !filEl) {
+    // Re-renderizar com campo de filamento visivel
+    const row = document.getElementById('xml-cb-'+i)?.closest('.xml-item-row');
+    if(row) row.style.borderLeftColor = 'var(--amber-border)';
+  }
+}
+
 function importarItensXML(n, nNF, data, emitente) {
   let count = 0;
+  let estoqueAtualizado = [];
+
   for(let i = 0; i < n; i++) {
     const cb = document.getElementById('xml-cb-'+i);
     if(!cb || !cb.checked) continue;
-    const tipo = document.getElementById('xml-tipo-'+i).value;
-    const desc = document.getElementById('xml-xprod-'+i).value;
-    const qtd  = parseFloat(document.getElementById('xml-qtd-'+i).value) || 1;
+
+    const tipo  = document.getElementById('xml-tipo-'+i).value;
+    const desc  = document.getElementById('xml-xprod-'+i).value;
+    const qtd   = parseFloat(document.getElementById('xml-qtd-'+i).value) || 1;
     const vUnit = parseFloat(document.getElementById('xml-vunit-'+i).value) || 0;
     const total = parseFloat(document.getElementById('xml-vtotal-'+i).value) || 0;
     const uCom  = document.getElementById('xml-ucom-'+i).value;
+
+    // Filamento vinculado
+    const filSelEl = document.getElementById('xml-fil-'+i);
+    const filIdx = filSelEl ? parseInt(filSelEl.value) : -1;
+    const gramasEl = document.getElementById('xml-gramas-'+i);
+    const gramas = gramasEl ? (parseFloat(gramasEl.value) || qtd) : qtd;
+
+    // Salvar mapa de vinculo
+    if(tipo === 'filamento' && filIdx >= 0) salvarMapaXML(desc, filIdx);
+
     compras.unshift({
-      id: Date.now() + i, tipo, desc, qtd, precoUnit: vUnit, total,
-      unidade: uCom, nf: nNF, data: data || hoje(),
-      fornNome: emitente, pgto: '', obs: 'Importado via XML NF-e', filIdx: -1
+      id: Date.now() + i, tipo, desc,
+      qtd: tipo === 'filamento' ? gramas : qtd,
+      precoUnit: vUnit, total,
+      unidade: tipo === 'filamento' ? 'g' : uCom,
+      nf: nNF, data: data || hoje(),
+      fornNome: emitente, pgto: '',
+      obs: 'Importado via XML NF-e',
+      filIdx: filIdx >= 0 ? filIdx : -1,
+      rolos: uCom.toLowerCase() === 'un' ? qtd : 1,
+      pesoRolo: uCom.toLowerCase() === 'kg' ? qtd * 1000 : gramas
     });
+
+    // Dar entrada no estoque se for filamento vinculado
+    if(tipo === 'filamento' && filIdx >= 0 && filamentos[filIdx] && gramas > 0) {
+      registrarMovimentacao(
+        filIdx, 'entrada', gramas,
+        'Compra via XML NF-e' + (nNF ? ' NF ' + nNF : ''),
+        'NF: ' + (nNF || '—') + ' — ' + emitente
+      );
+      estoqueAtualizado.push(filamentos[filIdx].marca + ' ' + filamentos[filIdx].modelo + ' ' + filamentos[filIdx].corNome + ': +' + gramas + 'g');
+    }
+
     count++;
   }
+
   S.set('compras', compras);
-  alert(count + ' item(s) importado(s) com sucesso!');
+  renderFils();
+  buildFilSelect();
+
+  let msg = count + ' item(s) importado(s) com sucesso!';
+  if(estoqueAtualizado.length) {
+    msg += '\n\nEstoque atualizado:\n' + estoqueAtualizado.join('\n');
+  }
+  alert(msg);
+
   document.getElementById('xml-resultado').innerHTML = '';
-  showSubtab('compras', 'historico');
-  document.querySelectorAll('#tab-compras .subtab-btn').forEach((b,i) => b.classList.toggle('active', i===1));
+  // Ir para historico
+  document.querySelectorAll('#tab-compras .subtab-btn').forEach((b,i2) => b.classList.toggle('active', i2===1));
+  document.querySelectorAll('#tab-compras .subtab').forEach((s,i2) => s.classList.toggle('active', i2===1));
   renderCompras();
 }
 
@@ -1414,6 +1856,8 @@ function delParceiro(i) { if(confirm('Remover parceiro?')) { parceiros.splice(i,
 
 // INIT
 buildFilSelect();aplicarCfg();checkEstoque();renderFils();
+// Carregar movimentacoes
+if(!movimentacoes) movimentacoes = [];
 </script>
 </body>
 </html>
