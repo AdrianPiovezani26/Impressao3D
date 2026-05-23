@@ -470,7 +470,7 @@
   <!-- Historico de movimentacoes -->
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:8px;">
     <span class="stitle" style="margin:0;font-size:11px;">Historico de Movimentacoes</span>
-    <div style="display:flex;gap:8px;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <select id="filtro-mov-fil" onchange="renderMovimentacoes()" style="padding:6px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:12px;background:var(--bg2);color:var(--text);">
         <option value="">Todos os filamentos</option>
       </select>
@@ -480,6 +480,8 @@
         <option value="saida">Saidas</option>
         <option value="ajuste">Ajustes</option>
       </select>
+      <button class="btn-del" onclick="limparHistoricoFiltrado()" title="Excluir movimentacoes do filtro atual"><i class="ti ti-trash"></i> Excluir filtradas</button>
+      <button class="btn-del" onclick="limparTodoHistorico()" title="Excluir todo o historico"><i class="ti ti-trash"></i> Limpar tudo</button>
     </div>
   </div>
   <div id="lista-movimentacoes"></div>
@@ -1381,47 +1383,94 @@ function renderEstoque() {
   renderMovimentacoes();
 }
 
-function renderMovimentacoes() {
-  const filtroFil = document.getElementById('filtro-mov-fil').value;
-  const filtroTipo = document.getElementById('filtro-mov-tipo').value;
-  let lista = [...movimentacoes];
-  if(filtroFil !== '') lista = lista.filter(m => m.filIdx === parseInt(filtroFil));
-  if(filtroTipo) lista = lista.filter(m => m.tipo === filtroTipo);
+function limparTodoHistorico() {
+  if(!movimentacoes.length) { alert('Historico ja esta vazio.'); return; }
+  if(!confirm('Excluir TODO o historico de movimentacoes?\n\nATENCAO: Os saldos atuais dos filamentos NAO serao alterados, apenas o historico sera apagado.')) return;
+  movimentacoes = [];
+  S.set('movimentacoes', movimentacoes);
+  renderMovimentacoes();
+  alert('Historico limpo com sucesso!');
+}
 
-  const el = document.getElementById('lista-movimentacoes');
+function limparHistoricoFiltrado() {
+  var filtroFil = document.getElementById('filtro-mov-fil').value;
+  var filtroTipo = document.getElementById('filtro-mov-tipo').value;
+  if(!filtroFil && !filtroTipo) {
+    alert('Selecione um filtro antes de usar "Excluir filtradas".\nPara excluir tudo use "Limpar tudo".');
+    return;
+  }
+  var lista = movimentacoes.filter(function(m) {
+    var okFil = filtroFil === '' || m.filIdx === parseInt(filtroFil);
+    var okTipo = filtroTipo === '' || m.tipo === filtroTipo;
+    return okFil && okTipo;
+  });
+  if(!lista.length) { alert('Nenhuma movimentacao encontrada com esse filtro.'); return; }
+  var descFiltro = [];
+  if(filtroFil && filamentos[parseInt(filtroFil)]) descFiltro.push('Filamento: ' + filamentos[parseInt(filtroFil)].marca + ' ' + filamentos[parseInt(filtroFil)].modelo);
+  if(filtroTipo) descFiltro.push('Tipo: ' + filtroTipo);
+  if(!confirm('Excluir ' + lista.length + ' movimentacao(oes) filtradas?\n' + descFiltro.join(' | ') + '\n\nOs saldos dos filamentos NAO serao alterados.')) return;
+  movimentacoes = movimentacoes.filter(function(m) {
+    var okFil = filtroFil === '' || m.filIdx === parseInt(filtroFil);
+    var okTipo = filtroTipo === '' || m.tipo === filtroTipo;
+    return !(okFil && okTipo);
+  });
+  S.set('movimentacoes', movimentacoes);
+  renderMovimentacoes();
+  alert(lista.length + ' movimentacao(oes) excluida(s).');
+}
+
+function delMovimentacao(id) {
+  if(!confirm('Excluir esta movimentacao do historico?\n\nO saldo do filamento NAO sera revertido.')) return;
+  movimentacoes = movimentacoes.filter(function(m) { return m.id !== id; });
+  S.set('movimentacoes', movimentacoes);
+  renderMovimentacoes();
+}
+
+function renderMovimentacoes() {
+  var filtroFil = document.getElementById('filtro-mov-fil').value;
+  var filtroTipo = document.getElementById('filtro-mov-tipo').value;
+  var lista = movimentacoes.slice();
+  if(filtroFil !== '') lista = lista.filter(function(m){ return m.filIdx === parseInt(filtroFil); });
+  if(filtroTipo) lista = lista.filter(function(m){ return m.tipo === filtroTipo; });
+
+  var el = document.getElementById('lista-movimentacoes');
   if(!lista.length) {
     el.innerHTML = '<div class="empty" style="padding:1.5rem;"><i class="ti ti-history"></i>Nenhuma movimentacao registrada ainda.<br><span style="font-size:12px;">As movimentacoes sao criadas automaticamente ao produzir pecas ou fazer ajustes manuais.</span></div>';
     return;
   }
-  const iconeTipo = {entrada:'ti-arrow-down-circle', saida:'ti-arrow-up-circle', ajuste:'ti-adjustments'};
-  const corTipo = {entrada:'var(--neon)', saida:'var(--red-text)', ajuste:'var(--amber-text)'};
-  const labelTipo = {entrada:'Entrada', saida:'Saida', ajuste:'Ajuste'};
-  el.innerHTML = lista.slice(0,100).map(m => `
-    <div class="item-card mov-${m.tipo}" style="padding:.75rem 1rem;margin-bottom:6px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <i class="ti ${iconeTipo[m.tipo]||'ti-circle'}" style="font-size:20px;color:${corTipo[m.tipo]||'var(--text2)'};"></i>
-          <div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span class="cor-dot" style="background:${m.corHex||'#555'};"></span>
-              <strong style="font-size:13px;">${m.filNome}</strong>
-              <span class="tag ${m.tipo==='entrada'?'tag-green':m.tipo==='saida'?'tag-red':'tag-amber'}" style="font-size:10px;">${labelTipo[m.tipo]||m.tipo}</span>
-            </div>
-            <div style="font-size:12px;color:var(--text2);margin-top:2px;">
-              ${m.data} ${m.hora}
-              ${m.motivo ? ' - ' + m.motivo : ''}
-              ${m.referencia && m.referencia !== m.motivo ? ' - Ref: ' + m.referencia : ''}
-            </div>
-          </div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:16px;font-weight:700;color:${corTipo[m.tipo]||'var(--text2)'};">
-            ${m.tipo==='entrada'?'+':m.tipo==='saida'?'-':''}${m.qtd}g
-          </div>
-          <div style="font-size:11px;color:var(--text3);">${m.antes}g -> ${m.depois}g</div>
-        </div>
-      </div>
-    </div>`).join('');
+  var iconeTipo = {entrada:'ti-arrow-down-circle', saida:'ti-arrow-up-circle', ajuste:'ti-adjustments'};
+  var corTipo = {entrada:'var(--neon)', saida:'var(--red-text)', ajuste:'var(--amber-text)'};
+  var labelTipo = {entrada:'Entrada', saida:'Saida', ajuste:'Ajuste'};
+  el.innerHTML = lista.slice(0,100).map(function(m) {
+    return '<div class="item-card mov-' + m.tipo + '" style="padding:.75rem 1rem;margin-bottom:6px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">' +
+        '<div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">' +
+          '<i class="ti ' + (iconeTipo[m.tipo]||'ti-circle') + '" style="font-size:20px;color:' + (corTipo[m.tipo]||'var(--text2)') + ';flex-shrink:0;"></i>' +
+          '<div style="min-width:0;">' +
+            '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+              '<span class="cor-dot" style="background:' + (m.corHex||'#555') + ';"></span>' +
+              '<strong style="font-size:13px;">' + m.filNome + '</strong>' +
+              '<span class="tag ' + (m.tipo==='entrada'?'tag-green':m.tipo==='saida'?'tag-red':'tag-amber') + '" style="font-size:10px;">' + (labelTipo[m.tipo]||m.tipo) + '</span>' +
+            '</div>' +
+            '<div style="font-size:12px;color:var(--text2);margin-top:2px;">' +
+              m.data + ' ' + m.hora +
+              (m.motivo ? ' - ' + m.motivo : '') +
+              (m.referencia && m.referencia !== m.motivo ? ' - Ref: ' + m.referencia : '') +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">' +
+          '<div style="text-align:right;">' +
+            '<div style="font-size:16px;font-weight:700;color:' + (corTipo[m.tipo]||'var(--text2)') + ';">' +
+              (m.tipo==='entrada'?'+':m.tipo==='saida'?'-':'') + m.qtd + 'g' +
+            '</div>' +
+            '<div style="font-size:11px;color:var(--text3);">' + m.antes + 'g -> ' + m.depois + 'g</div>' +
+          '</div>' +
+          '<button class="btn-del" onclick="delMovimentacao(' + m.id + ')" title="Excluir do historico" style="padding:4px 8px;"><i class="ti ti-trash"></i></button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
 }
 
 /* ========== COMPRAS ========== */
