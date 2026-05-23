@@ -1698,42 +1698,161 @@ function renderCompras() {
 /* --- XML NF-e --- */
 
 // Mapeamento entre nome do produto XML e filamentos cadastrados
-// Salvo em localStorage para lembrar escolhas futuras
 function getMapaXML() { return S.get('mapa_xml') || {}; }
 function salvarMapaXML(xProd, filIdx) {
-  const m = getMapaXML();
+  var m = getMapaXML();
   m[xProd.toLowerCase().trim()] = filIdx;
   S.set('mapa_xml', m);
 }
 
-function matchFilamento(xProd) {
-  // 1. Verifica mapa salvo pelo usuario
-  const mapa = getMapaXML();
-  const chave = xProd.toLowerCase().trim();
+// Tabela de cores com aliases em portugues, ingles e variantes
+var CORES_MAP = {
+  // Preto
+  preto:'#1a1a1a', preta:'#1a1a1a', negro:'#1a1a1a', negra:'#1a1a1a', black:'#1a1a1a',
+  // Branco
+  branco:'#f5f5f5', branca:'#f5f5f5', white:'#f5f5f5',
+  // Cinza
+  cinza:'#888888', grey:'#888888', gray:'#888888', grafite:'#555555', graphite:'#555555',
+  // Prata
+  prata:'#c0c0c0', silver:'#c0c0c0', metalico:'#c0c0c0', metallic:'#c0c0c0',
+  // Vermelho
+  vermelho:'#e53935', vermelha:'#e53935', red:'#e53935', rubi:'#c62828',
+  // Azul
+  azul:'#1e88e5', blue:'#1e88e5', royal:'#1565c0', marinho:'#0d47a1', navy:'#0d47a1', ceu:'#29b6f6', sky:'#29b6f6',
+  // Verde
+  verde:'#43a047', green:'#43a047', esmeralda:'#00695c', emerald:'#00695c', oliva:'#827717', olive:'#827717', lima:'#76ff03', lime:'#76ff03',
+  // Amarelo
+  amarelo:'#fdd835', amarela:'#fdd835', yellow:'#fdd835',
+  // Laranja
+  laranja:'#fb8c00', orange:'#fb8c00',
+  // Roxo / Violeta
+  roxo:'#8e24aa', roxa:'#8e24aa', purple:'#8e24aa', violeta:'#7c4dff', violet:'#7c4dff', lilas:'#ce93d8', lilac:'#ce93d8',
+  // Rosa
+  rosa:'#e91e63', pink:'#e91e63', salmon:'#ff8a65', salmao:'#ff8a65',
+  // Marrom
+  marrom:'#6d4c41', brown:'#6d4c41', cafe:'#5d4037', madeira:'#8d6e63', wood:'#8d6e63',
+  // Transparente / Natural
+  transparente:'#d0d0d0', transparent:'#d0d0d0', cristal:'#e8f5e9', crystal:'#e8f5e9', natural:'#f5deb3', nude:'#f5deb3', bege:'#f5deb3', beige:'#f5deb3',
+  // Dourado / Cobre / Bronze
+  dourado:'#ffc107', gold:'#ffc107', cobre:'#b87333', copper:'#b87333', bronze:'#cd7f32',
+  // Granito / Marmor / Especiais
+  granito:'#808080', granite:'#808080', marmore:'#e0e0e0', marble:'#e0e0e0',
+  // Ciano / Turquesa
+  ciano:'#00bcd4', cyan:'#00bcd4', turquesa:'#00bcd4', turquoise:'#00bcd4', teal:'#009688',
+  // Magenta
+  magenta:'#e91e63', fucsia:'#f50057', fuchsia:'#f50057'
+};
+
+// Extrair cor e hex de uma string de descricao
+function extrairCor(texto) {
+  var t = texto.toLowerCase().replace(/[_\-\/\\]/g, ' ');
+  // Ordenar por tamanho descrescente para pegar "azul royal" antes de "azul"
+  var chaves = Object.keys(CORES_MAP).sort(function(a,b){ return b.length - a.length; });
+  for(var i = 0; i < chaves.length; i++) {
+    var chave = chaves[i];
+    var regex = new RegExp('\\b' + chave + '\\b');
+    if(regex.test(t)) {
+      var nome = chave.charAt(0).toUpperCase() + chave.slice(1);
+      return { nome: nome, hex: CORES_MAP[chave] };
+    }
+  }
+  // Tentar detectar cor no padrao "COR X" ou "X COR"
+  var matchCor = t.match(/\b(cor|color|colour)\s+(\w+)/i);
+  if(matchCor) {
+    var tentativa = matchCor[2].toLowerCase();
+    if(CORES_MAP[tentativa]) return { nome: tentativa.charAt(0).toUpperCase() + tentativa.slice(1), hex: CORES_MAP[tentativa] };
+  }
+  return null;
+}
+
+// Extrair modelo de filamento de uma string
+function extrairModelo(texto) {
+  var t = texto.toLowerCase();
+  var modelos = [
+    'pla silk bicolor', 'pla silk duo', 'pla silk', 'pla+', 'pla plus',
+    'pla matte', 'pla wood', 'pla marble', 'pla glow', 'pla color change',
+    'pla metal', 'pla carbon', 'pla ht', 'pla rainbow', 'pla glitter',
+    'pla bronze', 'pla cobre', 'pla fluorescente', 'pla transparente',
+    'pla crystal', 'pla',
+    'petg-cf', 'petg cf', 'petg+', 'petg plus', 'petg carbon', 'petg',
+    'abs+', 'abs plus', 'asa', 'abs',
+    'tpu 95a', 'tpu 87a', 'tpu 60a', 'tpu carbon', 'tpu',
+    'tpe', 'nylon pa12 cf', 'nylon pa12', 'nylon pa6', 'nylon cf', 'nylon',
+    'pc-abs', 'pc', 'peek', 'pei', 'pp', 'hips', 'pva', 'tritan',
+    'resina abs-like', 'resina flexivel', 'resina castable', 'resina 8k', 'resina'
+  ];
+  for(var i = 0; i < modelos.length; i++) {
+    if(t.includes(modelos[i])) return modelos[i].toUpperCase();
+  }
+  return 'PLA'; // default
+}
+
+// Extrair marca do nome do produto ou do emitente
+function extrairMarca(xProd, emitente) {
+  var t = xProd.toLowerCase();
+  // Marcas conhecidas
+  var marcas = [
+    'volt3d', 'bambu', 'bambulab', 'polymaker', 'esun', 'sunlu',
+    'hatchbox', 'prusament', 'colorway', 'flashforge', 'creality',
+    'anycubic', 'elegoo', 'fillamentum', 'fiberlogy', 'formfutura',
+    'matter hackers', 'protopasta', 'real filament', 'gembird',
+    'print with smile', 'extrudr', 'zyyx', 'makerbot'
+  ];
+  for(var i = 0; i < marcas.length; i++) {
+    if(t.includes(marcas[i])) return marcas[i].charAt(0).toUpperCase() + marcas[i].slice(1);
+  }
+  // Se emitente tiver nome curto util, usar
+  if(emitente && emitente.length > 0 && emitente.length < 40) return emitente;
+  return 'Importado';
+}
+
+// Busca filamento existente por descricao exata (mapa) ou modelo+cor
+function buscarFilamentoExistente(desc, modelo, corNome) {
+  // 1. Mapa memorizado (mais preciso)
+  var mapa = getMapaXML();
+  var chave = desc.toLowerCase().trim();
   if(mapa[chave] !== undefined && filamentos[mapa[chave]]) return mapa[chave];
-  // 2. Busca por correspondencia de nome (marca, modelo ou cor)
-  const desc = xProd.toLowerCase();
-  let melhor = -1, melhorScore = 0;
-  filamentos.forEach((f, idx) => {
-    let score = 0;
-    if(desc.includes(f.marca.toLowerCase())) score += 3;
-    if(desc.includes(f.modelo.toLowerCase())) score += 3;
-    if(f.corNome && desc.includes(f.corNome.toLowerCase())) score += 2;
-    // Palavras-chave de filamento
-    if(desc.includes('pla')) score += (f.modelo.toLowerCase().includes('pla') ? 2 : 0);
-    if(desc.includes('petg')) score += (f.modelo.toLowerCase().includes('petg') ? 2 : 0);
-    if(desc.includes('abs')) score += (f.modelo.toLowerCase().includes('abs') ? 2 : 0);
-    if(desc.includes('tpu')) score += (f.modelo.toLowerCase().includes('tpu') ? 2 : 0);
-    if(score > melhorScore) { melhorScore = score; melhor = idx; }
+
+  // 2. Modelo + Cor (ambos precisam bater)
+  if(corNome && corNome !== 'Nao informada') {
+    var melhor = -1;
+    filamentos.forEach(function(f, idx) {
+      var mesmoModelo = f.modelo.toLowerCase() === modelo.toLowerCase();
+      var mesmaCor    = f.corNome.toLowerCase() === corNome.toLowerCase();
+      if(mesmoModelo && mesmaCor) melhor = idx;
+    });
+    if(melhor >= 0) return melhor;
+  }
+
+  return -1;
+}
+
+function matchFilamento(xProd) {
+  var mapa = getMapaXML();
+  var chave = xProd.toLowerCase().trim();
+  if(mapa[chave] !== undefined && filamentos[mapa[chave]]) return mapa[chave];
+
+  var modelo = extrairModelo(xProd);
+  var corObj  = extrairCor(xProd);
+  var corNome = corObj ? corObj.nome : '';
+
+  var melhor = -1, score = 0;
+  filamentos.forEach(function(f, idx) {
+    var s = 0;
+    if(f.modelo.toLowerCase() === modelo.toLowerCase()) s += 4;
+    if(corNome && f.corNome.toLowerCase() === corNome.toLowerCase()) s += 4;
+    if(xProd.toLowerCase().includes(f.marca.toLowerCase())) s += 3;
+    if(s > score) { score = s; melhor = idx; }
   });
-  return melhorScore >= 3 ? melhor : -1;
+  return score >= 4 ? melhor : -1;
 }
 
 function filOpts(selecionado) {
   return '<option value="-1">-- Nao vincular ao estoque --</option>' +
-    filamentos.map((f,i) =>
-      `<option value="${i}" ${i===selecionado?'selected':''}>${f.marca} ${f.modelo} -- ${f.corNome} (${f.qtd}g)</option>`
-    ).join('');
+    filamentos.map(function(f, i) {
+      var sel = i === selecionado ? 'selected' : '';
+      return '<option value="' + i + '" ' + sel + '>' + f.marca + ' ' + f.modelo + ' -- ' + f.corNome + ' (' + f.qtd + 'g)</option>';
+    }).join('');
 }
 
 function processarXML(file) {
@@ -1791,7 +1910,11 @@ function processarXML(file) {
         // Converter sempre para gramas
         let gramas = paraGramas(qCom, uCom);
         if(gramas <= 0) gramas = parseFloat(qCom) || 1;
-        return { xProd, qCom, vUnCom, vProd, NCM, uCom, pareceFilamento, filMatch, gramas };
+        // Extrair cor e modelo detectados para mostrar no preview
+        const modeloDet = pareceFilamento ? extrairModelo(xProd) : '';
+        const corDet    = pareceFilamento ? extrairCor(xProd) : null;
+        const marcaDet  = pareceFilamento ? extrairMarca(xProd, emitNome) : '';
+        return { xProd, qCom, vUnCom, vProd, NCM, uCom, pareceFilamento, filMatch, gramas, modeloDet, corDet, marcaDet };
       });
 
       let html = `<div class="xml-preview">
@@ -1835,6 +1958,15 @@ function processarXML(file) {
               <strong style="color:var(--neon);"> = ${d.gramas.toFixed(0)}g</strong>
               &nbsp;-&nbsp; Un: ${fmt(parseFloat(d.vUnCom))} &nbsp;-&nbsp; Total: ${fmt(parseFloat(d.vProd))}
             </div>
+            ${d.pareceFilamento ? `<div style="margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span style="font-size:11px;color:var(--text3);">Detectado:</span>
+              <span style="font-size:11px;font-weight:600;color:var(--blue-text);">${d.marcaDet}</span>
+              <span class="tag tag-blue" style="font-size:10px;">${d.modeloDet}</span>
+              ${d.corDet
+                ? `<span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${d.corDet.hex};border:1px solid var(--border2);"></span><span style="font-size:11px;color:var(--text2);">${d.corDet.nome}</span></span>`
+                : '<span style="font-size:11px;color:var(--amber-text);">Cor nao detectada -- verifique o nome</span>'
+              }
+            </div>` : ''}
             ${d.pareceFilamento ? `
             <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <label style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;">Vincular ao filamento:</label>
@@ -1920,83 +2052,55 @@ function onChangeXmlTipo(i) {
 }
 
 function cadastrarFilamentoDoXML(desc, gramas, vUnit, nNF, emitente, data) {
-  var marcaDetect = emitente || 'Importado';
-  var modeloDetect = 'PLA';
-  var corDetect = 'Nao informada';
-  var corHexDetect = '#888888';
-  var descLow = desc.toLowerCase();
-
-  // Detectar modelo
-  var modelos = ['pla silk bicolor','pla silk','pla+','pla matte','pla wood','pla marble','pla glow','pla carbon','pla ht','pla','petg-cf','petg+','petg','abs+','asa','abs','tpu 95a','tpu 87a','tpu','tpe','nylon pa12','nylon pa6','nylon','pc-abs','pc','peek','pei'];
-  for(var mi = 0; mi < modelos.length; mi++) {
-    if(descLow.includes(modelos[mi])) { modeloDetect = modelos[mi].toUpperCase(); break; }
-  }
-
-  // Detectar cor
-  var cores = {preto:'#1a1a1a',negro:'#1a1a1a',black:'#1a1a1a',branco:'#f5f5f5',white:'#f5f5f5',cinza:'#888888',gray:'#888888',grey:'#888888',vermelho:'#e53935',red:'#e53935',azul:'#1e88e5',blue:'#1e88e5',verde:'#43a047',green:'#43a047',amarelo:'#fdd835',yellow:'#fdd835',laranja:'#fb8c00',orange:'#fb8c00',roxo:'#8e24aa',purple:'#8e24aa',rosa:'#e91e63',pink:'#e91e63',marrom:'#6d4c41',brown:'#6d4c41',transparente:'#d0d0d0',natural:'#f5deb3',prata:'#c0c0c0',silver:'#c0c0c0',dourado:'#ffc107',gold:'#ffc107',granito:'#808080',granite:'#808080',ciano:'#00bcd4',cyan:'#00bcd4'};
-  for(var corKey in cores) {
-    if(descLow.includes(corKey)) { corDetect = corKey.charAt(0).toUpperCase() + corKey.slice(1); corHexDetect = cores[corKey]; break; }
-  }
+  // Extrair informacoes do nome do produto com as funcoes inteligentes
+  var modeloDetect = extrairModelo(desc);
+  var corObj       = extrairCor(desc);
+  var corDetect    = corObj ? corObj.nome : 'Nao informada';
+  var corHexDetect = corObj ? corObj.hex  : '#888888';
+  var marcaDetect  = extrairMarca(desc, emitente);
 
   var pesoRolo = gramas;
   var precoRolo = vUnit;
 
-  // BUG FIX: comparar por modelo + cor + marca para evitar duplicatas
-  // Usa o nome do produto (desc) como chave principal de identificacao
-  var existeIdx = -1;
-
-  // 1. Primeiro tenta pelo mapa de vinculo ja salvo (mais preciso)
-  var mapa = getMapaXML();
-  var chaveDesc = desc.toLowerCase().trim();
-  if(mapa[chaveDesc] !== undefined && filamentos[mapa[chaveDesc]]) {
-    existeIdx = mapa[chaveDesc];
-  }
-
-  // 2. Se nao achou no mapa, busca por modelo + cor
-  if(existeIdx < 0) {
-    filamentos.forEach(function(f, idx) {
-      if(f.modelo.toLowerCase() === modeloDetect.toLowerCase() &&
-         f.corNome.toLowerCase() === corDetect.toLowerCase()) {
-        // So aceita como mesmo filamento se a cor NAO for generica
-        if(corDetect !== 'Nao informada') {
-          existeIdx = idx;
-        }
-      }
-    });
-  }
+  // Buscar filamento existente por mapa ou modelo+cor
+  var existeIdx = buscarFilamentoExistente(desc, modeloDetect, corDetect);
 
   if(existeIdx >= 0) {
-    // Filamento ja existe: somar quantidade diretamente SEM usar registrarMovimentacao aqui
-    // para evitar contagem dupla (registrarMovimentacao ja atualiza qtd)
-    registrarMovimentacao(existeIdx, 'entrada', gramas, 'Compra via XML NF-e NF ' + nNF, 'NF: ' + nNF + ' - ' + emitente);
+    // Filamento ja existe: adicionar quantidade via movimentacao
+    registrarMovimentacao(existeIdx, 'entrada', gramas,
+      'Compra via XML NF-e NF ' + nNF,
+      'NF: ' + nNF + ' - ' + emitente);
     if(precoRolo > 0) {
-      filamentos[existeIdx].preco = precoRolo;
+      filamentos[existeIdx].preco    = precoRolo;
       filamentos[existeIdx].pesoRolo = pesoRolo;
     }
     S.set('filamentos', filamentos);
-    return { acao: 'atualizado', filIdx: existeIdx, filNome: filamentos[existeIdx].marca + ' ' + filamentos[existeIdx].modelo + ' ' + filamentos[existeIdx].corNome };
+    var fn = filamentos[existeIdx];
+    return { acao: 'atualizado', filIdx: existeIdx, filNome: fn.marca + ' ' + fn.modelo + ' ' + fn.corNome };
   } else {
-    // BUG FIX: novo filamento nasce com qtd=0, a movimentacao vai somar as gramas
+    // Cadastrar novo filamento com qtd=0, movimentacao vai somar as gramas
     var novoFil = {
       id: Date.now() + Math.floor(Math.random() * 9999),
-      marca: marcaDetect,
-      modelo: modeloDetect,
-      corNome: corDetect,
-      corHex: corHexDetect,
-      diam: '1.75',
-      qtd: 0,  // CORRIGIDO: comeca em 0, registrarMovimentacao vai adicionar as gramas
-      preco: precoRolo,
+      marca:    marcaDetect,
+      modelo:   modeloDetect,
+      corNome:  corDetect,
+      corHex:   corHexDetect,
+      diam:     '1.75',
+      qtd:      0,
+      preco:    precoRolo,
       pesoRolo: pesoRolo,
-      temp: '',
+      temp:     '',
       tempMesa: '',
-      data: data || hoje(),
-      obs: 'Cadastrado via importacao XML NF ' + nNF
+      data:     data || hoje(),
+      obs:      'Cadastrado via importacao XML NF ' + nNF
     };
     filamentos.unshift(novoFil);
     S.set('filamentos', filamentos);
-    // Registrar entrada: isso vai somar as gramas ao qtd=0, resultado correto
-    registrarMovimentacao(0, 'entrada', gramas, 'Cadastro via XML NF-e NF ' + nNF, 'NF: ' + nNF + ' - ' + emitente);
-    // Salvar vinculo no mapa para proximas importacoes
+    // Registrar entrada (somara as gramas ao qtd=0)
+    registrarMovimentacao(0, 'entrada', gramas,
+      'Cadastro via XML NF-e NF ' + nNF,
+      'NF: ' + nNF + ' - ' + emitente);
+    // Salvar vinculo no mapa
     salvarMapaXML(desc, 0);
     return { acao: 'cadastrado', filIdx: 0, filNome: marcaDetect + ' ' + modeloDetect + ' ' + corDetect };
   }
