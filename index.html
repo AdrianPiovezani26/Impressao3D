@@ -1700,9 +1700,23 @@ function renderCompras() {
 // Mapeamento entre nome do produto XML e filamentos cadastrados
 function getMapaXML() { return S.get('mapa_xml') || {}; }
 function salvarMapaXML(xProd, filIdx) {
+  // Salvar o ID do filamento (nao o indice) para resistir a futuros unshifts
+  if(filIdx < 0 || !filamentos[filIdx]) return;
   var m = getMapaXML();
-  m[xProd.toLowerCase().trim()] = filIdx;
+  m[xProd.toLowerCase().trim()] = filamentos[filIdx].id;
   S.set('mapa_xml', m);
+}
+function resolverMapaXML(xProd) {
+  // Resolver o ID salvo no mapa para o indice atual do filamento
+  var m = getMapaXML();
+  var chave = xProd.toLowerCase().trim();
+  var idSalvo = m[chave];
+  if(idSalvo === undefined) return -1;
+  // Procurar pelo ID (resistente a reordenacao)
+  for(var i = 0; i < filamentos.length; i++) {
+    if(filamentos[i].id === idSalvo) return i;
+  }
+  return -1;
 }
 
 // Tabela de cores com aliases em portugues, ingles e variantes
@@ -1808,29 +1822,30 @@ function extrairMarca(xProd, emitente) {
 
 // Busca filamento existente por descricao exata (mapa) ou modelo+cor
 function buscarFilamentoExistente(desc, modelo, corNome) {
-  // 1. Mapa memorizado (mais preciso)
-  var mapa = getMapaXML();
-  var chave = desc.toLowerCase().trim();
-  if(mapa[chave] !== undefined && filamentos[mapa[chave]]) return mapa[chave];
+  // 1. Mapa memorizado por ID (resistente a reordenacao por unshift)
+  var idxMapa = resolverMapaXML(desc);
+  if(idxMapa >= 0) return idxMapa;
 
-  // 2. Modelo + Cor (ambos precisam bater)
+  // 2. Modelo + Cor (AMBOS precisam bater -- PLA granito != PLA preto != PETG preto)
   if(corNome && corNome !== 'Nao informada') {
     var melhor = -1;
     filamentos.forEach(function(f, idx) {
-      var mesmoModelo = f.modelo.toLowerCase() === modelo.toLowerCase();
+      var mesmoModelo = f.modelo.toUpperCase() === modelo.toUpperCase();
       var mesmaCor    = f.corNome.toLowerCase() === corNome.toLowerCase();
+      // Exige os dois criterios simultaneamente
       if(mesmoModelo && mesmaCor) melhor = idx;
     });
     if(melhor >= 0) return melhor;
   }
 
+  // Se cor nao foi detectada, nao fazer match automatico para nao misturar filamentos
   return -1;
 }
 
 function matchFilamento(xProd) {
-  var mapa = getMapaXML();
-  var chave = xProd.toLowerCase().trim();
-  if(mapa[chave] !== undefined && filamentos[mapa[chave]]) return mapa[chave];
+  // Usar resolverMapaXML que busca pelo ID (resistente a reordenacao)
+  var idxMapa = resolverMapaXML(xProd);
+  if(idxMapa >= 0) return idxMapa;
 
   var modelo = extrairModelo(xProd);
   var corObj  = extrairCor(xProd);
@@ -1844,7 +1859,9 @@ function matchFilamento(xProd) {
     if(xProd.toLowerCase().includes(f.marca.toLowerCase())) s += 3;
     if(s > score) { score = s; melhor = idx; }
   });
-  return score >= 4 ? melhor : -1;
+  // Exige modelo E cor (score >= 8) para considerar match seguro
+  // Score 4 (so modelo) NAO e suficiente -- PLA preto != PLA granito
+  return score >= 8 ? melhor : -1;
 }
 
 function filOpts(selecionado) {
@@ -2096,11 +2113,13 @@ function cadastrarFilamentoDoXML(desc, gramas, vUnit, nNF, emitente, data) {
     };
     filamentos.unshift(novoFil);
     S.set('filamentos', filamentos);
+    // Apos unshift, o novo filamento esta no indice 0
     // Registrar entrada (somara as gramas ao qtd=0)
     registrarMovimentacao(0, 'entrada', gramas,
       'Cadastro via XML NF-e NF ' + nNF,
       'NF: ' + nNF + ' - ' + emitente);
-    // Salvar vinculo no mapa
+    // Salvar vinculo no mapa pelo ID do filamento, nao pelo indice
+    // para evitar que futuros unshifts desloquem o indice salvo
     salvarMapaXML(desc, 0);
     return { acao: 'cadastrado', filIdx: 0, filNome: marcaDetect + ' ' + modeloDetect + ' ' + corDetect };
   }
