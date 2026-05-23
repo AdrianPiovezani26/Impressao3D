@@ -1155,11 +1155,7 @@ function baixarEstoqueProduto(fils, referencia) {
     }
   });
   if(insuficientes.length) {
-    const msg = 'ATENCAO: Estoque insuficiente para:
-' + insuficientes.join('
-') + '
-
-Deseja continuar mesmo assim?';
+    const msg = 'ATENCAO: Estoque insuficiente para:\n' + insuficientes.join('\n') + '\n\nDeseja continuar mesmo assim?';
     if(!confirm(msg)) return false;
   }
   fils.forEach(f => {
