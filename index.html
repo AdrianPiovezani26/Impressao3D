@@ -724,10 +724,10 @@ function preencherTempFil(){
   const te=document.getElementById('f-temp'),me=document.getElementById('f-temp-mesa'),inf=document.getElementById('f-temp-info');
   if(te&&(!te.value||te.dataset.auto==='1')){te.value=d.t==='-'?'':d.t.split('-')[0];te.dataset.auto='1';}
   if(me&&(!me.value||me.dataset.auto==='1')){me.value=d.m==='-'?'':d.m.split('-')[0];me.dataset.auto='1';}
-  if(inf){inf.textContent=d.t!=='-'?'Referencia: bico '+d.t+'C / mesa '+d.m+'C':'Resina — sem temperatura FDM';inf.style.display='block';}
+  if(inf){inf.textContent=d.t!=='-'?'Referencia: bico '+d.t+'C / mesa '+d.m+'C':'Resina -- sem temperatura FDM';inf.style.display='block';}
 }
 function fmt(v){return 'R$ '+parseFloat(v||0).toFixed(2).replace('.',',');}
-function fmtD(d){if(!d)return'—';const p=d.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:d;}
+function fmtD(d){if(!d)return'--';const p=d.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:d;}
 function hoje(){return new Date().toISOString().slice(0,10);}
 
 function showTab(t){
@@ -749,7 +749,7 @@ function showTab(t){
 /* ---- FILAMENTOS ---- */
 function buildFilSelect(){
   const s=document.getElementById('c-fil-sel');
-  s.innerHTML='<option value="">Selecionar filamento cadastrado...</option>'+filamentos.map((f,i)=>`<option value="${i}">${f.marca} ${f.modelo} — ${f.corNome} (${f.qtd}g)</option>`).join('');
+  s.innerHTML='<option value="">Selecionar filamento cadastrado...</option>'+filamentos.map((f,i)=>`<option value="${i}">${f.marca} ${f.modelo} -- ${f.corNome} (${f.qtd}g)</option>`).join('');
 }
 function preencherFilCalc(){
   const idx=parseInt(document.getElementById('c-fil-sel').value),inf=document.getElementById('c-fil-info');
@@ -758,7 +758,7 @@ function preencherFilCalc(){
   document.getElementById('c-preco-rolo').value=f.preco;
   document.getElementById('c-peso-rolo').value=f.pesoRolo;
   inf.style.display='flex';
-  inf.innerHTML=`<span class="cor-dot" style="background:${f.corHex};"></span><strong>${f.marca} ${f.modelo} ${f.corNome}</strong> · ${f.diam}mm · Estoque: <strong>${f.qtd}g</strong> · ${fmt(f.preco)}/rolo (${f.pesoRolo}g)${f.temp?' · '+f.temp+'C':''}`;
+  inf.innerHTML=`<span class="cor-dot" style="background:${f.corHex};"></span><strong>${f.marca} ${f.modelo} ${f.corNome}</strong> - ${f.diam}mm - Estoque: <strong>${f.qtd}g</strong> - ${fmt(f.preco)}/rolo (${f.pesoRolo}g)${f.temp?' - '+f.temp+'C':''}`;
   calcular();
 }
 function showFormFil(idx){
@@ -804,10 +804,10 @@ function renderFils(){
     h+=`<div class="section-group"><div class="section-group-title">${m}</div><div class="overflow-x"><table><thead><tr><th></th><th>Marca</th><th>Cor</th><th>Diam.</th><th>Estoque</th><th>Preco/rolo</th><th>Custo/g</th><th>Temperatura</th><th>Data</th><th>Obs.</th><th></th></tr></thead><tbody>`;
     lista.forEach(f=>{
       const idx=filamentos.indexOf(f);
-      const cg=(f.preco>0&&f.pesoRolo>0)?(f.preco/f.pesoRolo).toFixed(3):'—';
+      const cg=(f.preco>0&&f.pesoRolo>0)?(f.preco/f.pesoRolo).toFixed(3):'--';
       const pct=f.pesoRolo>0?(f.qtd/f.pesoRolo*100):0;
       const[sc,sl]=pct>50?['tag-green','Ok']:pct>15?['tag-amber','Baixo']:['tag-red','Critico'];
-      h+=`<tr><td><span class="cor-dot" style="background:${f.corHex};"></span></td><td><strong>${f.marca}</strong></td><td>${f.corNome}</td><td>${f.diam}mm</td><td><span class="tag ${sc}">${f.qtd}g · ${sl}</span></td><td>${fmt(f.preco)}</td><td>R$ ${cg}/g</td><td>${f.temp?f.temp+'C':'—'}${f.tempMesa?' / '+f.tempMesa+'C':''}</td><td style="font-size:11px;color:var(--text2);">${fmtD(f.data)}</td><td style="font-size:11px;color:var(--text2);max-width:100px;">${f.obs||'—'}</td><td><div class="row-actions"><button class="btn-edit" onclick="showFormFil(${idx})"><i class="ti ti-edit"></i></button><button class="btn-del" onclick="delFil(${idx})"><i class="ti ti-trash"></i></button></div></td></tr>`;
+      h+=`<tr><td><span class="cor-dot" style="background:${f.corHex};"></span></td><td><strong>${f.marca}</strong></td><td>${f.corNome}</td><td>${f.diam}mm</td><td><span class="tag ${sc}">${f.qtd}g - ${sl}</span></td><td>${fmt(f.preco)}</td><td>R$ ${cg}/g</td><td>${f.temp?f.temp+'C':'--'}${f.tempMesa?' / '+f.tempMesa+'C':''}</td><td style="font-size:11px;color:var(--text2);">${fmtD(f.data)}</td><td style="font-size:11px;color:var(--text2);max-width:100px;">${f.obs||'--'}</td><td><div class="row-actions"><button class="btn-edit" onclick="showFormFil(${idx})"><i class="ti ti-edit"></i></button><button class="btn-del" onclick="delFil(${idx})"><i class="ti ti-trash"></i></button></div></td></tr>`;
     });
     h+='</tbody></table></div></div>';
   }
@@ -816,7 +816,7 @@ function renderFils(){
 function delFil(i){if(confirm('Remover filamento?')){filamentos.splice(i,1);S.set('filamentos',filamentos);renderFils();buildFilSelect();checkEstoque();}}
 
 /* ---- PRODUTOS (multi-filamento) ---- */
-function buildFilOpts(){return filamentos.map((f,i)=>`<option value="${i}">${f.marca} ${f.modelo} — ${f.corNome}</option>`).join('');}
+function buildFilOpts(){return filamentos.map((f,i)=>`<option value="${i}">${f.marca} ${f.modelo} -- ${f.corNome}</option>`).join('');}
 function addFilProd(filIdx,pesoVal){
   const d=document.createElement('div');d.className='fil-multi-item';
   d.innerHTML=`<span class="cor-dot" style="background:#555;margin-right:2px;"></span><select onchange="syncDot(this)">${buildFilOpts()}</select><input type="number" placeholder="Peso (g)" value="${pesoVal||''}" min="0" step="1"><span style="font-size:11px;color:var(--text3);white-space:nowrap;">gramas</span><button class="rm" onclick="this.closest('.fil-multi-item').remove()"><i class="ti ti-x"></i></button>`;
@@ -851,7 +851,7 @@ function salvarProduto(){
   if(!nome){alert('Informe o nome do produto');return;}
   const precoNum=parseFloat(document.getElementById('p-preco').value)||0;
   const fils=getFilsProd();
-  const p={id:editProdIdx>=0?produtos[editProdIdx].id:Date.now(),nome,cat:document.getElementById('p-cat').value,fils,filNome:fils.map(f=>f.filNome).join(', ')||'—',horas:document.getElementById('p-horas').value,precoNum,preco:precoNum?fmt(precoNum):'—',obs:document.getElementById('p-obs').value};
+  const p={id:editProdIdx>=0?produtos[editProdIdx].id:Date.now(),nome,cat:document.getElementById('p-cat').value,fils,filNome:fils.map(f=>f.filNome).join(', ')||'--',horas:document.getElementById('p-horas').value,precoNum,preco:precoNum?fmt(precoNum):'--',obs:document.getElementById('p-obs').value};
   if(editProdIdx>=0)produtos[editProdIdx]=p;else produtos.unshift(p);
   S.set('produtos',produtos);
   document.getElementById('form-prod').style.display='none';
@@ -860,7 +860,7 @@ function salvarProduto(){
   if(fils.length > 0 && editProdIdx < 0) {
     const filsComIdx = fils.filter(f => f.filIdx >= 0 && filamentos[f.filIdx] && f.peso > 0);
     if(filsComIdx.length > 0) {
-      const resumo = filsComIdx.map(f => `• ${f.filNome}: ${f.peso}g`).join('\n');
+      const resumo = filsComIdx.map(f => `* ${f.filNome}: ${f.peso}g`).join('\n');
       if(confirm('Deseja dar baixa no estoque dos filamentos utilizados nesta peca?\n\n' + resumo + '\n\nClique OK para confirmar a saida.')) {
         const ok = baixarEstoqueProduto(filsComIdx, 'Producao: ' + nome);
         if(ok) {
@@ -878,8 +878,8 @@ function renderProds(){
   produtos.map((p,i)=>`<tr>
     <td><strong>${p.nome}</strong>${p.obs?'<br><span style="font-size:11px;color:var(--text2);">'+p.obs+'</span>':''}</td>
     <td><span class="tag tag-blue">${p.cat}</span></td>
-    <td style="font-size:12px;">${p.fils&&p.fils.length?p.fils.map(f=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;"><span class="cor-dot" style="background:${f.corHex||'#555'};"></span>${f.filNome} <span style="color:var(--text3);">(${f.peso}g)</span></div>`).join(''):'—'}</td>
-    <td>${p.horas?p.horas+'h':'—'}</td>
+    <td style="font-size:12px;">${p.fils&&p.fils.length?p.fils.map(f=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;"><span class="cor-dot" style="background:${f.corHex||'#555'};"></span>${f.filNome} <span style="color:var(--text3);">(${f.peso}g)</span></div>`).join(''):'--'}</td>
+    <td>${p.horas?p.horas+'h':'--'}</td>
     <td style="font-weight:700;color:var(--neon);text-shadow:var(--neon-glow-sm);">${p.preco}</td>
     <td><div class="row-actions"><button class="btn-edit" onclick="showFormProd(${i})"><i class="ti ti-edit"></i></button><button class="btn-del" onclick="delProd(${i})"><i class="ti ti-trash"></i></button></div></td>
   </tr>`).join('')+'</tbody></table></div>';
@@ -908,7 +908,7 @@ function calcular(){
   const cTotal=cFil+cEn+cMdo+cDep+cMt+insumos+embal;
   const cImp=cTotal/(1-impostos/100),pVenda=cImp/(1-margem/100),lucro=pVenda-cTotal;
   document.getElementById('r-fil').textContent=fmt(cFil);document.getElementById('r-en').textContent=fmt(cEn);document.getElementById('r-dep').textContent=fmt(cDep);document.getElementById('r-mdov').textContent=fmt(cMdo);
-  document.getElementById('breakdown').innerHTML=[['Filamento ('+peso+'g)',cFil],['Insumos extras',insumos],['Energia eletrica',cEn],['Mao de obra',cMdo],['Depreciacao maquina',cDep],['Manutencao',cMt],['Embalagem / envio',embal],['Impostos ('+impostos+'%)',cImp-cTotal],['Margem de lucro ('+margem+'%)',pVenda-cImp],['Total — preco de venda',pVenda]].map(([l,v])=>`<div class="breakdown-item"><span>${l}</span><span>${fmt(v)}</span></div>`).join('');
+  document.getElementById('breakdown').innerHTML=[['Filamento ('+peso+'g)',cFil],['Insumos extras',insumos],['Energia eletrica',cEn],['Mao de obra',cMdo],['Depreciacao maquina',cDep],['Manutencao',cMt],['Embalagem / envio',embal],['Impostos ('+impostos+'%)',cImp-cTotal],['Margem de lucro ('+margem+'%)',pVenda-cImp],['Total -- preco de venda',pVenda]].map(([l,v])=>`<div class="breakdown-item"><span>${l}</span><span>${fmt(v)}</span></div>`).join('');
   document.getElementById('r-preco').textContent=fmt(pVenda);document.getElementById('r-lucro').textContent='Lucro liquido estimado: '+fmt(lucro);
   document.getElementById('resultado').style.display='block';document.getElementById('sem-resultado').style.display='none';
 }
@@ -917,11 +917,11 @@ function salvarComoPedido(){
   const filIdx=parseInt(document.getElementById('c-fil-sel').value);
   const filNome=(!isNaN(filIdx)&&filamentos[filIdx])?`${filamentos[filIdx].marca} ${filamentos[filIdx].modelo} ${filamentos[filIdx].corNome}`:'';
   const peso=parseFloat(document.getElementById('c-peso').value)||0;
-  pedidos.unshift({id:Date.now(),nome,preco:document.getElementById('r-preco').textContent,data:new Date().toLocaleDateString('pt-BR'),status:'pendente',horas:document.getElementById('c-horas').value||'—',filNome,filIdx:isNaN(filIdx)?-1:filIdx,peso:peso||'—'});
+  pedidos.unshift({id:Date.now(),nome,preco:document.getElementById('r-preco').textContent,data:new Date().toLocaleDateString('pt-BR'),status:'pendente',horas:document.getElementById('c-horas').value||'--',filNome,filIdx:isNaN(filIdx)?-1:filIdx,peso:peso||'--'});
   S.set('pedidos',pedidos);
   // Baixa de estoque ao criar pedido
   if(!isNaN(filIdx) && filamentos[filIdx] && peso > 0) {
-    if(confirm(`Deseja dar baixa no estoque?\n\n• ${filNome}: ${peso}g\n\nClique OK para confirmar.`)) {
+    if(confirm(`Deseja dar baixa no estoque?\n\n* ${filNome}: ${peso}g\n\nClique OK para confirmar.`)) {
       baixarEstoqueProduto([{filIdx, peso}], 'Pedido: ' + nome);
       buildFilSelect();
     }
@@ -932,7 +932,7 @@ function salvarComoProduto(){
   const nome=document.getElementById('c-nome-peca').value||'Peca sem nome';
   const precoStr=document.getElementById('r-preco').textContent;
   const precoNum=parseFloat(precoStr.replace('R$ ','').replace(',','.'))||0;
-  produtos.unshift({id:Date.now(),nome,cat:'Outro',fils:[],filNome:'—',horas:document.getElementById('c-horas').value,precoNum,preco:precoStr,obs:''});
+  produtos.unshift({id:Date.now(),nome,cat:'Outro',fils:[],filNome:'--',horas:document.getElementById('c-horas').value,precoNum,preco:precoStr,obs:''});
   S.set('produtos',produtos);alert('Produto salvo: '+nome);
 }
 
@@ -947,7 +947,7 @@ function renderPedidos(){
   const CR={pendente:'tag-amber',imprimindo:'tag-blue',concluido:'tag-green'};
   el.innerHTML=lista.map(p=>`<div class="item-card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
-      <div><strong style="font-size:15px;">${p.nome}</strong><br><span style="font-size:12px;color:var(--text2);">${p.data} · ${p.horas}h · ${p.peso?p.peso+'g':''} ${p.filNome?'· '+p.filNome:''}</span></div>
+      <div><strong style="font-size:15px;">${p.nome}</strong><br><span style="font-size:12px;color:var(--text2);">${p.data} - ${p.horas}h - ${p.peso?p.peso+'g':''} ${p.filNome?'- '+p.filNome:''}</span></div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><strong style="font-size:18px;color:var(--neon);text-shadow:var(--neon-glow-sm);">${p.preco}</strong><span class="tag ${CR[p.status]||'tag-blue'}">${p.status}</span></div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -967,7 +967,7 @@ function delPed(i){if(confirm('Remover pedido?')){pedidos.splice(i,1);S.set('ped
 function buildProdOpts(){
   const s=document.getElementById('v-produto');
   if(!s)return;
-  s.innerHTML='<option value="">Produto avulso / outro...</option>'+produtos.map((p,i)=>`<option value="${i}" data-preco="${p.precoNum}">${p.nome} — ${p.preco}</option>`).join('');
+  s.innerHTML='<option value="">Produto avulso / outro...</option>'+produtos.map((p,i)=>`<option value="${i}" data-preco="${p.precoNum}">${p.nome} -- ${p.preco}</option>`).join('');
 }
 function preencherPrecoVenda(){
   const s=document.getElementById('v-produto');
@@ -981,8 +981,14 @@ function calcTotalVenda(){
   const qtd=parseFloat(document.getElementById('v-qtd').value)||1;
   document.getElementById('v-total').value=(val*qtd).toFixed(2);
 }
-document.getElementById('v-valor').addEventListener('input',calcTotalVenda);
-function showFormVenda(){document.getElementById('form-venda').style.display='block';document.getElementById('v-data').value=hoje();buildProdOpts();}
+// listener adicionado em showFormVenda()
+function showFormVenda(){
+  document.getElementById('form-venda').style.display='block';
+  document.getElementById('v-data').value=hoje();
+  buildProdOpts();
+  const vv = document.getElementById('v-valor');
+  if(vv) { vv.removeEventListener('input',calcTotalVenda); vv.addEventListener('input',calcTotalVenda); }
+}
 function salvarVenda(){
   const cliente=document.getElementById('v-cliente').value.trim();
   const total=parseFloat(document.getElementById('v-total').value)||0;
@@ -1013,7 +1019,7 @@ function renderVendas(){
   el.innerHTML=vendas.map((v,i)=>`<div class="item-card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
       <div><strong style="font-size:15px;">${v.cliente}</strong><br>
-        <span style="font-size:12px;color:var(--text2);">${fmtD(v.data)} · ${v.prodNome} (x${v.qtd}) · ${v.pgto}</span>
+        <span style="font-size:12px;color:var(--text2);">${fmtD(v.data)} - ${v.prodNome} (x${v.qtd}) - ${v.pgto}</span>
         ${v.obs?`<br><span style="font-size:11px;color:var(--text3);">${v.obs}</span>`:''}
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -1047,8 +1053,8 @@ function renderContas(){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
         <div>
           <strong style="font-size:15px;">${f.cliente}</strong><br>
-          <span style="font-size:12px;color:var(--text2);">${f.descricao} · Emitida: ${fmtD(f.data)}</span>
-          ${f.venc?`<br><span style="font-size:12px;color:${isVenc?'var(--red-text)':'var(--text2)'};">Vencimento: ${fmtD(f.venc)}${isVenc?' — VENCIDA':''}</span>`:''}
+          <span style="font-size:12px;color:var(--text2);">${f.descricao} - Emitida: ${fmtD(f.data)}</span>
+          ${f.venc?`<br><span style="font-size:12px;color:${isVenc?'var(--red-text)':'var(--text2)'};">Vencimento: ${fmtD(f.venc)}${isVenc?' -- VENCIDA':''}</span>`:''}
           ${f.dataPagamento?`<br><span style="font-size:12px;color:var(--neon);">Recebido em: ${fmtD(f.dataPagamento)}</span>`:''}
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
@@ -1167,7 +1173,7 @@ Deseja continuar mesmo assim?';
 function showAjusteEstoque() {
   const s = document.getElementById('aj-fil');
   s.innerHTML = '<option value="">Selecionar filamento...</option>' +
-    filamentos.map((f,i) => `<option value="${i}">${f.marca} ${f.modelo} — ${f.corNome} (${f.qtd}g)</option>`).join('');
+    filamentos.map((f,i) => `<option value="${i}">${f.marca} ${f.modelo} -- ${f.corNome} (${f.qtd}g)</option>`).join('');
   document.getElementById('form-ajuste').style.display = 'block';
   document.getElementById('form-ajuste').scrollIntoView({behavior:'smooth'});
 }
@@ -1196,7 +1202,7 @@ function renderEstoque() {
   const alertasEl = document.getElementById('estoque-alertas');
   if(criticos.length) {
     alertasEl.innerHTML = criticos.map(f =>
-      `<div class="alerta-box"><i class="ti ti-alert-triangle"></i><span><strong>${f.marca} ${f.modelo} ${f.corNome}</strong> — estoque critico: <strong>${f.qtd}g</strong> restantes (${f.pesoRolo>0?((f.qtd/f.pesoRolo)*100).toFixed(0):0}% do rolo)</span></div>`
+      `<div class="alerta-box"><i class="ti ti-alert-triangle"></i><span><strong>${f.marca} ${f.modelo} ${f.corNome}</strong> -- estoque critico: <strong>${f.qtd}g</strong> restantes (${f.pesoRolo>0?((f.qtd/f.pesoRolo)*100).toFixed(0):0}% do rolo)</span></div>`
     ).join('');
   } else {
     alertasEl.innerHTML = '';
@@ -1226,7 +1232,7 @@ function renderEstoque() {
     const cor = pct > 50 ? '#39ff14' : pct > 15 ? '#ffaa00' : '#ff4444';
     const stLabel = pct > 50 ? 'Ok' : pct > 15 ? 'Baixo' : 'Critico';
     const stClass = pct > 50 ? 'tag-green' : pct > 15 ? 'tag-amber' : 'tag-red';
-    const custoG = f.preco > 0 && f.pesoRolo > 0 ? (f.preco / f.pesoRolo).toFixed(3) : '—';
+    const custoG = f.preco > 0 && f.pesoRolo > 0 ? (f.preco / f.pesoRolo).toFixed(3) : '--';
     const movsFil = movimentacoes.filter(m => m.filIdx === idx);
     const totalEntradas = movsFil.filter(m=>m.tipo==='entrada').reduce((s,m)=>s+m.qtd,0);
     const totalSaidas = movsFil.filter(m=>m.tipo==='saida').reduce((s,m)=>s+m.qtd,0);
@@ -1237,7 +1243,7 @@ function renderEstoque() {
           <div>
             <strong style="font-size:14px;">${f.marca} ${f.modelo}</strong>
             <span class="tag ${stClass}" style="margin-left:8px;">${stLabel}</span>
-            <br><span style="font-size:12px;color:var(--text2);">${f.corNome} · ${f.diam}mm · R$ ${custoG}/g</span>
+            <br><span style="font-size:12px;color:var(--text2);">${f.corNome} - ${f.diam}mm - R$ ${custoG}/g</span>
           </div>
         </div>
         <div style="text-align:right;">
@@ -1292,8 +1298,8 @@ function renderMovimentacoes() {
             </div>
             <div style="font-size:12px;color:var(--text2);margin-top:2px;">
               ${m.data} ${m.hora}
-              ${m.motivo ? ' · ' + m.motivo : ''}
-              ${m.referencia && m.referencia !== m.motivo ? ' · Ref: ' + m.referencia : ''}
+              ${m.motivo ? ' - ' + m.motivo : ''}
+              ${m.referencia && m.referencia !== m.motivo ? ' - Ref: ' + m.referencia : ''}
             </div>
           </div>
         </div>
@@ -1301,7 +1307,7 @@ function renderMovimentacoes() {
           <div style="font-size:16px;font-weight:700;color:${corTipo[m.tipo]||'var(--text2)'};">
             ${m.tipo==='entrada'?'+':m.tipo==='saida'?'-':''}${m.qtd}g
           </div>
-          <div style="font-size:11px;color:var(--text3);">${m.antes}g → ${m.depois}g</div>
+          <div style="font-size:11px;color:var(--text3);">${m.antes}g -> ${m.depois}g</div>
         </div>
       </div>
     </div>`).join('');
@@ -1330,7 +1336,7 @@ function buildFilSelectCompra() {
   const s = document.getElementById('cp-fil-estoque');
   if(!s) return;
   s.innerHTML = '<option value="">Selecionar filamento cadastrado...</option>' +
-    filamentos.map((f,i) => `<option value="${i}">${f.marca} ${f.modelo} — ${f.corNome}</option>`).join('');
+    filamentos.map((f,i) => `<option value="${i}">${f.marca} ${f.modelo} -- ${f.corNome}</option>`).join('');
 }
 
 function preencherDadosFilCompra() {
@@ -1436,10 +1442,10 @@ function renderCompras() {
         ${c.cat ? `<span class="tag tag-blue" style="margin-left:4px;">${c.cat}</span>` : ''}
         <br><span style="font-size:12px;color:var(--text2);">
           ${fmtD(c.data)}
-          ${c.fornNome ? ' · ' + c.fornNome : ''}
-          ${c.nf ? ' · NF: ' + c.nf : ''}
-          ${c.tipo==='filamento' ? ` · ${c.rolos} rolo(s) × ${c.pesoRolo}g · ${fmt(c.precoRolo)}/rolo` : ` · Qtd: ${c.qtd} ${c.unidade||'un'}`}
-          ${c.pgto ? ' · ' + c.pgto : ''}
+          ${c.fornNome ? ' - ' + c.fornNome : ''}
+          ${c.nf ? ' - NF: ' + c.nf : ''}
+          ${c.tipo==='filamento' ? ` - ${c.rolos} rolo(s) x ${c.pesoRolo}g - ${fmt(c.precoRolo)}/rolo` : ` - Qtd: ${c.qtd} ${c.unidade||'un'}`}
+          ${c.pgto ? ' - ' + c.pgto : ''}
         </span>
         ${c.obs ? `<br><span style="font-size:11px;color:var(--text3);">${c.obs}</span>` : ''}
       </div>
@@ -1487,7 +1493,7 @@ function matchFilamento(xProd) {
 function filOpts(selecionado) {
   return '<option value="-1">-- Nao vincular ao estoque --</option>' +
     filamentos.map((f,i) =>
-      `<option value="${i}" ${i===selecionado?'selected':''}>${f.marca} ${f.modelo} — ${f.corNome} (${f.qtd}g)</option>`
+      `<option value="${i}" ${i===selecionado?'selected':''}>${f.marca} ${f.modelo} -- ${f.corNome} (${f.qtd}g)</option>`
     ).join('');
 }
 
@@ -1537,19 +1543,19 @@ function processarXML(file) {
         <div style="margin-bottom:12px;">
           <div class="stitle" style="font-size:11px;margin-bottom:6px;">Dados da Nota Fiscal</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <div style="font-size:13px;"><span style="color:var(--text2);">Emitente:</span> <strong>${emitNome||'—'}</strong></div>
-            <div style="font-size:13px;"><span style="color:var(--text2);">CNPJ:</span> <strong>${emitCNPJ||'—'}</strong></div>
-            <div style="font-size:13px;"><span style="color:var(--text2);">Numero NF:</span> <strong>${nNF||'—'}</strong></div>
-            <div style="font-size:13px;"><span style="color:var(--text2);">Data emissao:</span> <strong>${fmtD(dhEmi)||'—'}</strong></div>
-            <div style="font-size:13px;"><span style="color:var(--text2);">Valor total:</span> <strong style="color:var(--neon);">${vNF ? fmt(parseFloat(vNF)) : '—'}</strong></div>
+            <div style="font-size:13px;"><span style="color:var(--text2);">Emitente:</span> <strong>${emitNome||'--'}</strong></div>
+            <div style="font-size:13px;"><span style="color:var(--text2);">CNPJ:</span> <strong>${emitCNPJ||'--'}</strong></div>
+            <div style="font-size:13px;"><span style="color:var(--text2);">Numero NF:</span> <strong>${nNF||'--'}</strong></div>
+            <div style="font-size:13px;"><span style="color:var(--text2);">Data emissao:</span> <strong>${fmtD(dhEmi)||'--'}</strong></div>
+            <div style="font-size:13px;"><span style="color:var(--text2);">Valor total:</span> <strong style="color:var(--neon);">${vNF ? fmt(parseFloat(vNF)) : '--'}</strong></div>
           </div>
         </div>
         <div class="sep"></div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
-          <div class="stitle" style="font-size:11px;margin:0;">Itens da NF — vincule filamentos e selecione o que importar</div>
+          <div class="stitle" style="font-size:11px;margin:0;">Itens da NF -- vincule filamentos e selecione o que importar</div>
           <div style="font-size:11px;color:var(--text2);">
-            <span style="color:var(--neon);">●</span> Vinculo automatico detectado &nbsp;
-            <span style="color:var(--amber-text);">●</span> Vincule manualmente
+            <span style="color:var(--neon);">*</span> Vinculo automatico detectado &nbsp;
+            <span style="color:var(--amber-text);">*</span> Vincule manualmente
           </div>
         </div>
         <div id="xml-itens">`;
@@ -1570,9 +1576,9 @@ function processarXML(file) {
               ${badgeMatch}
             </div>
             <div style="font-size:12px;color:var(--text2);">
-              NCM: ${d.NCM} &nbsp;·&nbsp; Qtd: <strong>${d.qCom} ${d.uCom}</strong>
+              NCM: ${d.NCM} &nbsp;-&nbsp; Qtd: <strong>${d.qCom} ${d.uCom}</strong>
               ${d.uCom.toLowerCase()==='kg'||d.uCom.toLowerCase()==='g' ? ` (${d.gramas.toFixed(0)}g)` : ''}
-              &nbsp;·&nbsp; Un: ${fmt(parseFloat(d.vUnCom))} &nbsp;·&nbsp; Total: ${fmt(parseFloat(d.vProd))}
+              &nbsp;-&nbsp; Un: ${fmt(parseFloat(d.vUnCom))} &nbsp;-&nbsp; Total: ${fmt(parseFloat(d.vProd))}
             </div>
             ${d.pareceFilamento ? `
             <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -1605,13 +1611,15 @@ function processarXML(file) {
           <i class="ti ti-info-circle"></i> O vinculo entre produto do XML e filamento do estoque sera <strong>memorizado</strong>. Proximas importacoes do mesmo produto serao vinculadas automaticamente.
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-          <button class="btn-ok" onclick="importarItensXML(${dadosItens.length},'${nNF||''}','${dhEmi||''}','${emitNome.replace(/'/g,'')||''}')">
+          <button class="btn-ok" onclick="importarItensXML()">
             <i class="ti ti-download"></i> Importar e Atualizar Estoque
           </button>
           <button class="btn" onclick="document.getElementById('xml-resultado').innerHTML=''"><i class="ti ti-x"></i> Cancelar</button>
         </div>
       </div>`;
 
+      // Guardar metadados em variavel global para importarItensXML()
+      window._xmlMeta = { n: dadosItens.length, nNF: nNF, data: dhEmi, emitente: emitNome };
       res.innerHTML = html;
     } catch(err) {
       document.getElementById('xml-resultado').innerHTML =
@@ -1640,7 +1648,12 @@ function onChangeXmlTipo(i) {
   }
 }
 
-function importarItensXML(n, nNF, data, emitente) {
+function importarItensXML() {
+  const meta = window._xmlMeta || {};
+  const n = meta.n || 0;
+  const nNF = meta.nNF || '';
+  const data = meta.data || '';
+  const emitente = meta.emitente || '';
   let count = 0;
   let estoqueAtualizado = [];
 
@@ -1682,7 +1695,7 @@ function importarItensXML(n, nNF, data, emitente) {
       registrarMovimentacao(
         filIdx, 'entrada', gramas,
         'Compra via XML NF-e' + (nNF ? ' NF ' + nNF : ''),
-        'NF: ' + (nNF || '—') + ' — ' + emitente
+        'NF: ' + (nNF || '--') + ' -- ' + emitente
       );
       estoqueAtualizado.push(filamentos[filIdx].marca + ' ' + filamentos[filIdx].modelo + ' ' + filamentos[filIdx].corNome + ': +' + gramas + 'g');
     }
@@ -1838,9 +1851,9 @@ function renderParceiros() {
         <span class="tag tag-blue" style="margin-left:4px;">${p.pessoa==='PJ'?'PJ':'PF'}</span>
         <br><span style="font-size:12px;color:var(--text2);">
           ${p.doc ? p.doc : ''}
-          ${p.email ? ' · ' + p.email : ''}
-          ${p.tel ? ' · ' + p.tel : ''}
-          ${p.cidade ? ' · ' + p.cidade + (p.uf?'/'+p.uf:'') : ''}
+          ${p.email ? ' - ' + p.email : ''}
+          ${p.tel ? ' - ' + p.tel : ''}
+          ${p.cidade ? ' - ' + p.cidade + (p.uf?'/'+p.uf:'') : ''}
         </span>
         ${p.pix ? `<br><span style="font-size:11px;color:var(--text3);"><i class="ti ti-qrcode" style="font-size:11px;"></i> Pix: ${p.pix}</span>` : ''}
       </div>
@@ -1854,10 +1867,14 @@ function renderParceiros() {
 }
 function delParceiro(i) { if(confirm('Remover parceiro?')) { parceiros.splice(i,1); S.set('parceiros',parceiros); renderParceiros(); buildFornecedorSelect(); } }
 
-// INIT
-buildFilSelect();aplicarCfg();checkEstoque();renderFils();
-// Carregar movimentacoes
-if(!movimentacoes) movimentacoes = [];
+// INIT -- aguarda DOM completo
+document.addEventListener('DOMContentLoaded', function() {
+  buildFilSelect();
+  aplicarCfg();
+  checkEstoque();
+  renderFils();
+  if(!movimentacoes) movimentacoes = [];
+});
 </script>
 </body>
 </html>
