@@ -196,9 +196,23 @@
       <div class="field"><label>Diametro</label>
         <select id="f-diam"><option value="1.75">1.75 mm</option><option value="2.85">2.85 mm</option></select>
       </div>
-      <div class="field"><label>Quantidade em Estoque (g) *</label><input type="number" id="f-qtd" placeholder="Ex: 1000" step="50" min="0"></div>
+      <div class="field"><label>Quantidade em Estoque (g) * <span style="color:var(--text3);font-weight:400;">(1 kg = 1000g)</span></label><div style="display:flex;gap:8px;">
+          <input type="number" id="f-qtd" placeholder="Ex: 1000" step="0.001" min="0" style="flex:1;" oninput="previewQtdFil()" onchange="previewQtdFil()">
+          <select id="f-qtd-unid" style="width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:13px;background:var(--bg3);color:var(--text);" onchange="previewQtdFil()">
+            <option value="g">g</option>
+            <option value="kg">kg</option>
+          </select>
+        </div>
+        <div id="f-qtd-preview" style="font-size:11px;color:var(--text3);margin-top:2px;"></div></div>
       <div class="field"><label>Preco pago pelo Rolo (R$)</label><input type="number" id="f-preco" placeholder="Ex: 89.90" step="0.50" min="0"></div>
-      <div class="field"><label>Peso do Rolo (g)</label><input type="number" id="f-peso-rolo" placeholder="1000" value="1000" step="50"></div>
+      <div class="field"><label>Peso do Rolo (g) <span style="color:var(--text3);font-weight:400;">(1 kg = 1000g)</span></label><div style="display:flex;gap:8px;">
+          <input type="number" id="f-peso-rolo" placeholder="Ex: 1000" value="1000" step="0.001" min="0" style="flex:1;" oninput="previewPesoRoloFil()" onchange="previewPesoRoloFil()">
+          <select id="f-rolo-unid" style="width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:13px;background:var(--bg3);color:var(--text);" onchange="previewPesoRoloFil()">
+            <option value="g">g</option>
+            <option value="kg">kg</option>
+          </select>
+        </div>
+        <div id="f-rolo-preview" style="font-size:11px;color:var(--text3);margin-top:2px;"></div></div>
       <div class="field"><label>Temp. Impressao (C)</label><input type="number" id="f-temp" placeholder="Ex: 215" step="5" oninput="this.dataset.auto='0'"></div>
       <div class="field"><label>Temp. Mesa / Cama (C)</label><input type="number" id="f-temp-mesa" placeholder="Ex: 60" step="5" oninput="this.dataset.auto='0'"></div>
       <div id="f-temp-info" style="display:none;grid-column:1/-1;font-size:12px;color:var(--blue-text);background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:6px;padding:6px 10px;"></div>
@@ -430,8 +444,15 @@
           <option value="ajuste">Ajuste — correcao de inventario</option>
         </select>
       </div>
-      <div class="field"><label>Quantidade (g)</label>
-        <input type="number" id="aj-qtd" placeholder="Ex: 150" step="1" min="0">
+      <div class="field"><label>Quantidade</label>
+        <div style="display:flex;gap:8px;">
+          <input type="number" id="aj-qtd" placeholder="Ex: 1 ou 1000" step="0.001" min="0" style="flex:1;" oninput="previewAjuste()" onchange="previewAjuste()">
+          <select id="aj-unid" style="width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:13px;background:var(--bg3);color:var(--text);" onchange="previewAjuste()">
+            <option value="g">g</option>
+            <option value="kg">kg</option>
+          </select>
+        </div>
+        <div id="aj-preview" style="font-size:11px;color:var(--text3);margin-top:4px;"></div>
       </div>
       <div class="field"><label>Motivo / Descricao</label>
         <input type="text" id="aj-motivo" placeholder="Ex: Inventario, Descarte, Ajuste manual">
@@ -503,7 +524,7 @@
           <div class="field"><label>Ou — novo filamento (marca / modelo)</label>
             <input type="text" id="cp-fil-desc" placeholder="Ex: Volt3d PLA Preto"></div>
           <div class="field"><label>Quantidade de rolos</label><input type="number" id="cp-rolos" placeholder="1" value="1" min="1" step="1" oninput="calcTotalCompra()"></div>
-          <div class="field"><label>Peso por rolo (g)</label><input type="number" id="cp-peso-rolo" placeholder="1000" value="1000" step="50" oninput="calcTotalCompra()"></div>
+          <div class="field"><label>Peso por rolo (g) <span style="color:var(--text3);font-weight:400;">(1 kg = 1000g)</span></label><input type="number" id="cp-peso-rolo" placeholder="1000" value="1000" step="50" oninput="calcTotalCompra()"></div>
           <div class="field"><label>Preco por rolo (R$)</label><input type="number" id="cp-preco-rolo" placeholder="89.90" step="0.50" oninput="calcTotalCompra()"></div>
           <div class="field"><label>Total da compra (R$)</label><input type="number" id="cp-total" readonly></div>
         </div>
@@ -752,6 +773,28 @@ let cfg=S.get('cfg')||{};
 let editFilIdx=-1,editProdIdx=-1;
 
 const COR={preto:'#1a1a1a',branco:'#f5f5f5',cinza:'#888888',prata:'#c0c0c0',vermelho:'#e53935',azul:'#1e88e5',verde:'#43a047',amarelo:'#fdd835',laranja:'#fb8c00',roxo:'#8e24aa',rosa:'#e91e63',marrom:'#6d4c41',transparente:'#d0d0d0',natural:'#f5deb3',bege:'#f5deb3',ciano:'#00bcd4',violeta:'#7c4dff',dourado:'#ffc107',magenta:'#e91e63'};
+function previewQtdFil() {
+  var v = parseFloat(document.getElementById('f-qtd').value) || 0;
+  var u = (document.getElementById('f-qtd-unid')||{}).value || 'g';
+  var prev = document.getElementById('f-qtd-preview');
+  if(!prev) return;
+  if(v <= 0) { prev.textContent = ''; return; }
+  var g = paraGramas(v, u);
+  prev.textContent = u === 'kg' ? v + ' kg = ' + g.toFixed(0) + 'g no estoque' : g.toFixed(0) + 'g no estoque';
+  prev.style.color = u === 'kg' ? 'var(--neon)' : 'var(--text3)';
+}
+
+function previewPesoRoloFil() {
+  var v = parseFloat(document.getElementById('f-peso-rolo').value) || 0;
+  var u = (document.getElementById('f-rolo-unid')||{}).value || 'g';
+  var prev = document.getElementById('f-rolo-preview');
+  if(!prev) return;
+  if(v <= 0) { prev.textContent = ''; return; }
+  var g = paraGramas(v, u);
+  prev.textContent = u === 'kg' ? v + ' kg = ' + g.toFixed(0) + 'g por rolo' : g.toFixed(0) + 'g por rolo';
+  prev.style.color = u === 'kg' ? 'var(--neon)' : 'var(--text3)';
+}
+
 function autoCorHex(){const n=(document.getElementById('f-cor-nome').value||'').toLowerCase();for(const[k,v] of Object.entries(COR)){if(n.includes(k)){document.getElementById('f-cor-hex').value=v;break;}}}
 const TMAP={'PLA':{t:'190-220',m:'50-60'},'PLA+':{t:'200-230',m:'50-60'},'PLA Silk':{t:'210-230',m:'45-60'},'PLA Silk Bicolor':{t:'215-235',m:'45-60'},'PLA Matte':{t:'195-220',m:'45-60'},'PLA Wood':{t:'190-220',m:'45-60'},'PLA Marble':{t:'190-220',m:'45-60'},'PLA Glow':{t:'190-220',m:'50-60'},'PLA Color Change':{t:'190-220',m:'50-60'},'PLA Metal':{t:'200-230',m:'50-60'},'PLA Carbon':{t:'195-220',m:'50-60'},'PLA HT':{t:'220-240',m:'60-80'},'PLA Rainbow':{t:'190-220',m:'50-60'},'PLA Glitter':{t:'195-220',m:'50-60'},'PLA Bronze':{t:'195-220',m:'50-60'},'PLA Cobre':{t:'195-220',m:'50-60'},'PLA Aco':{t:'195-220',m:'50-60'},'PLA Fluorescente':{t:'190-220',m:'50-60'},'PLA Transparente':{t:'190-215',m:'45-55'},'PETG':{t:'220-250',m:'70-85'},'PETG+':{t:'225-250',m:'70-85'},'PETG Carbon':{t:'230-255',m:'70-85'},'PETG-CF':{t:'230-255',m:'70-85'},'ABS':{t:'230-260',m:'95-110'},'ABS+':{t:'230-255',m:'90-110'},'ASA':{t:'235-260',m:'90-110'},'ABS-GF':{t:'240-260',m:'95-110'},'TPU 95A':{t:'220-235',m:'40-60'},'TPU 87A':{t:'210-230',m:'40-55'},'TPE':{t:'210-230',m:'40-60'},'TPU Carbon':{t:'220-240',m:'45-60'},'Nylon PA6':{t:'240-260',m:'70-90'},'Nylon PA12':{t:'240-260',m:'60-80'},'Nylon CF':{t:'250-270',m:'70-90'},'PC':{t:'260-310',m:'100-120'},'PC-ABS':{t:'240-270',m:'90-110'},'PEEK':{t:'360-400',m:'120-160'},'PEI':{t:'340-380',m:'120-160'},'PP':{t:'220-250',m:'85-100'},'HIPS':{t:'220-240',m:'90-110'},'PVA':{t:'185-200',m:'45-60'},'Tritan':{t:'250-260',m:'75-85'},'Resina Standard':{t:'-',m:'-'},'Resina ABS-Like':{t:'-',m:'-'},'Resina Flexivel':{t:'-',m:'-'},'Resina Castable':{t:'-',m:'-'},'Resina 8K':{t:'-',m:'-'}};
 function preencherTempFil(){
@@ -823,7 +866,12 @@ function salvarFilamento(){
   const qtd=parseFloat(document.getElementById('f-qtd').value);
   if(!marca){alert('Informe a marca/fabricante');return;}
   if(isNaN(qtd)||qtd<0){alert('Informe a quantidade em estoque');return;}
-  const f={id:editFilIdx>=0?filamentos[editFilIdx].id:Date.now(),marca,modelo:document.getElementById('f-modelo').value,corNome:document.getElementById('f-cor-nome').value.trim()||'Nao informada',corHex:document.getElementById('f-cor-hex').value,diam:document.getElementById('f-diam').value,qtd,preco:parseFloat(document.getElementById('f-preco').value)||0,pesoRolo:parseFloat(document.getElementById('f-peso-rolo').value)||1000,temp:document.getElementById('f-temp').value,tempMesa:document.getElementById('f-temp-mesa').value,data:document.getElementById('f-data').value,obs:document.getElementById('f-obs').value};
+  var unidQtd = (document.getElementById('f-qtd-unid')||{}).value || 'g';
+  var unidRolo = (document.getElementById('f-rolo-unid')||{}).value || 'g';
+  var qtdEmG = paraGramas(qtd, unidQtd);
+  var pesoRoloRaw = parseFloat(document.getElementById('f-peso-rolo').value)||1000;
+  var pesoRoloEmG = paraGramas(pesoRoloRaw, unidRolo);
+  const f={id:editFilIdx>=0?filamentos[editFilIdx].id:Date.now(),marca,modelo:document.getElementById('f-modelo').value,corNome:document.getElementById('f-cor-nome').value.trim()||'Nao informada',corHex:document.getElementById('f-cor-hex').value,diam:document.getElementById('f-diam').value,qtd:qtdEmG,preco:parseFloat(document.getElementById('f-preco').value)||0,pesoRolo:pesoRoloEmG,temp:document.getElementById('f-temp').value,tempMesa:document.getElementById('f-temp-mesa').value,data:document.getElementById('f-data').value,obs:document.getElementById('f-obs').value};
   if(editFilIdx>=0)filamentos[editFilIdx]=f;else filamentos.unshift(f);
   S.set('filamentos',filamentos);fecharFormFil();renderFils();buildFilSelect();checkEstoque();
 }
@@ -1157,6 +1205,20 @@ function limparTudo(){
 /* ========== ESTOQUE ========== */
 let movimentacoes = S.get('movimentacoes') || [];
 
+// Converte qualquer quantidade e unidade para gramas
+function paraGramas(qtd, unidade) {
+  var q = parseFloat(qtd) || 0;
+  var u = (unidade || '').toLowerCase().trim();
+  if(u === 'kg') return q * 1000;
+  if(u === 'g') return q;
+  if(u === 'mg') return q / 1000;
+  if(u === 'lb' || u === 'lbs') return q * 453.592;
+  if(u === 'oz') return q * 28.3495;
+  // Se nao reconhecer a unidade, assume gramas
+  return q;
+}
+
+
 function registrarMovimentacao(filIdx, tipo, qtd, motivo, referencia) {
   if(filIdx < 0 || filIdx >= filamentos.length || qtd <= 0) return;
   const f = filamentos[filIdx];
@@ -1201,6 +1263,22 @@ function baixarEstoqueProduto(fils, referencia) {
   return true;
 }
 
+function previewAjuste() {
+  var qtdRaw = parseFloat(document.getElementById('aj-qtd').value) || 0;
+  var unid = document.getElementById('aj-unid').value;
+  var preview = document.getElementById('aj-preview');
+  if(!preview) return;
+  if(qtdRaw <= 0) { preview.textContent = ''; return; }
+  var g = paraGramas(qtdRaw, unid);
+  if(unid === 'kg') {
+    preview.textContent = qtdRaw + ' kg = ' + g.toFixed(0) + 'g que serao registrados no estoque';
+    preview.style.color = 'var(--neon)';
+  } else {
+    preview.textContent = g.toFixed(0) + 'g serao registrados no estoque';
+    preview.style.color = 'var(--text3)';
+  }
+}
+
 function showAjusteEstoque() {
   const s = document.getElementById('aj-fil');
   s.innerHTML = '<option value="">Selecionar filamento...</option>' +
@@ -1210,10 +1288,12 @@ function showAjusteEstoque() {
 }
 
 function salvarAjuste() {
-  const filIdx = parseInt(document.getElementById('aj-fil').value);
-  const tipo = document.getElementById('aj-tipo').value;
-  const qtd = parseFloat(document.getElementById('aj-qtd').value) || 0;
-  const motivo = document.getElementById('aj-motivo').value.trim();
+  var filIdx = parseInt(document.getElementById('aj-fil').value);
+  var tipo = document.getElementById('aj-tipo').value;
+  var qtdRaw = parseFloat(document.getElementById('aj-qtd').value) || 0;
+  var unidAjuste = document.getElementById('aj-unid').value;
+  var qtd = paraGramas(qtdRaw, unidAjuste);
+  var motivo = document.getElementById('aj-motivo').value.trim();
   if(isNaN(filIdx) || filIdx < 0) { alert('Selecione um filamento'); return; }
   if(qtd <= 0) { alert('Informe a quantidade'); return; }
   registrarMovimentacao(filIdx, tipo, qtd, motivo || 'Ajuste manual', 'Ajuste manual');
@@ -1421,7 +1501,9 @@ function salvarCompra() {
 
   if(tipo === 'filamento') {
     const rolos = parseInt(document.getElementById('cp-rolos').value) || 1;
-    const pesoRolo = parseFloat(document.getElementById('cp-peso-rolo').value) || 1000;
+    // Peso do rolo sempre em gramas
+    const pesoRoloRaw = parseFloat(document.getElementById('cp-peso-rolo').value) || 1000;
+    const pesoRolo = pesoRoloRaw <= 10 ? pesoRoloRaw * 1000 : pesoRoloRaw; // se <= 10 assume kg
     const precoRolo = parseFloat(document.getElementById('cp-preco-rolo').value) || 0;
     const total = rolos * precoRolo;
     const filIdx = parseInt(document.getElementById('cp-fil-estoque').value);
@@ -1657,9 +1739,9 @@ function processarXML(file) {
         const pareceFilamento = /pla|petg|abs|tpu|tpe|nylon|filament|resina|silk|matte/i.test(xProd) ||
           NCM.startsWith('3916') || NCM.startsWith('3920');
         const filMatch = pareceFilamento ? matchFilamento(xProd) : -1;
-        // Calcular gramas a partir da quantidade e unidade
-        let gramas = parseFloat(qCom) || 1;
-        if(uCom.toLowerCase() === 'kg') gramas = gramas * 1000;
+        // Converter sempre para gramas
+        let gramas = paraGramas(qCom, uCom);
+        if(gramas <= 0) gramas = parseFloat(qCom) || 1;
         return { xProd, qCom, vUnCom, vProd, NCM, uCom, pareceFilamento, filMatch, gramas };
       });
 
@@ -1701,7 +1783,7 @@ function processarXML(file) {
             </div>
             <div style="font-size:12px;color:var(--text2);">
               NCM: ${d.NCM} &nbsp;-&nbsp; Qtd: <strong>${d.qCom} ${d.uCom}</strong>
-              ${d.uCom.toLowerCase()==='kg'||d.uCom.toLowerCase()==='g' ? ` (${d.gramas.toFixed(0)}g)` : ''}
+              <strong style="color:var(--neon);"> = ${d.gramas.toFixed(0)}g</strong>
               &nbsp;-&nbsp; Un: ${fmt(parseFloat(d.vUnCom))} &nbsp;-&nbsp; Total: ${fmt(parseFloat(d.vProd))}
             </div>
             ${d.pareceFilamento ? `
@@ -1808,9 +1890,10 @@ function cadastrarFilamentoDoXML(desc, gramas, vUnit, nNF, emitente, data) {
     if(descLow.includes(corKey)) { corDetect = corKey.charAt(0).toUpperCase() + corKey.slice(1); corHexDetect = cores[corKey]; break; }
   }
 
-  // Calcular preco por rolo e peso do rolo
-  var pesoRolo = gramas; // assume que a quantidade importada e um rolo
-  var precoRolo = vUnit; // preco unitario do XML
+  // O valor 'gramas' ja vem convertido pela funcao paraGramas
+  // pesoRolo = total de gramas do item (ex: 1kg = 1000g)
+  var pesoRolo = gramas;
+  var precoRolo = vUnit;
 
   // Verificar se ja existe filamento igual (mesmo modelo e cor aproximados)
   var existeIdx = -1;
@@ -1962,11 +2045,10 @@ function importarItensXML() {
     var filSelEl = document.getElementById('xml-fil-'+i);
     var filIdxManual = filSelEl ? parseInt(filSelEl.value) : -1;
     var gramasEl = document.getElementById('xml-gramas-'+i);
-    var gramas = gramasEl ? (parseFloat(gramasEl.value) || 0) : 0;
-    if(gramas <= 0) {
-      // Calcular gramas a partir da quantidade e unidade
-      gramas = uCom.toLowerCase() === 'kg' ? qtd * 1000 : qtd;
-    }
+    // Converter sempre para gramas
+    var gramasDigitado = gramasEl ? parseFloat(gramasEl.value) : 0;
+    var gramas = gramasDigitado > 0 ? gramasDigitado : paraGramas(qtd, uCom);
+    if(gramas <= 0) gramas = qtd; // fallback
 
     if(tipo === 'filamento') {
       var resultado;
