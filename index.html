@@ -1619,7 +1619,23 @@ function processarXML(file) {
       const nNF   = ide?.querySelector('nNF')?.textContent || '';
       const dhEmi = ide?.querySelector('dhEmi')?.textContent?.slice(0,10) || '';
       const emitNome = emit ? (emit.querySelector('xFant')?.textContent || emit.querySelector('xNome')?.textContent || '') : '';
+      const emitRazao = emit?.querySelector('xNome')?.textContent || '';
+      const emitFantasia = emit?.querySelector('xFant')?.textContent || '';
       const emitCNPJ = emit?.querySelector('CNPJ')?.textContent || '';
+      const emitIE   = emit?.querySelector('IE')?.textContent || '';
+      const emitCRT  = emit?.querySelector('CRT')?.textContent || '';
+      // Endereco do emitente
+      const emitEnd  = emit?.querySelector('enderEmit');
+      const emitLogr = emitEnd?.querySelector('xLgr')?.textContent || '';
+      const emitNum  = emitEnd?.querySelector('nro')?.textContent || '';
+      const emitComp = emitEnd?.querySelector('xCpl')?.textContent || '';
+      const emitBairro = emitEnd?.querySelector('xBairro')?.textContent || '';
+      const emitMun  = emitEnd?.querySelector('xMun')?.textContent || '';
+      const emitUF   = emitEnd?.querySelector('UF')?.textContent || '';
+      const emitCEP  = emitEnd?.querySelector('CEP')?.textContent || '';
+      const emitIBGE = emitEnd?.querySelector('cMun')?.textContent || '';
+      const emitFone = emitEnd?.querySelector('fone')?.textContent || '';
+      const emitEmail= emit?.querySelector('email')?.textContent || '';
       const vNF = xml.querySelector('vNF')?.textContent || '';
 
       const itens = Array.from(xml.querySelectorAll('det'));
@@ -1727,7 +1743,23 @@ function processarXML(file) {
       </div>`;
 
       // Guardar metadados em variavel global para importarItensXML()
-      window._xmlMeta = { n: dadosItens.length, nNF: nNF, data: dhEmi, emitente: emitNome };
+      window._xmlMeta = {
+        n: dadosItens.length, nNF, data: dhEmi, emitente: emitNome,
+        fornecedor: {
+          razao: emitRazao, fantasia: emitFantasia, doc: emitCNPJ,
+          ie: emitIE, crt: emitCRT, tel: emitFone, email: emitEmail,
+          end: emitLogr, num: emitNum, comp: emitComp, bairro: emitBairro,
+          cidade: emitMun, uf: emitUF, cep: emitCEP, ibge: emitIBGE
+        }
+      };
+      // Verificar se o fornecedor ja esta cadastrado
+      var fornJaCadastrado = parceiros.some(function(p) {
+        return p.doc && emitCNPJ && p.doc.replace(/\D/g,'') === emitCNPJ.replace(/\D/g,'');
+      });
+      var statusForn = fornJaCadastrado
+        ? '<span class="tag tag-green"><i class="ti ti-check"></i> Fornecedor ja cadastrado em Parceiros</span>'
+        : '<span class="tag tag-amber"><i class="ti ti-user-plus"></i> Sera cadastrado automaticamente em Parceiros ao importar</span>';
+      html += '<div style="margin-top:10px;">' + statusForn + '</div>';
       res.innerHTML = html;
     } catch(err) {
       document.getElementById('xml-resultado').innerHTML =
@@ -1821,6 +1853,84 @@ function cadastrarFilamentoDoXML(desc, gramas, vUnit, nNF, emitente, data) {
   }
 }
 
+function cadastrarFornecedorDoXML(forn, nNF) {
+  if(!forn || (!forn.razao && !forn.doc)) return null;
+
+  // Formatar CNPJ
+  var cnpj = (forn.doc||'').replace(/\D/g,'');
+  var cnpjFmt = cnpj.length === 14
+    ? cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
+    : forn.doc || '';
+
+  // Formatar CEP
+  var cepFmt = (forn.cep||'').replace(/\D/g,'').replace(/^(\d{5})(\d{3})$/, '$1-$2');
+
+  // Formatar fone
+  var fone = (forn.tel||'').replace(/\D/g,'');
+  if(fone.length === 11) fone = fone.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+  else if(fone.length === 10) fone = fone.replace(/^(\d{2})(\d{4})(\d{4})$/, '($1) $2-$3');
+  else fone = forn.tel || '';
+
+  // Mapear CRT para regime tributario
+  var regimeMap = {'1':'1','2':'2','3':'3'};
+  var regime = regimeMap[forn.crt] || '';
+
+  // Verificar se ja existe pelo CNPJ
+  var existeIdx = -1;
+  if(cnpj) {
+    parceiros.forEach(function(p, idx) {
+      if(p.doc && p.doc.replace(/\D/g,'') === cnpj) existeIdx = idx;
+    });
+  }
+
+  var dadosParceiro = {
+    tipo: 'fornecedor',
+    pessoa: 'PJ',
+    razao: forn.razao || forn.fantasia || 'Fornecedor XML',
+    fantasia: forn.fantasia || '',
+    doc: cnpjFmt,
+    ie: forn.ie || '',
+    im: '', cnae: '',
+    regime: regime,
+    email: forn.email || '',
+    tel: fone,
+    site: '', contato: '',
+    cep: cepFmt,
+    end: forn.end || '',
+    num: forn.num || '',
+    comp: forn.comp || '',
+    bairro: forn.bairro || '',
+    cidade: forn.cidade || '',
+    uf: forn.uf || '',
+    ibge: forn.ibge || '',
+    banco: '', agencia: '', conta: '', tipoConta: 'Corrente', pix: '',
+    obs: 'Cadastrado automaticamente via XML NF ' + nNF
+  };
+
+  if(existeIdx >= 0) {
+    // Atualizar dados existentes mantendo o id
+    dadosParceiro.id = parceiros[existeIdx].id;
+    // Preservar dados bancarios e campos extras ja preenchidos
+    dadosParceiro.banco = parceiros[existeIdx].banco || '';
+    dadosParceiro.agencia = parceiros[existeIdx].agencia || '';
+    dadosParceiro.conta = parceiros[existeIdx].conta || '';
+    dadosParceiro.pix = parceiros[existeIdx].pix || '';
+    dadosParceiro.contato = parceiros[existeIdx].contato || '';
+    // Manter obs original + nova referencia
+    dadosParceiro.obs = parceiros[existeIdx].obs || '';
+    parceiros[existeIdx] = dadosParceiro;
+    S.set('parceiros', parceiros);
+    buildFornecedorSelect();
+    return { acao: 'atualizado', nome: dadosParceiro.razao };
+  } else {
+    dadosParceiro.id = Date.now();
+    parceiros.unshift(dadosParceiro);
+    S.set('parceiros', parceiros);
+    buildFornecedorSelect();
+    return { acao: 'cadastrado', nome: dadosParceiro.razao };
+  }
+}
+
 function importarItensXML() {
   var meta = window._xmlMeta || {};
   var n = meta.n || 0;
@@ -1830,6 +1940,12 @@ function importarItensXML() {
   var count = 0;
   var filsCadastrados = [];
   var filsAtualizados = [];
+
+  // Cadastrar/atualizar fornecedor em Parceiros
+  var resultForn = null;
+  if(meta.fornecedor && (meta.fornecedor.razao || meta.fornecedor.doc)) {
+    resultForn = cadastrarFornecedorDoXML(meta.fornecedor, nNF);
+  }
 
   for(var i = 0; i < n; i++) {
     var cb = document.getElementById('xml-cb-'+i);
@@ -1904,6 +2020,14 @@ function importarItensXML() {
 
   // Montar mensagem de resultado
   var linhas = [count + ' item(s) importado(s) com sucesso!'];
+  if(resultForn) {
+    linhas.push('');
+    if(resultForn.acao === 'cadastrado') {
+      linhas.push('Fornecedor CADASTRADO em Parceiros: ' + resultForn.nome);
+    } else {
+      linhas.push('Fornecedor ATUALIZADO em Parceiros: ' + resultForn.nome);
+    }
+  }
   if(filsCadastrados.length) {
     linhas.push('');
     linhas.push('Filamentos CADASTRADOS no estoque:');
@@ -1916,7 +2040,7 @@ function importarItensXML() {
   }
   if(filsCadastrados.length || filsAtualizados.length) {
     linhas.push('');
-    linhas.push('Acesse a aba Filamentos ou Estoque para verificar.');
+    linhas.push('Acesse Filamentos, Estoque ou Parceiros para verificar.');
   }
 
   alert(linhas.join('\n'));
