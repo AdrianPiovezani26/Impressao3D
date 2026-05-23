@@ -551,15 +551,50 @@
         <button class="btn" onclick="limparFormCompra()"><i class="ti ti-refresh"></i> Limpar</button>
       </div>
     </div>
+
+    <!-- Consulta rapida de compras recentes -->
+    <div class="card" style="margin-top:0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
+        <div class="stitle" style="margin:0;">Compras Recentes</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input type="text" id="cp-busca" placeholder="Buscar por descricao, fornecedor ou NF..." oninput="renderComprasLancamento()"
+            style="padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg3);color:var(--text);width:280px;">
+          <select id="cp-filtro-lancamento" onchange="renderComprasLancamento()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);">
+            <option value="">Todos</option>
+            <option value="filamento">Filamentos</option>
+            <option value="acessorio">Acessorios</option>
+          </select>
+          <select id="cp-filtro-periodo" onchange="renderComprasLancamento()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);">
+            <option value="">Todo o periodo</option>
+            <option value="7">Ultimos 7 dias</option>
+            <option value="30">Ultimos 30 dias</option>
+            <option value="90">Ultimos 90 dias</option>
+          </select>
+        </div>
+      </div>
+      <div id="resumo-compras-lancamento" style="margin-bottom:1rem;"></div>
+      <div id="lista-compras-lancamento"></div>
+    </div>
   </div>
 
   <!-- Sub: Historico -->
   <div id="subtab-compras-historico" class="subtab">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
-      <span class="stitle" style="margin:0;">Historico de Compras</span>
-      <select id="filtro-cp-tipo" onchange="renderCompras()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);">
-        <option value="">Todos os tipos</option><option value="filamento">Filamentos</option><option value="acessorio">Acessorios</option>
-      </select>
+      <span class="stitle" style="margin:0;">Historico Completo de Compras</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="text" id="hist-busca" placeholder="Buscar..." oninput="renderCompras()"
+          style="padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg3);color:var(--text);width:180px;">
+        <select id="filtro-cp-tipo" onchange="renderCompras()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);">
+          <option value="">Todos os tipos</option><option value="filamento">Filamentos</option><option value="acessorio">Acessorios</option>
+        </select>
+        <select id="filtro-cp-periodo" onchange="renderCompras()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);">
+          <option value="">Todo o periodo</option>
+          <option value="7">Ultimos 7 dias</option>
+          <option value="30">Ultimos 30 dias</option>
+          <option value="90">Ultimos 90 dias</option>
+          <option value="365">Ultimo ano</option>
+        </select>
+      </div>
     </div>
     <div id="resumo-compras" style="margin-bottom:1rem;"></div>
     <div id="lista-compras"></div>
@@ -742,7 +777,7 @@ function showTab(t){
   if(t==='contas')renderContas();
   if(t==='config')loadCfg();
   if(t==='estoque'){renderEstoque();}
-  if(t==='compras'){buildFilSelectCompra();buildFornecedorSelect();document.getElementById('cp-data').value=hoje();}
+  if(t==='compras'){buildFilSelectCompra();buildFornecedorSelect();document.getElementById('cp-data').value=hoje();renderComprasLancamento();}
   if(t==='parceiros')renderParceiros();
 }
 
@@ -1414,43 +1449,120 @@ function salvarCompra() {
   S.set('compras', compras);
   alert('Compra registrada com sucesso!' + (tipo==='filamento' && document.getElementById('cp-entrada-estoque').value==='sim' ? ' Estoque atualizado.' : ''));
   limparFormCompra();
+  renderComprasLancamento();
+}
+
+function delCompra(i) {
+  if(confirm('Remover compra?')) {
+    compras.splice(i,1);
+    S.set('compras',compras);
+    renderCompras();
+    renderComprasLancamento();
+  }
+}
+
+function filtrarCompras(busca, tipo, diasStr) {
+  var lista = compras.slice();
+  if(tipo) lista = lista.filter(function(c){return c.tipo===tipo;});
+  if(busca) {
+    var b = busca.toLowerCase();
+    lista = lista.filter(function(c){
+      return (c.desc||'').toLowerCase().includes(b) ||
+             (c.fornNome||'').toLowerCase().includes(b) ||
+             (c.nf||'').toLowerCase().includes(b) ||
+             (c.obs||'').toLowerCase().includes(b);
+    });
+  }
+  if(diasStr) {
+    var dias = parseInt(diasStr);
+    var limite = new Date();
+    limite.setDate(limite.getDate() - dias);
+    lista = lista.filter(function(c){
+      if(!c.data) return false;
+      return new Date(c.data) >= limite;
+    });
+  }
+  return lista;
+}
+
+function cardCompra(c) {
+  var idx = compras.indexOf(c);
+  return '<div class="item-card">' +
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px;">' +
+      '<div style="flex:1;min-width:0;">' +
+        '<strong style="font-size:14px;">' + c.desc + '</strong>' +
+        '<span class="tag ' + (c.tipo==='filamento'?'tag-blue':'tag-amber') + '" style="margin-left:8px;">' + (c.tipo==='filamento'?'Filamento':'Acessorio') + '</span>' +
+        (c.cat ? '<span class="tag tag-blue" style="margin-left:4px;">' + c.cat + '</span>' : '') +
+        '<br><span style="font-size:12px;color:var(--text2);">' +
+          fmtD(c.data) +
+          (c.fornNome ? ' - ' + c.fornNome : '') +
+          (c.nf ? ' - NF: ' + c.nf : '') +
+          (c.tipo==='filamento' ? ' - ' + (c.rolos||1) + ' rolo(s) x ' + (c.pesoRolo||c.qtd||0) + 'g - ' + fmt(c.precoRolo||c.precoUnit||0) + '/rolo' : ' - Qtd: ' + (c.qtd||1) + ' ' + (c.unidade||'un')) +
+          (c.pgto ? ' - ' + c.pgto : '') +
+        '</span>' +
+        (c.obs && c.obs !== 'Importado via XML NF-e' ? '<br><span style="font-size:11px;color:var(--text3);">' + c.obs + '</span>' : '') +
+      '</div>' +
+      '<div style="text-align:right;flex-shrink:0;">' +
+        '<strong style="font-size:18px;color:var(--neon);text-shadow:var(--neon-glow-sm);">' + fmt(c.total) + '</strong>' +
+        '<br><button class="btn-del" style="margin-top:6px;" onclick="delCompra(' + idx + ')"><i class="ti ti-trash"></i></button>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function renderComprasLancamento() {
+  var busca = (document.getElementById('cp-busca')||{}).value || '';
+  var tipo = (document.getElementById('cp-filtro-lancamento')||{}).value || '';
+  var periodo = (document.getElementById('cp-filtro-periodo')||{}).value || '';
+  var lista = filtrarCompras(busca, tipo, periodo);
+  var totGasto = lista.reduce(function(s,c){return s+(c.total||0);},0);
+  var resumoEl = document.getElementById('resumo-compras-lancamento');
+  if(resumoEl) {
+    resumoEl.innerHTML = lista.length ?
+      '<div class="grid3" style="margin-bottom:1rem;">' +
+        '<div class="metric"><div class="lbl">Compras encontradas</div><div class="val">' + lista.length + '</div></div>' +
+        '<div class="metric"><div class="lbl">Total investido</div><div class="val">' + fmt(totGasto) + '</div></div>' +
+        '<div class="metric"><div class="lbl">Media por compra</div><div class="val">' + fmt(lista.length ? totGasto/lista.length : 0) + '</div></div>' +
+      '</div>' : '';
+  }
+  var el = document.getElementById('lista-compras-lancamento');
+  if(!el) return;
+  if(!lista.length) {
+    el.innerHTML = '<div class="empty" style="padding:1.5rem;"><i class="ti ti-shopping-bag"></i>' +
+      (busca||tipo||periodo ? 'Nenhuma compra encontrada com esses filtros.' : 'Nenhuma compra registrada ainda.') + '</div>';
+    return;
+  }
+  el.innerHTML = lista.slice(0,20).map(cardCompra).join('') +
+    (lista.length > 20 ? '<div style="text-align:center;padding:1rem;font-size:12px;color:var(--text3);">Mostrando 20 de ' + lista.length + ' resultados.</div>' : '');
 }
 
 function renderCompras() {
-  const filtro = document.getElementById('filtro-cp-tipo').value;
-  const lista = filtro ? compras.filter(c => c.tipo === filtro) : compras;
-  const totGasto = compras.reduce((s,c) => s + (c.total||0), 0);
-  const totFil = compras.filter(c=>c.tipo==='filamento').reduce((s,c)=>s+(c.total||0),0);
-  const totAc = compras.filter(c=>c.tipo==='acessorio').reduce((s,c)=>s+(c.total||0),0);
-  document.getElementById('resumo-compras').innerHTML = compras.length ?
-    `<div class="grid3" style="margin-bottom:1rem;">
-      <div class="metric"><div class="lbl">Total investido</div><div class="val">${fmt(totGasto)}</div></div>
-      <div class="metric"><div class="lbl">Em filamentos</div><div class="val">${fmt(totFil)}</div></div>
-      <div class="metric"><div class="lbl">Em acessorios</div><div class="val">${fmt(totAc)}</div></div>
-    </div>` : '';
-  const el = document.getElementById('lista-compras');
-  if(!lista.length) { el.innerHTML = '<div class="empty"><i class="ti ti-shopping-bag"></i>Nenhuma compra registrada.</div>'; return; }
-  el.innerHTML = lista.map((c,i) => `<div class="item-card">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-      <div>
-        <strong style="font-size:15px;">${c.desc}</strong>
-        <span class="tag ${c.tipo==='filamento'?'tag-blue':'tag-amber'}" style="margin-left:8px;">${c.tipo==='filamento'?'Filamento':'Acessorio'}</span>
-        ${c.cat ? `<span class="tag tag-blue" style="margin-left:4px;">${c.cat}</span>` : ''}
-        <br><span style="font-size:12px;color:var(--text2);">
-          ${fmtD(c.data)}
-          ${c.fornNome ? ' - ' + c.fornNome : ''}
-          ${c.nf ? ' - NF: ' + c.nf : ''}
-          ${c.tipo==='filamento' ? ` - ${c.rolos} rolo(s) x ${c.pesoRolo}g - ${fmt(c.precoRolo)}/rolo` : ` - Qtd: ${c.qtd} ${c.unidade||'un'}`}
-          ${c.pgto ? ' - ' + c.pgto : ''}
-        </span>
-        ${c.obs ? `<br><span style="font-size:11px;color:var(--text3);">${c.obs}</span>` : ''}
-      </div>
-      <strong style="font-size:18px;color:var(--neon);text-shadow:var(--neon-glow-sm);">${fmt(c.total)}</strong>
-    </div>
-    <button class="btn-del" onclick="delCompra(${compras.indexOf(c)})"><i class="ti ti-trash"></i> Remover</button>
-  </div>`).join('');
+  var busca = (document.getElementById('hist-busca')||{}).value || '';
+  var tipo = (document.getElementById('filtro-cp-tipo')||{}).value || '';
+  var periodo = (document.getElementById('filtro-cp-periodo')||{}).value || '';
+  var lista = filtrarCompras(busca, tipo, periodo);
+  var totGasto = lista.reduce(function(s,c){return s+(c.total||0);},0);
+  var totFil = lista.filter(function(c){return c.tipo==='filamento';}).reduce(function(s,c){return s+(c.total||0);},0);
+  var totAc = lista.filter(function(c){return c.tipo==='acessorio';}).reduce(function(s,c){return s+(c.total||0);},0);
+  var resumoEl = document.getElementById('resumo-compras');
+  if(resumoEl) {
+    resumoEl.innerHTML = compras.length ?
+      '<div class="grid4" style="margin-bottom:1rem;">' +
+        '<div class="metric"><div class="lbl">Resultados</div><div class="val">' + lista.length + '</div></div>' +
+        '<div class="metric"><div class="lbl">Total investido</div><div class="val">' + fmt(totGasto) + '</div></div>' +
+        '<div class="metric"><div class="lbl">Em filamentos</div><div class="val">' + fmt(totFil) + '</div></div>' +
+        '<div class="metric"><div class="lbl">Em acessorios</div><div class="val">' + fmt(totAc) + '</div></div>' +
+      '</div>' : '';
+  }
+  var el = document.getElementById('lista-compras');
+  if(!el) return;
+  if(!lista.length) {
+    el.innerHTML = '<div class="empty"><i class="ti ti-shopping-bag"></i>' +
+      (busca||tipo||periodo ? 'Nenhuma compra encontrada.' : 'Nenhuma compra registrada.') + '</div>';
+    return;
+  }
+  el.innerHTML = lista.map(cardCompra).join('');
 }
-function delCompra(i) { if(confirm('Remover compra?')) { compras.splice(i,1); S.set('compras',compras); renderCompras(); } }
 
 /* --- XML NF-e --- */
 
@@ -1644,75 +1756,174 @@ function onChangeXmlTipo(i) {
   }
 }
 
-function importarItensXML() {
-  const meta = window._xmlMeta || {};
-  const n = meta.n || 0;
-  const nNF = meta.nNF || '';
-  const data = meta.data || '';
-  const emitente = meta.emitente || '';
-  let count = 0;
-  let estoqueAtualizado = [];
+function cadastrarFilamentoDoXML(desc, gramas, vUnit, nNF, emitente, data) {
+  // Tenta extrair informacoes do nome do produto
+  var marcaDetect = emitente || 'Importado';
+  var modeloDetect = 'PLA';
+  var corDetect = 'Nao informada';
+  var corHexDetect = '#888888';
+  var descLow = desc.toLowerCase();
 
-  for(let i = 0; i < n; i++) {
-    const cb = document.getElementById('xml-cb-'+i);
+  // Detectar modelo
+  var modelos = ['pla silk bicolor','pla silk','pla+','pla matte','pla wood','pla marble','pla glow','pla carbon','pla ht','pla','petg-cf','petg+','petg','abs+','asa','abs','tpu 95a','tpu 87a','tpu','tpe','nylon pa12','nylon pa6','nylon','pc-abs','pc','peek','pei'];
+  for(var mi = 0; mi < modelos.length; mi++) {
+    if(descLow.includes(modelos[mi])) { modeloDetect = modelos[mi].toUpperCase(); break; }
+  }
+
+  // Detectar cor
+  var cores = {preto:'#1a1a1a',negro:'#1a1a1a',black:'#1a1a1a',branco:'#f5f5f5',white:'#f5f5f5',cinza:'#888888',gray:'#888888',grey:'#888888',vermelho:'#e53935',red:'#e53935',azul:'#1e88e5',blue:'#1e88e5',verde:'#43a047',green:'#43a047',amarelo:'#fdd835',yellow:'#fdd835',laranja:'#fb8c00',orange:'#fb8c00',roxo:'#8e24aa',purple:'#8e24aa',rosa:'#e91e63',pink:'#e91e63',marrom:'#6d4c41',brown:'#6d4c41',transparente:'#d0d0d0',natural:'#f5deb3',prata:'#c0c0c0',silver:'#c0c0c0',dourado:'#ffc107',gold:'#ffc107',granito:'#808080',granite:'#808080',ciano:'#00bcd4',cyan:'#00bcd4'};
+  for(var corKey in cores) {
+    if(descLow.includes(corKey)) { corDetect = corKey.charAt(0).toUpperCase() + corKey.slice(1); corHexDetect = cores[corKey]; break; }
+  }
+
+  // Calcular preco por rolo e peso do rolo
+  var pesoRolo = gramas; // assume que a quantidade importada e um rolo
+  var precoRolo = vUnit; // preco unitario do XML
+
+  // Verificar se ja existe filamento igual (mesmo modelo e cor aproximados)
+  var existeIdx = -1;
+  filamentos.forEach(function(f, idx) {
+    var nomeFil = (f.marca + ' ' + f.modelo + ' ' + f.corNome).toLowerCase();
+    if(f.modelo.toLowerCase() === modeloDetect.toLowerCase() && f.corNome.toLowerCase() === corDetect.toLowerCase()) {
+      existeIdx = idx;
+    }
+  });
+
+  if(existeIdx >= 0) {
+    // Filamento ja existe: apenas adicionar quantidade
+    registrarMovimentacao(existeIdx, 'entrada', gramas, 'Compra via XML NF-e NF ' + nNF, 'NF: ' + nNF + ' - ' + emitente);
+    // Atualizar preco se veio da NF
+    if(precoRolo > 0) filamentos[existeIdx].preco = precoRolo;
+    S.set('filamentos', filamentos);
+    return { acao: 'atualizado', filIdx: existeIdx, filNome: filamentos[existeIdx].marca + ' ' + filamentos[existeIdx].modelo + ' ' + filamentos[existeIdx].corNome };
+  } else {
+    // Cadastrar novo filamento
+    var novoFil = {
+      id: Date.now() + Math.random(),
+      marca: marcaDetect,
+      modelo: modeloDetect,
+      corNome: corDetect,
+      corHex: corHexDetect,
+      diam: '1.75',
+      qtd: gramas,
+      preco: precoRolo,
+      pesoRolo: pesoRolo,
+      temp: '',
+      tempMesa: '',
+      data: data || hoje(),
+      obs: 'Cadastrado via importacao XML NF ' + nNF
+    };
+    filamentos.unshift(novoFil);
+    S.set('filamentos', filamentos);
+    // Registrar entrada no estoque
+    registrarMovimentacao(0, 'entrada', gramas, 'Cadastro via XML NF-e NF ' + nNF, 'NF: ' + nNF + ' - ' + emitente);
+    return { acao: 'cadastrado', filIdx: 0, filNome: marcaDetect + ' ' + modeloDetect + ' ' + corDetect };
+  }
+}
+
+function importarItensXML() {
+  var meta = window._xmlMeta || {};
+  var n = meta.n || 0;
+  var nNF = meta.nNF || '';
+  var data = meta.data || '';
+  var emitente = meta.emitente || '';
+  var count = 0;
+  var filsCadastrados = [];
+  var filsAtualizados = [];
+
+  for(var i = 0; i < n; i++) {
+    var cb = document.getElementById('xml-cb-'+i);
     if(!cb || !cb.checked) continue;
 
-    const tipo  = document.getElementById('xml-tipo-'+i).value;
-    const desc  = document.getElementById('xml-xprod-'+i).value;
-    const qtd   = parseFloat(document.getElementById('xml-qtd-'+i).value) || 1;
-    const vUnit = parseFloat(document.getElementById('xml-vunit-'+i).value) || 0;
-    const total = parseFloat(document.getElementById('xml-vtotal-'+i).value) || 0;
-    const uCom  = document.getElementById('xml-ucom-'+i).value;
+    var tipo  = document.getElementById('xml-tipo-'+i).value;
+    var desc  = document.getElementById('xml-xprod-'+i).value;
+    var qtd   = parseFloat(document.getElementById('xml-qtd-'+i).value) || 1;
+    var vUnit = parseFloat(document.getElementById('xml-vunit-'+i).value) || 0;
+    var total = parseFloat(document.getElementById('xml-vtotal-'+i).value) || 0;
+    var uCom  = document.getElementById('xml-ucom-'+i).value;
 
-    // Filamento vinculado
-    const filSelEl = document.getElementById('xml-fil-'+i);
-    const filIdx = filSelEl ? parseInt(filSelEl.value) : -1;
-    const gramasEl = document.getElementById('xml-gramas-'+i);
-    const gramas = gramasEl ? (parseFloat(gramasEl.value) || qtd) : qtd;
+    // Filamento vinculado manualmente
+    var filSelEl = document.getElementById('xml-fil-'+i);
+    var filIdxManual = filSelEl ? parseInt(filSelEl.value) : -1;
+    var gramasEl = document.getElementById('xml-gramas-'+i);
+    var gramas = gramasEl ? (parseFloat(gramasEl.value) || 0) : 0;
+    if(gramas <= 0) {
+      // Calcular gramas a partir da quantidade e unidade
+      gramas = uCom.toLowerCase() === 'kg' ? qtd * 1000 : qtd;
+    }
 
-    // Salvar mapa de vinculo
-    if(tipo === 'filamento' && filIdx >= 0) salvarMapaXML(desc, filIdx);
+    if(tipo === 'filamento') {
+      var resultado;
 
-    compras.unshift({
-      id: Date.now() + i, tipo, desc,
-      qtd: tipo === 'filamento' ? gramas : qtd,
-      precoUnit: vUnit, total,
-      unidade: tipo === 'filamento' ? 'g' : uCom,
-      nf: nNF, data: data || hoje(),
-      fornNome: emitente, pgto: '',
-      obs: 'Importado via XML NF-e',
-      filIdx: filIdx >= 0 ? filIdx : -1,
-      rolos: uCom.toLowerCase() === 'un' ? qtd : 1,
-      pesoRolo: uCom.toLowerCase() === 'kg' ? qtd * 1000 : gramas
-    });
+      if(filIdxManual >= 0 && filamentos[filIdxManual]) {
+        // Vinculado manualmente a filamento existente
+        salvarMapaXML(desc, filIdxManual);
+        registrarMovimentacao(filIdxManual, 'entrada', gramas, 'Compra via XML NF ' + nNF, 'NF: ' + nNF + ' - ' + emitente);
+        if(vUnit > 0) filamentos[filIdxManual].preco = vUnit;
+        S.set('filamentos', filamentos);
+        resultado = { acao: 'atualizado', filNome: filamentos[filIdxManual].marca + ' ' + filamentos[filIdxManual].modelo + ' ' + filamentos[filIdxManual].corNome };
+      } else {
+        // Cadastrar automaticamente com base no nome do produto
+        resultado = cadastrarFilamentoDoXML(desc, gramas, vUnit, nNF, emitente, data);
+        if(resultado.filIdx >= 0) salvarMapaXML(desc, resultado.filIdx);
+      }
 
-    // Dar entrada no estoque se for filamento vinculado
-    if(tipo === 'filamento' && filIdx >= 0 && filamentos[filIdx] && gramas > 0) {
-      registrarMovimentacao(
-        filIdx, 'entrada', gramas,
-        'Compra via XML NF-e' + (nNF ? ' NF ' + nNF : ''),
-        'NF: ' + (nNF || '--') + ' -- ' + emitente
-      );
-      estoqueAtualizado.push(filamentos[filIdx].marca + ' ' + filamentos[filIdx].modelo + ' ' + filamentos[filIdx].corNome + ': +' + gramas + 'g');
+      if(resultado.acao === 'cadastrado') {
+        filsCadastrados.push(resultado.filNome + ' (' + gramas + 'g)');
+      } else {
+        filsAtualizados.push(resultado.filNome + ': +' + gramas + 'g');
+      }
+
+      // Registrar compra
+      compras.unshift({
+        id: Date.now() + i, tipo: 'filamento', desc: desc,
+        qtd: gramas, precoUnit: vUnit, total: total,
+        unidade: 'g', nf: nNF, data: data || hoje(),
+        fornNome: emitente, pgto: '',
+        obs: 'Importado via XML NF-e',
+        filIdx: filIdxManual >= 0 ? filIdxManual : 0,
+        rolos: 1, pesoRolo: gramas
+      });
+
+    } else {
+      // Acessorio: apenas registrar compra
+      compras.unshift({
+        id: Date.now() + i, tipo: 'acessorio', desc: desc,
+        qtd: qtd, precoUnit: vUnit, total: total,
+        unidade: uCom, nf: nNF, data: data || hoje(),
+        fornNome: emitente, pgto: '', obs: 'Importado via XML NF-e', filIdx: -1
+      });
     }
 
     count++;
   }
 
   S.set('compras', compras);
-  renderFils();
   buildFilSelect();
+  renderFils();
 
-  let msg = count + ' item(s) importado(s) com sucesso!';
-  if(estoqueAtualizado.length) {
-    msg += '\n\nEstoque atualizado:\n' + estoqueAtualizado.join('\n');
+  // Montar mensagem de resultado
+  var linhas = [count + ' item(s) importado(s) com sucesso!'];
+  if(filsCadastrados.length) {
+    linhas.push('');
+    linhas.push('Filamentos CADASTRADOS no estoque:');
+    filsCadastrados.forEach(function(f) { linhas.push('  + ' + f); });
   }
-  alert(msg);
+  if(filsAtualizados.length) {
+    linhas.push('');
+    linhas.push('Filamentos ATUALIZADOS no estoque:');
+    filsAtualizados.forEach(function(f) { linhas.push('  + ' + f); });
+  }
+  if(filsCadastrados.length || filsAtualizados.length) {
+    linhas.push('');
+    linhas.push('Acesse a aba Filamentos ou Estoque para verificar.');
+  }
+
+  alert(linhas.join('\n'));
 
   document.getElementById('xml-resultado').innerHTML = '';
-  // Ir para historico
-  document.querySelectorAll('#tab-compras .subtab-btn').forEach((b,i2) => b.classList.toggle('active', i2===1));
-  document.querySelectorAll('#tab-compras .subtab').forEach((s,i2) => s.classList.toggle('active', i2===1));
+  document.querySelectorAll('#tab-compras .subtab-btn').forEach(function(b,i2) { b.classList.toggle('active', i2===1); });
+  document.querySelectorAll('#tab-compras .subtab').forEach(function(s,i2) { s.classList.toggle('active', i2===1); });
   renderCompras();
 }
 
