@@ -1871,7 +1871,6 @@ function onChangeXmlTipo(i) {
 }
 
 function cadastrarFilamentoDoXML(desc, gramas, vUnit, nNF, emitente, data) {
-  // Tenta extrair informacoes do nome do produto
   var marcaDetect = emitente || 'Importado';
   var modeloDetect = 'PLA';
   var corDetect = 'Nao informada';
@@ -1890,37 +1889,53 @@ function cadastrarFilamentoDoXML(desc, gramas, vUnit, nNF, emitente, data) {
     if(descLow.includes(corKey)) { corDetect = corKey.charAt(0).toUpperCase() + corKey.slice(1); corHexDetect = cores[corKey]; break; }
   }
 
-  // O valor 'gramas' ja vem convertido pela funcao paraGramas
-  // pesoRolo = total de gramas do item (ex: 1kg = 1000g)
   var pesoRolo = gramas;
   var precoRolo = vUnit;
 
-  // Verificar se ja existe filamento igual (mesmo modelo e cor aproximados)
+  // BUG FIX: comparar por modelo + cor + marca para evitar duplicatas
+  // Usa o nome do produto (desc) como chave principal de identificacao
   var existeIdx = -1;
-  filamentos.forEach(function(f, idx) {
-    var nomeFil = (f.marca + ' ' + f.modelo + ' ' + f.corNome).toLowerCase();
-    if(f.modelo.toLowerCase() === modeloDetect.toLowerCase() && f.corNome.toLowerCase() === corDetect.toLowerCase()) {
-      existeIdx = idx;
-    }
-  });
+
+  // 1. Primeiro tenta pelo mapa de vinculo ja salvo (mais preciso)
+  var mapa = getMapaXML();
+  var chaveDesc = desc.toLowerCase().trim();
+  if(mapa[chaveDesc] !== undefined && filamentos[mapa[chaveDesc]]) {
+    existeIdx = mapa[chaveDesc];
+  }
+
+  // 2. Se nao achou no mapa, busca por modelo + cor
+  if(existeIdx < 0) {
+    filamentos.forEach(function(f, idx) {
+      if(f.modelo.toLowerCase() === modeloDetect.toLowerCase() &&
+         f.corNome.toLowerCase() === corDetect.toLowerCase()) {
+        // So aceita como mesmo filamento se a cor NAO for generica
+        if(corDetect !== 'Nao informada') {
+          existeIdx = idx;
+        }
+      }
+    });
+  }
 
   if(existeIdx >= 0) {
-    // Filamento ja existe: apenas adicionar quantidade
+    // Filamento ja existe: somar quantidade diretamente SEM usar registrarMovimentacao aqui
+    // para evitar contagem dupla (registrarMovimentacao ja atualiza qtd)
     registrarMovimentacao(existeIdx, 'entrada', gramas, 'Compra via XML NF-e NF ' + nNF, 'NF: ' + nNF + ' - ' + emitente);
-    // Atualizar preco se veio da NF
-    if(precoRolo > 0) filamentos[existeIdx].preco = precoRolo;
+    if(precoRolo > 0) {
+      filamentos[existeIdx].preco = precoRolo;
+      filamentos[existeIdx].pesoRolo = pesoRolo;
+    }
     S.set('filamentos', filamentos);
     return { acao: 'atualizado', filIdx: existeIdx, filNome: filamentos[existeIdx].marca + ' ' + filamentos[existeIdx].modelo + ' ' + filamentos[existeIdx].corNome };
   } else {
-    // Cadastrar novo filamento
+    // BUG FIX: novo filamento nasce com qtd=0, a movimentacao vai somar as gramas
     var novoFil = {
-      id: Date.now() + Math.random(),
+      id: Date.now() + Math.floor(Math.random() * 9999),
       marca: marcaDetect,
       modelo: modeloDetect,
       corNome: corDetect,
       corHex: corHexDetect,
       diam: '1.75',
-      qtd: gramas,
+      qtd: 0,  // CORRIGIDO: comeca em 0, registrarMovimentacao vai adicionar as gramas
       preco: precoRolo,
       pesoRolo: pesoRolo,
       temp: '',
@@ -1930,8 +1945,10 @@ function cadastrarFilamentoDoXML(desc, gramas, vUnit, nNF, emitente, data) {
     };
     filamentos.unshift(novoFil);
     S.set('filamentos', filamentos);
-    // Registrar entrada no estoque
+    // Registrar entrada: isso vai somar as gramas ao qtd=0, resultado correto
     registrarMovimentacao(0, 'entrada', gramas, 'Cadastro via XML NF-e NF ' + nNF, 'NF: ' + nNF + ' - ' + emitente);
+    // Salvar vinculo no mapa para proximas importacoes
+    salvarMapaXML(desc, 0);
     return { acao: 'cadastrado', filIdx: 0, filNome: marcaDetect + ' ' + modeloDetect + ' ' + corDetect };
   }
 }
