@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>AKP 3D — Sistema de Gestão</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
@@ -492,11 +495,18 @@
       <input type="file" id="import-file" accept=".json" style="display:none;" onchange="lerImporte(this)">
     </div>
     <div class="sep"></div>
+    <div class="stitle" style="font-size:11px;margin-bottom:.75rem;"><i class="ti ti-key"></i> Seguranca — Alterar Senha</div>
+    <div class="grid2">
+      <div class="field"><label>Senha Atual</label><input type="password" id="cfg-senha-atual" placeholder="Digite a senha atual"></div>
+      <div class="field"><label>Nova Senha</label><input type="password" id="cfg-nova-senha" placeholder="Minimo 6 caracteres"></div>
+      <div class="field"><label>Confirmar Nova Senha</label><input type="password" id="cfg-conf-senha" placeholder="Repita a nova senha"></div>
+    </div>
+    <button class="btn" onclick="alterarSenhaConfig()" style="margin-bottom:.5rem;"><i class="ti ti-lock"></i> Alterar Senha</button>
+    <div class="sep"></div>
     <div class="stitle" style="color:var(--red-text);">Zona de Perigo</div>
     <button class="btn-del" onclick="limparTudo()"><i class="ti ti-trash"></i> Apagar todos os dados</button>
   </div>
 </div>
-<!-- ESTOQUE -->
 <div id="tab-estoque" class="tab">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
     <span class="stitle" style="margin:0;">Controle de Estoque</span>
@@ -1347,6 +1357,7 @@ function fazerLogin() {
       localStorage.removeItem('akp3d_lembrar_login');
     }
     S.set('sessao', { user: user, ts: Date.now() });
+    sessionStorage.setItem('akp3d_ativa', '1');
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('app-content').classList.add('visible');
     document.getElementById('login-error').style.display = 'none';
@@ -1378,6 +1389,7 @@ function toggleSenha() {
 
 function fazerLogout() {
   S.set('sessao', null);
+  sessionStorage.removeItem('akp3d_ativa');
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('app-content').classList.remove('visible');
   // Manter campos preenchidos se lembrar senha estiver ativo
@@ -1402,15 +1414,8 @@ function verificarSessao() {
     document.getElementById('login-pass').value = lembrado.pass || '';
     document.getElementById('login-lembrar').checked = true;
   }
-  var sessao = S.get('sessao');
-  // Sessao valida por 8 horas
-  var oito_horas = 8 * 60 * 60 * 1000;
-  if(sessao && sessao.ts && (Date.now() - sessao.ts) < oito_horas) {
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('app-content').classList.add('visible');
-    return true;
-  }
-  // Sessao expirada -- se tem lembrar senha, fazer login automatico
+
+  // Se tem lembrar senha, login automatico direto
   if(lembrado && lembrado.user && lembrado.pass) {
     var usuarios = getUsuarios();
     var autoOk = usuarios.some(function(u) {
@@ -1418,13 +1423,27 @@ function verificarSessao() {
     });
     if(autoOk) {
       S.set('sessao', { user: lembrado.user, ts: Date.now() });
+      sessionStorage.setItem('akp3d_ativa', '1');
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('app-content').classList.add('visible');
       return true;
     }
   }
+
+  // Sem lembrar senha: usar sessionStorage (apagado ao fechar o navegador)
+  var sessaoAba = sessionStorage.getItem('akp3d_ativa');
+  var sessao = S.get('sessao');
+  var oito_horas = 8 * 60 * 60 * 1000;
+  if(sessaoAba && sessao && sessao.ts && (Date.now() - sessao.ts) < oito_horas) {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('app-content').classList.add('visible');
+    return true;
+  }
+
+  // Sem sessao valida -- mostrar login
   S.set('sessao', null);
-  document.getElementById('login-user').focus();
+  sessionStorage.removeItem('akp3d_ativa');
+  if(document.getElementById('login-user')) document.getElementById('login-user').focus();
   return false;
 }
 
