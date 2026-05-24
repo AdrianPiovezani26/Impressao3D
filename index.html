@@ -459,15 +459,10 @@
   <div class="grid2">
     <div class="card">
       <div class="stitle">Materia-prima</div>
-      <div class="field"><label>Filamento do Estoque</label>
-        <select id="c-fil-sel" onchange="preencherFilCalc()"><option value="">Selecionar filamento cadastrado...</option></select>
-      </div>
-      <div id="c-fil-info" class="fil-info-box" style="display:none;"></div>
-      <div class="field"><label>Peso usado na impressao (g)</label><input type="number" id="c-peso" placeholder="Ex: 50" step="0.1" oninput="calcular()"></div>
-      <div style="display:flex;gap:8px;">
-        <div class="field" style="flex:1;"><label>Preco do Rolo (R$)</label><input type="number" id="c-preco-rolo" placeholder="89.90" step="0.01" oninput="calcular()"></div>
-        <div class="field" style="flex:1;"><label>Peso do Rolo (g)</label><input type="number" id="c-peso-rolo" placeholder="1000" value="1000" oninput="calcular()"></div>
-      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Adicione um ou mais filamentos com a quantidade em gramas de cada um</div>
+      <div id="c-fils-lista"></div>
+      <button class="btn" style="margin-bottom:12px;" onclick="addFilCalc()"><i class="ti ti-plus"></i> Adicionar Filamento</button>
+      <div id="c-fil-custo-total" style="display:none;font-size:12px;color:var(--neon);margin-bottom:10px;padding:6px 10px;background:var(--neon-dim);border-radius:var(--radius);border:1px solid var(--border2);"></div>
       <div class="field"><label>Insumos extras (R$)</label><input type="number" id="c-insumos" placeholder="0.00" step="0.01" oninput="calcular()"></div>
     </div>
     <div class="card">
@@ -1047,18 +1042,33 @@ function showTab(t){
 
 /* ---- FILAMENTOS ---- */
 function buildFilSelect(){
-  const s=document.getElementById('c-fil-sel');
-  s.innerHTML='<option value="">Selecionar filamento cadastrado...</option>'+filamentos.map((f,i)=>`<option value="${i}">${f.marca} ${f.modelo} -- ${f.corNome} (${f.qtd}g)</option>`).join('');
+  // Atualizar selects de filamento nos formularios que ainda usam select unico
+  // (formulario de compras, estoque/ajuste)
+  var selectsParaAtualizar = [
+    document.getElementById('cp-fil-estoque'),
+    document.getElementById('aj-fil')
+  ];
+  var opts = '<option value="">Selecionar filamento...</option>' +
+    filamentos.map(function(f,i){
+      return '<option value="'+i+'">'+f.marca+' '+f.modelo+' -- '+f.corNome+' ('+f.qtd+'g)</option>';
+    }).join('');
+  selectsParaAtualizar.forEach(function(s){ if(s) s.innerHTML = opts; });
+  // Atualizar selects dentro das linhas de multi-filamento (precificacao e produtos)
+  ['c-fils-lista','p-fils-lista'].forEach(function(listaId){
+    var lista = document.getElementById(listaId);
+    if(!lista) return;
+    lista.querySelectorAll('select').forEach(function(sel){
+      var valAtual = sel.value;
+      sel.innerHTML = '<option value="">-- Manual --</option>' +
+        filamentos.map(function(f,i){
+          return '<option value="'+i+'">'+f.marca+' '+f.modelo+' -- '+f.corNome+' ('+f.qtd+'g)</option>';
+        }).join('');
+      sel.value = valAtual;
+    });
+  });
 }
 function preencherFilCalc(){
-  const idx=parseInt(document.getElementById('c-fil-sel').value),inf=document.getElementById('c-fil-info');
-  if(isNaN(idx)||!filamentos[idx]){inf.style.display='none';return;}
-  const f=filamentos[idx];
-  document.getElementById('c-preco-rolo').value=f.preco;
-  document.getElementById('c-peso-rolo').value=f.pesoRolo;
-  inf.style.display='flex';
-  inf.innerHTML=`<span class="cor-dot" style="background:${f.corHex};"></span><strong>${f.marca} ${f.modelo} ${f.corNome}</strong> - ${f.diam}mm - Estoque: <strong>${f.qtd}g</strong> - ${fmt(f.preco)}/rolo (${f.pesoRolo}g)${f.temp?' - '+f.temp+'C':''}`;
-  calcular();
+  // Funcao mantida para compatibilidade -- logica migrada para addFilCalc/syncDotCalc
 }
 function showFormFil(idx){
   editFilIdx=idx;
@@ -1191,10 +1201,110 @@ function renderProds(){
 function delProd(i){if(confirm('Remover produto?')){produtos.splice(i,1);S.set('produtos',produtos);renderProds();}}
 
 /* ---- PRECIFICACAO ---- */
+/* ===== MULTI-FILAMENTO NA PRECIFICACAO ===== */
+function addFilCalc(filIdx, pesoVal) {
+  var d = document.createElement('div');
+  d.className = 'fil-multi-item';
+
+  var sel = document.createElement('select');
+  sel.style.cssText = 'flex:2;min-width:150px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:13px;background:var(--bg2);color:var(--text);';
+  sel.innerHTML = '<option value="">-- Manual --</option>' +
+    filamentos.map(function(f,i){ return '<option value="'+i+'">'+f.marca+' '+f.modelo+' -- '+f.corNome+' ('+f.qtd+'g)</option>'; }).join('');
+  sel.addEventListener('change', function(){ syncDotCalc(sel); calcular(); });
+
+  var dot = document.createElement('span');
+  dot.className = 'cor-dot';
+  dot.style.cssText = 'background:#555;flex-shrink:0;';
+
+  var inp0 = document.createElement('input');
+  inp0.type = 'number'; inp0.placeholder = 'Peso (g)'; inp0.min = '0'; inp0.step = '0.1';
+  inp0.style.cssText = 'width:90px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:13px;background:var(--bg2);color:var(--text);';
+  inp0.title = 'Peso usado neste filamento (g)';
+  inp0.addEventListener('input', calcular);
+
+  var inp1 = document.createElement('input');
+  inp1.type = 'number'; inp1.placeholder = 'R$/rolo'; inp1.min = '0'; inp1.step = '0.01';
+  inp1.style.cssText = 'width:90px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:13px;background:var(--bg2);color:var(--text);';
+  inp1.title = 'Preco pago pelo rolo';
+  inp1.addEventListener('input', calcular);
+
+  var inp2 = document.createElement('input');
+  inp2.type = 'number'; inp2.placeholder = 'Rolo (g)'; inp2.value = '1000'; inp2.min = '1'; inp2.step = '1';
+  inp2.style.cssText = 'width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:13px;background:var(--bg2);color:var(--text);';
+  inp2.title = 'Peso total do rolo em gramas';
+  inp2.addEventListener('input', calcular);
+
+  var btn = document.createElement('button');
+  btn.className = 'rm';
+  btn.title = 'Remover filamento';
+  btn.innerHTML = '<i class="ti ti-x"></i>';
+  btn.addEventListener('click', function(){ d.remove(); calcular(); });
+
+  d.appendChild(dot);
+  d.appendChild(sel);
+  d.appendChild(inp0);
+  d.appendChild(inp1);
+  d.appendChild(inp2);
+  d.appendChild(btn);
+
+  if(filIdx !== undefined && filIdx >= 0 && filamentos[filIdx]) {
+    sel.value = filIdx;
+    syncDotCalc(sel);
+    inp1.value = filamentos[filIdx].preco || '';
+    inp2.value = filamentos[filIdx].pesoRolo || 1000;
+    if(pesoVal) inp0.value = pesoVal;
+  }
+  document.getElementById('c-fils-lista').appendChild(d);
+}
+
+function syncDotCalc(sel) {
+  var idx = parseInt(sel.value);
+  var dot = sel.closest('.fil-multi-item').querySelector('.cor-dot');
+  var inputs = sel.closest('.fil-multi-item').querySelectorAll('input');
+  if(!isNaN(idx) && filamentos[idx]) {
+    if(dot) dot.style.background = filamentos[idx].corHex || '#888';
+    if(filamentos[idx].preco && inputs[1]) inputs[1].value = filamentos[idx].preco;
+    if(filamentos[idx].pesoRolo && inputs[2]) inputs[2].value = filamentos[idx].pesoRolo;
+  }
+}
+
+function getFilsCalc() {
+  var items = document.getElementById('c-fils-lista').querySelectorAll('.fil-multi-item');
+  var total = 0;
+  var detalhes = [];
+  items.forEach(function(item) {
+    var inputs = item.querySelectorAll('input');
+    var peso     = parseFloat(inputs[0].value) || 0;
+    var precoRolo= parseFloat(inputs[1].value) || 0;
+    var pesoRolo = parseFloat(inputs[2].value) || 1000;
+    var sel      = item.querySelector('select');
+    var idx      = sel ? parseInt(sel.value) : -1;
+    var nome     = (!isNaN(idx) && filamentos[idx]) ? filamentos[idx].marca + ' ' + filamentos[idx].modelo + ' ' + filamentos[idx].corNome : 'Manual';
+    var custo    = peso > 0 && pesoRolo > 0 ? (peso / pesoRolo) * precoRolo : 0;
+    if(peso > 0) {
+      total += custo;
+      detalhes.push({ nome: nome, peso: peso, custo: custo });
+    }
+  });
+  return { total: total, detalhes: detalhes };
+}
+
 function calcular(){
-  const peso=parseFloat(document.getElementById('c-peso').value)||0;
-  const pRolo=parseFloat(document.getElementById('c-preco-rolo').value)||0;
-  const pRoloPeso=parseFloat(document.getElementById('c-peso-rolo').value)||1000;
+  var filsData = getFilsCalc();
+  var cFil = filsData.total;
+  // Atualizar label de custo total de filamentos
+  var labelFil = document.getElementById('c-fil-custo-total');
+  if(labelFil) {
+    if(filsData.detalhes.length > 0) {
+      labelFil.style.display = 'block';
+      labelFil.innerHTML = '<strong>Custo filamentos:</strong> ' + fmt(cFil) +
+        (filsData.detalhes.length > 1 ? ' (' + filsData.detalhes.map(function(d){ return d.nome.split(' ').slice(0,2).join(' ') + ': ' + d.peso + 'g = ' + fmt(d.custo); }).join(' | ') + ')' : '');
+    } else {
+      labelFil.style.display = 'none';
+    }
+  }
+  // Peso total para breakdown
+  var pesoTotal = filsData.detalhes.reduce(function(s,d){ return s+d.peso; }, 0);
   const insumos=parseFloat(document.getElementById('c-insumos').value)||0;
   const horas=parseFloat(document.getElementById('c-horas').value)||0;
   const watts=parseFloat(document.getElementById('c-watts').value)||0;
@@ -1207,26 +1317,38 @@ function calcular(){
   const embal=parseFloat(document.getElementById('c-embal').value)||0;
   const impostos=parseFloat(document.getElementById('c-impostos').value)||0;
   const margem=parseFloat(document.getElementById('c-margem').value)||0;
-  if(!horas&&!peso){document.getElementById('resultado').style.display='none';document.getElementById('sem-resultado').style.display='block';return;}
-  const cFil=(peso/pRoloPeso)*pRolo,cEn=(watts/1000)*horas*kwh,cMdo=mdo*horas,cDep=(vi/vida)*horas,cMt=(manut/hmes)*horas;
+  if(!horas&&pesoTotal<=0&&cFil<=0){document.getElementById('resultado').style.display='none';document.getElementById('sem-resultado').style.display='block';return;}
+  const cEn=(watts/1000)*horas*kwh,cMdo=mdo*horas,cDep=(vi/vida)*horas,cMt=(manut/hmes)*horas;
   const cTotal=cFil+cEn+cMdo+cDep+cMt+insumos+embal;
   const cImp=cTotal/(1-impostos/100),pVenda=cImp/(1-margem/100),lucro=pVenda-cTotal;
   document.getElementById('r-fil').textContent=fmt(cFil);document.getElementById('r-en').textContent=fmt(cEn);document.getElementById('r-dep').textContent=fmt(cDep);document.getElementById('r-mdov').textContent=fmt(cMdo);
-  document.getElementById('breakdown').innerHTML=[['Filamento ('+peso+'g)',cFil],['Insumos extras',insumos],['Energia eletrica',cEn],['Mao de obra',cMdo],['Depreciacao maquina',cDep],['Manutencao',cMt],['Embalagem / envio',embal],['Impostos ('+impostos+'%)',cImp-cTotal],['Margem de lucro ('+margem+'%)',pVenda-cImp],['Total -- preco de venda',pVenda]].map(([l,v])=>`<div class="breakdown-item"><span>${l}</span><span>${fmt(v)}</span></div>`).join('');
+  var bdFil = filsData.detalhes.length > 1
+    ? filsData.detalhes.map(function(d){ return ['  '+d.nome.split(' ').slice(0,2).join(' ')+' ('+d.peso+'g)', d.custo]; })
+    : [['Filamento (' + pesoTotal.toFixed(0) + 'g)', cFil]];
+  var bdRows = bdFil.concat([['Insumos extras',insumos],['Energia eletrica',cEn],['Mao de obra',cMdo],['Depreciacao maquina',cDep],['Manutencao',cMt],['Embalagem / envio',embal],['Impostos ('+impostos+'%)',cImp-cTotal],['Margem de lucro ('+margem+'%)',pVenda-cImp],['Total -- preco de venda',pVenda]]);
+  document.getElementById('breakdown').innerHTML = bdRows.map(function(r){ return '<div class="breakdown-item"><span>'+r[0]+'</span><span>'+fmt(r[1])+'</span></div>'; }).join('');
   document.getElementById('r-preco').textContent=fmt(pVenda);document.getElementById('r-lucro').textContent='Lucro liquido estimado: '+fmt(lucro);
   document.getElementById('resultado').style.display='block';document.getElementById('sem-resultado').style.display='none';
 }
 function salvarComoPedido(){
-  const nome=document.getElementById('c-nome-peca').value||'Peca sem nome';
-  const filIdx=parseInt(document.getElementById('c-fil-sel').value);
-  const filNome=(!isNaN(filIdx)&&filamentos[filIdx])?`${filamentos[filIdx].marca} ${filamentos[filIdx].modelo} ${filamentos[filIdx].corNome}`:'';
-  const peso=parseFloat(document.getElementById('c-peso').value)||0;
-  pedidos.unshift({id:Date.now(),nome,preco:document.getElementById('r-preco').textContent,data:new Date().toLocaleDateString('pt-BR'),status:'pendente',horas:document.getElementById('c-horas').value||'--',filNome,filIdx:isNaN(filIdx)?-1:filIdx,peso:peso||'--'});
+  var nome=document.getElementById('c-nome-peca').value||'Peca sem nome';
+  var filsCalc = getFilsCalc();
+  var filNome = filsCalc.detalhes.map(function(d){ return d.nome; }).join(', ') || '';
+  var pesoTotal2 = filsCalc.detalhes.reduce(function(s,d){ return s+d.peso; }, 0);
+  pedidos.unshift({id:Date.now(),nome,preco:document.getElementById('r-preco').textContent,data:new Date().toLocaleDateString('pt-BR'),status:'pendente',horas:document.getElementById('c-horas').value||'--',filNome,peso:pesoTotal2||'--'});
   S.set('pedidos',pedidos);
-  // Baixa de estoque ao criar pedido
-  if(!isNaN(filIdx) && filamentos[filIdx] && peso > 0) {
-    if(confirm(`Deseja dar baixa no estoque?\n\n* ${filNome}: ${peso}g\n\nClique OK para confirmar.`)) {
-      baixarEstoqueProduto([{filIdx, peso}], 'Pedido: ' + nome);
+  // Baixa de estoque dos filamentos usados
+  var filsComIdx = [];
+  document.getElementById('c-fils-lista').querySelectorAll('.fil-multi-item').forEach(function(item){
+    var sel = item.querySelector('select');
+    var idx = sel ? parseInt(sel.value) : -1;
+    var peso = parseFloat(item.querySelectorAll('input')[0].value)||0;
+    if(!isNaN(idx) && filamentos[idx] && peso > 0) filsComIdx.push({filIdx:idx,peso:peso});
+  });
+  if(filsComIdx.length > 0) {
+    var resumo = filsComIdx.map(function(f){ return '* '+filamentos[f.filIdx].marca+' '+filamentos[f.filIdx].modelo+': '+f.peso+'g'; }).join('\n');
+    if(confirm('Deseja dar baixa no estoque dos filamentos?\n\n' + resumo + '\n\nClique OK para confirmar.')) {
+      baixarEstoqueProduto(filsComIdx, 'Pedido: ' + nome);
       buildFilSelect();
     }
   }
