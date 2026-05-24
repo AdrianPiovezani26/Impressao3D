@@ -145,6 +145,52 @@
   .mov-ajuste{border-left:3px solid var(--amber-text);}
   .alerta-box{background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius);padding:.75rem 1rem;font-size:13px;color:var(--red-text);margin-bottom:8px;display:flex;align-items:center;gap:8px;}
 
+
+  /* ===== DASHBOARD ===== */
+  .dash-periodo{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:1.25rem;}
+  .dash-periodo button{padding:6px 14px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;transition:all 0.2s;}
+  .dash-periodo button.active{background:var(--neon-dim);color:var(--neon);border-color:var(--border2);box-shadow:var(--neon-glow-sm);}
+  .dash-periodo button:hover:not(.active){border-color:var(--neon);color:var(--neon);}
+  .dash-periodo input[type=date]{border:1px solid var(--border2);border-radius:var(--radius);padding:6px 10px;font-size:12px;background:var(--bg3);color:var(--text);outline:none;transition:all 0.2s;}
+  .dash-periodo input[type=date]:focus{border-color:var(--neon);}
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:1.25rem;}
+  .kpi{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.1rem 1.25rem;position:relative;overflow:hidden;transition:border-color 0.2s;}
+  .kpi:hover{border-color:var(--border2);}
+  .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0.6;}
+  .kpi.verde::before{background:linear-gradient(90deg,transparent,var(--neon),transparent);}
+  .kpi.azul::before{background:linear-gradient(90deg,transparent,var(--blue-text),transparent);}
+  .kpi.amber::before{background:linear-gradient(90deg,transparent,var(--amber-text),transparent);}
+  .kpi.vermelho::before{background:linear-gradient(90deg,transparent,var(--red-text),transparent);}
+  .kpi-icon{font-size:22px;margin-bottom:8px;}
+  .kpi-label{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+  .kpi-valor{font-size:22px;font-weight:700;line-height:1.1;}
+  .kpi-sub{font-size:11px;color:var(--text3);margin-top:4px;}
+  .kpi.verde .kpi-valor{color:var(--neon);text-shadow:var(--neon-glow-sm);}
+  .kpi.azul .kpi-valor{color:var(--blue-text);}
+  .kpi.amber .kpi-valor{color:var(--amber-text);}
+  .kpi.vermelho .kpi-valor{color:var(--red-text);}
+  .dash-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.25rem;}
+  @media(max-width:650px){.dash-row{grid-template-columns:1fr;}}
+  .dash-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;position:relative;}
+  .dash-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--neon),transparent);opacity:0.35;pointer-events:none;}
+  .dash-card-title{font-size:11px;font-weight:700;color:var(--neon);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:1rem;}
+  .dash-item{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;}
+  .dash-item:last-child{border-bottom:none;}
+  .dash-item .nome{color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dash-item .valor{font-weight:700;color:var(--neon);flex-shrink:0;margin-left:12px;font-size:13px;}
+  .dash-item .tag-small{font-size:10px;padding:2px 7px;border-radius:3px;margin-left:8px;flex-shrink:0;}
+  .bar-wrap{background:var(--bg3);border-radius:3px;height:5px;margin-top:4px;overflow:hidden;}
+  .bar-fill{height:5px;border-radius:3px;background:var(--neon);box-shadow:var(--neon-glow-sm);transition:width 0.6s ease;}
+  .dash-empty{text-align:center;color:var(--text3);padding:2rem;font-size:12px;}
+  .dash-empty i{font-size:28px;display:block;margin-bottom:8px;}
+  .dash-alert{background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius);padding:.75rem 1rem;font-size:13px;color:var(--red-text);display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .dash-info-box{background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);padding:.75rem 1rem;font-size:13px;color:var(--amber-text);display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .gauge-row{display:flex;gap:8px;margin-bottom:8px;align-items:center;}
+  .gauge-label{font-size:12px;color:var(--text2);width:110px;flex-shrink:0;}
+  .gauge-wrap{flex:1;background:var(--bg3);border-radius:3px;height:6px;overflow:hidden;}
+  .gauge-fill{height:6px;border-radius:3px;transition:width 0.5s;}
+  .gauge-val{font-size:12px;font-weight:700;width:70px;text-align:right;flex-shrink:0;}
+
 </style>
 </head>
 <body>
@@ -208,7 +254,8 @@
 </header>
 <div class="container">
 <nav class="nav">
-  <button class="active" onclick="showTab('filamentos')" id="btn-filamentos"><i class="ti ti-package"></i> Filamentos</button>
+  <button onclick="showTab('dashboard')" id="btn-dashboard"><i class="ti ti-dashboard"></i> Dashboard</button>
+  <button onclick="showTab('filamentos')" id="btn-filamentos"><i class="ti ti-package"></i> Filamentos</button>
   <button onclick="showTab('produtos')" id="btn-produtos"><i class="ti ti-box"></i> Produtos</button>
   <button onclick="showTab('calc')" id="btn-calc"><i class="ti ti-calculator"></i> Precificação</button>
   <button onclick="showTab('pedidos')" id="btn-pedidos"><i class="ti ti-clipboard-list"></i> Pedidos</button>
@@ -220,8 +267,68 @@
   <button onclick="showTab('config')" id="btn-config"><i class="ti ti-settings"></i> Configurações</button>
 </nav>
 
+<!-- DASHBOARD -->
+<div id="tab-dashboard" class="tab active">
+  <!-- Periodo -->
+  <div class="dash-periodo">
+    <span style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-right:4px;">Periodo:</span>
+    <button class="active" id="dp-semana" onclick="setPeriodo('semana')">Semana</button>
+    <button id="dp-mes" onclick="setPeriodo('mes')">Mes</button>
+    <button id="dp-ano" onclick="setPeriodo('ano')">Ano</button>
+    <button id="dp-custom" onclick="setPeriodo('custom')">Personalizado</button>
+    <div id="dp-custom-datas" style="display:none;display:flex;gap:6px;align-items:center;">
+      <input type="date" id="dp-de" onchange="renderDashboard()">
+      <span style="color:var(--text3);font-size:12px;">ate</span>
+      <input type="date" id="dp-ate" onchange="renderDashboard()">
+    </div>
+    <span id="dp-label" style="font-size:11px;color:var(--text3);margin-left:8px;"></span>
+  </div>
+
+  <!-- Alertas -->
+  <div id="dash-alertas"></div>
+
+  <!-- KPIs principais -->
+  <div class="kpi-grid" id="dash-kpis"></div>
+
+  <!-- Linha 1: Vendas + Contas a Receber -->
+  <div class="dash-row">
+    <div class="dash-card">
+      <div class="dash-card-title"><i class="ti ti-shopping-cart"></i> Ultimas Vendas</div>
+      <div id="dash-vendas-lista"></div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-title"><i class="ti ti-coin"></i> Contas a Receber</div>
+      <div id="dash-contas-lista"></div>
+    </div>
+  </div>
+
+  <!-- Linha 2: Top produtos + Estoque critico -->
+  <div class="dash-row">
+    <div class="dash-card">
+      <div class="dash-card-title"><i class="ti ti-box"></i> Produtos Mais Vendidos</div>
+      <div id="dash-produtos-lista"></div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-title"><i class="ti ti-package"></i> Estoque de Filamentos</div>
+      <div id="dash-estoque-lista"></div>
+    </div>
+  </div>
+
+  <!-- Linha 3: Compras do periodo + Pedidos -->
+  <div class="dash-row">
+    <div class="dash-card">
+      <div class="dash-card-title"><i class="ti ti-shopping-bag"></i> Compras do Periodo</div>
+      <div id="dash-compras-lista"></div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-title"><i class="ti ti-clipboard-list"></i> Pedidos em Aberto</div>
+      <div id="dash-pedidos-lista"></div>
+    </div>
+  </div>
+</div>
+
 <!-- FILAMENTOS -->
-<div id="tab-filamentos" class="tab active">
+<div id="tab-filamentos" class="tab">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
     <span class="stitle" style="margin:0;">Estoque de Filamentos</span>
     <button class="btn" onclick="showFormFil(-1)"><i class="ti ti-plus"></i> Novo Filamento</button>
@@ -926,6 +1033,7 @@ function showTab(t){
   document.querySelectorAll('.nav button').forEach(e=>e.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
   document.getElementById('btn-'+t).classList.add('active');
+  if(t==='dashboard')renderDashboard();
   if(t==='filamentos')renderFils();
   if(t==='produtos'){renderProds();buildFilOpts();}
   if(t==='pedidos')renderPedidos();
@@ -2752,6 +2860,239 @@ function renderParceiros() {
 }
 function delParceiro(i) { if(confirm('Remover parceiro?')) { parceiros.splice(i,1); S.set('parceiros',parceiros); renderParceiros(); buildFornecedorSelect(); } }
 
+
+/* ===== DASHBOARD ===== */
+var _dashPeriodo = 'semana';
+
+function hoje() { return new Date().toISOString().slice(0,10); }
+
+function getPeriodoDatas(periodo) {
+  var hj = new Date();
+  var ate = hoje();
+  var de;
+  if(periodo === 'semana') {
+    var d = new Date(hj); d.setDate(hj.getDate() - 6);
+    de = d.toISOString().slice(0,10);
+  } else if(periodo === 'mes') {
+    de = hj.getFullYear() + '-' + String(hj.getMonth()+1).padStart(2,'0') + '-01';
+  } else if(periodo === 'ano') {
+    de = hj.getFullYear() + '-01-01';
+  } else {
+    de = (document.getElementById('dp-de')||{}).value || ate;
+    ate = (document.getElementById('dp-ate')||{}).value || ate;
+  }
+  return { de: de, ate: ate };
+}
+
+function setPeriodo(p) {
+  _dashPeriodo = p;
+  document.querySelectorAll('.dash-periodo button').forEach(function(b) { b.classList.remove('active'); });
+  var btn = document.getElementById('dp-' + p);
+  if(btn) btn.classList.add('active');
+  var customDiv = document.getElementById('dp-custom-datas');
+  if(customDiv) customDiv.style.display = p === 'custom' ? 'flex' : 'none';
+  if(p !== 'custom') renderDashboard();
+}
+
+function estaNoperiodo(dataStr, de, ate) {
+  if(!dataStr) return false;
+  var d = dataStr.slice(0,10);
+  return d >= de && d <= ate;
+}
+
+function renderDashboard() {
+  var periodo = getPeriodoDatas(_dashPeriodo);
+  var de = periodo.de, ate = periodo.ate;
+
+  // Label do periodo
+  var lbl = document.getElementById('dp-label');
+  if(lbl) lbl.textContent = fmtD(de) + ' a ' + fmtD(ate);
+
+  // Filtrar dados do periodo
+  var vendasP = vendas.filter(function(v){ return estaNoperiodo(v.data, de, ate); });
+  var contasP = faturas.filter(function(f){ return estaNoperiodo(f.data, de, ate); });
+  var comprasP = compras.filter(function(c){ return estaNoperiodo(c.data, de, ate); });
+  var pedidosAbertos = pedidos.filter(function(p){ return p.status !== 'concluido'; });
+
+  // Calculos
+  var totalVendas = vendasP.reduce(function(s,v){ return s+(v.valor||0); }, 0);
+  var qtdVendas = vendasP.length;
+  var totalReceber = faturas.filter(function(f){ return f.status==='pendente'; }).reduce(function(s,f){ return s+(f.valor||0); }, 0);
+  var totalVencido = faturas.filter(function(f){ return f.status==='pendente'&&f.venc&&f.venc<hoje(); }).reduce(function(s,f){ return s+(f.valor||0); }, 0);
+  var totalPago = faturas.filter(function(f){ return f.status==='paga'; }).reduce(function(s,f){ return s+(f.valor||0); }, 0);
+  var totalComprasP = comprasP.reduce(function(s,c){ return s+(c.total||0); }, 0);
+  var lucroP = totalVendas - totalComprasP;
+  var ticketMedio = qtdVendas > 0 ? totalVendas / qtdVendas : 0;
+
+  // ALERTAS
+  var alertasEl = document.getElementById('dash-alertas');
+  var alertas = '';
+  if(totalVencido > 0) {
+    alertas += '<div class="dash-alert"><i class="ti ti-alert-triangle"></i><span><strong>Atencao:</strong> Voce tem ' + fmt(totalVencido) + ' em faturas VENCIDAS a receber.</span></div>';
+  }
+  var filCriticos = filamentos.filter(function(f){ return f.pesoRolo>0 && (f.qtd/f.pesoRolo*100)<=15; });
+  if(filCriticos.length) {
+    alertas += '<div class="dash-info-box"><i class="ti ti-package"></i><span><strong>Estoque critico:</strong> ' + filCriticos.map(function(f){ return f.marca+' '+f.modelo+' '+f.corNome+' ('+f.qtd+'g)'; }).join(', ') + '</span></div>';
+  }
+  if(alertasEl) alertasEl.innerHTML = alertas;
+
+  // KPIs
+  var kpisEl = document.getElementById('dash-kpis');
+  if(kpisEl) kpisEl.innerHTML = [
+    { cor:'verde', icon:'ti-shopping-cart', label:'Faturamento', valor:fmt(totalVendas), sub: qtdVendas + ' venda(s) no periodo' },
+    { cor:'azul',  icon:'ti-coin',          label:'A Receber (total)', valor:fmt(totalReceber), sub:'Todas as faturas pendentes' },
+    { cor:'vermelho', icon:'ti-alert-circle', label:'Vencido', valor:fmt(totalVencido), sub:'Faturas vencidas' },
+    { cor:'verde', icon:'ti-check',          label:'Recebido', valor:fmt(totalPago), sub:'Total de faturas pagas' },
+    { cor:'amber', icon:'ti-shopping-bag',   label:'Compras', valor:fmt(totalComprasP), sub:'Investido no periodo' },
+    { cor:'verde', icon:'ti-trending-up',    label:'Lucro Bruto', valor:fmt(lucroP), sub:'Vendas - Compras' },
+    { cor:'azul',  icon:'ti-receipt',        label:'Ticket Medio', valor:fmt(ticketMedio), sub:'Por venda no periodo' },
+    { cor:'amber', icon:'ti-clipboard-list', label:'Pedidos Abertos', valor: String(pedidosAbertos.length), sub: pedidosAbertos.filter(function(p){return p.status==='imprimindo';}).length + ' imprimindo' },
+  ].map(function(k) {
+    return '<div class="kpi ' + k.cor + '">' +
+      '<div class="kpi-icon" style="color:' + (k.cor==='verde'?'var(--neon)':k.cor==='azul'?'var(--blue-text)':k.cor==='amber'?'var(--amber-text)':'var(--red-text)') + '"><i class="ti ' + k.icon + '"></i></div>' +
+      '<div class="kpi-label">' + k.label + '</div>' +
+      '<div class="kpi-valor">' + k.valor + '</div>' +
+      '<div class="kpi-sub">' + k.sub + '</div>' +
+    '</div>';
+  }).join('');
+
+  // VENDAS RECENTES
+  var vendasEl = document.getElementById('dash-vendas-lista');
+  if(vendasEl) {
+    if(!vendasP.length) {
+      vendasEl.innerHTML = '<div class="dash-empty"><i class="ti ti-shopping-cart"></i>Nenhuma venda no periodo</div>';
+    } else {
+      var top = vendasP.slice().sort(function(a,b){ return b.valor-a.valor; }).slice(0,8);
+      vendasEl.innerHTML = top.map(function(v) {
+        return '<div class="dash-item">' +
+          '<div class="nome">' + v.cliente + '<br><span style="font-size:11px;color:var(--text3);">' + fmtD(v.data) + ' - ' + v.prodNome + '</span></div>' +
+          '<div>' +
+            '<span class="tag tag-' + (v.statusPgto==='pago'?'green':'amber') + ' tag-small">' + (v.statusPgto==='pago'?'Pago':'Pendente') + '</span>' +
+            '<span class="valor">' + fmt(v.valor) + '</span>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+  }
+
+  // CONTAS A RECEBER
+  var contasEl = document.getElementById('dash-contas-lista');
+  if(contasEl) {
+    var pendentes = faturas.filter(function(f){ return f.status==='pendente'; })
+      .sort(function(a,b){ return (a.venc||'9999') > (b.venc||'9999') ? 1 : -1; });
+    if(!pendentes.length) {
+      contasEl.innerHTML = '<div class="dash-empty"><i class="ti ti-check"></i>Nenhuma fatura pendente</div>';
+    } else {
+      var hj2 = hoje();
+      contasEl.innerHTML = pendentes.slice(0,8).map(function(f) {
+        var venc = f.venc && f.venc < hj2;
+        return '<div class="dash-item">' +
+          '<div class="nome">' + f.cliente + '<br><span style="font-size:11px;color:' + (venc?'var(--red-text)':'var(--text3)') + ';">' + (f.venc ? (venc?'Venceu: ':'Vence: ') + fmtD(f.venc) : 'Sem vencimento') + '</span></div>' +
+          '<div>' +
+            (venc ? '<span class="tag tag-red tag-small">Vencida</span>' : '') +
+            '<span class="valor" style="color:' + (venc?'var(--red-text)':'var(--amber-text)') + ';">' + fmt(f.valor) + '</span>' +
+          '</div>' +
+        '</div>';
+      }).join('') + (pendentes.length > 8 ? '<div style="text-align:center;font-size:11px;color:var(--text3);padding-top:8px;">+' + (pendentes.length-8) + ' faturas</div>' : '');
+    }
+  }
+
+  // TOP PRODUTOS
+  var prodsEl = document.getElementById('dash-produtos-lista');
+  if(prodsEl) {
+    var contagem = {};
+    vendasP.forEach(function(v) {
+      var k = v.prodNome || 'Outros';
+      if(!contagem[k]) contagem[k] = { qtd:0, total:0 };
+      contagem[k].qtd += v.qtd || 1;
+      contagem[k].total += v.valor || 0;
+    });
+    var ranking = Object.keys(contagem).map(function(k){ return { nome:k, qtd:contagem[k].qtd, total:contagem[k].total }; });
+    ranking.sort(function(a,b){ return b.total-a.total; });
+    var maxVal = ranking.length ? ranking[0].total : 1;
+    if(!ranking.length) {
+      prodsEl.innerHTML = '<div class="dash-empty"><i class="ti ti-box"></i>Nenhuma venda no periodo</div>';
+    } else {
+      prodsEl.innerHTML = ranking.slice(0,6).map(function(p) {
+        var pct = maxVal > 0 ? (p.total/maxVal*100) : 0;
+        return '<div style="margin-bottom:10px;">' +
+          '<div class="dash-item" style="border:none;padding:0 0 4px;">' +
+            '<div class="nome">' + p.nome + '</div>' +
+            '<div><span style="font-size:11px;color:var(--text3);margin-right:8px;">' + p.qtd + 'x</span><span class="valor">' + fmt(p.total) + '</span></div>' +
+          '</div>' +
+          '<div class="bar-wrap"><div class="bar-fill" style="width:' + pct.toFixed(0) + '%"></div></div>' +
+        '</div>';
+      }).join('');
+    }
+  }
+
+  // ESTOQUE FILAMENTOS
+  var estoqueEl = document.getElementById('dash-estoque-lista');
+  if(estoqueEl) {
+    if(!filamentos.length) {
+      estoqueEl.innerHTML = '<div class="dash-empty"><i class="ti ti-package"></i>Nenhum filamento cadastrado</div>';
+    } else {
+      var filOrdenados = filamentos.slice().sort(function(a,b){ return parseFloat(a.qtd)-parseFloat(b.qtd); });
+      estoqueEl.innerHTML = filOrdenados.slice(0,7).map(function(f) {
+        var pct = f.pesoRolo > 0 ? Math.min(100, f.qtd/f.pesoRolo*100) : 0;
+        var cor = pct > 50 ? 'var(--neon)' : pct > 15 ? 'var(--amber-text)' : 'var(--red-text)';
+        return '<div class="gauge-row">' +
+          '<div style="display:flex;align-items:center;gap:5px;width:130px;flex-shrink:0;">' +
+            '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + f.corHex + ';border:1px solid var(--border2);flex-shrink:0;"></span>' +
+            '<span style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + f.modelo + ' ' + f.corNome + '</span>' +
+          '</div>' +
+          '<div class="gauge-wrap"><div class="gauge-fill" style="width:' + pct.toFixed(0) + '%;background:' + cor + ';"></div></div>' +
+          '<div class="gauge-val" style="color:' + cor + ';">' + parseFloat(f.qtd).toFixed(0) + 'g</div>' +
+        '</div>';
+      }).join('');
+    }
+  }
+
+  // COMPRAS DO PERIODO
+  var comprasEl = document.getElementById('dash-compras-lista');
+  if(comprasEl) {
+    if(!comprasP.length) {
+      comprasEl.innerHTML = '<div class="dash-empty"><i class="ti ti-shopping-bag"></i>Nenhuma compra no periodo</div>';
+    } else {
+      var totalFilP = comprasP.filter(function(c){return c.tipo==='filamento';}).reduce(function(s,c){return s+(c.total||0);},0);
+      var totalAcP  = comprasP.filter(function(c){return c.tipo==='acessorio';}).reduce(function(s,c){return s+(c.total||0);},0);
+      comprasEl.innerHTML =
+        '<div class="dash-item"><div class="nome">Filamentos comprados</div><div class="valor">' + fmt(totalFilP) + '</div></div>' +
+        '<div class="dash-item"><div class="nome">Acessorios/Insumos</div><div class="valor" style="color:var(--amber-text);">' + fmt(totalAcP) + '</div></div>' +
+        '<div class="dash-item"><div class="nome">Total de compras</div><div class="valor">' + comprasP.length + ' lancamento(s)</div></div>' +
+        '<div class="dash-item" style="border:none;"><div class="nome" style="font-weight:700;">Total investido</div><div class="valor">' + fmt(totalComprasP) + '</div></div>' +
+        comprasP.slice(0,4).map(function(c) {
+          return '<div style="margin-top:6px;font-size:12px;color:var(--text2);display:flex;justify-content:space-between;">' +
+            '<span>' + fmtD(c.data) + ' - ' + c.desc.slice(0,25) + '</span>' +
+            '<span style="color:var(--neon);">' + fmt(c.total) + '</span>' +
+          '</div>';
+        }).join('');
+    }
+  }
+
+  // PEDIDOS EM ABERTO
+  var pedidosEl = document.getElementById('dash-pedidos-lista');
+  if(pedidosEl) {
+    if(!pedidosAbertos.length) {
+      pedidosEl.innerHTML = '<div class="dash-empty"><i class="ti ti-check"></i>Nenhum pedido em aberto</div>';
+    } else {
+      var CORES_PED = { pendente:'amber', imprimindo:'azul' };
+      var NOMES_PED = { pendente:'Pendente', imprimindo:'Imprimindo' };
+      pedidosEl.innerHTML = pedidosAbertos.slice(0,8).map(function(p) {
+        var cor = CORES_PED[p.status] || 'amber';
+        return '<div class="dash-item">' +
+          '<div class="nome">' + p.nome + '<br><span style="font-size:11px;color:var(--text3);">' + p.data + (p.horas ? ' - ' + p.horas + 'h' : '') + '</span></div>' +
+          '<div>' +
+            '<span class="tag tag-' + cor + ' tag-small">' + (NOMES_PED[p.status]||p.status) + '</span>' +
+            '<span class="valor">' + p.preco + '</span>' +
+          '</div>' +
+        '</div>';
+      }).join('') + (pedidosAbertos.length > 8 ? '<div style="text-align:center;font-size:11px;color:var(--text3);padding-top:8px;">+' + (pedidosAbertos.length-8) + ' pedidos</div>' : '');
+    }
+  }
+}
+/* ===== FIM DASHBOARD ===== */
+
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
   if(verificarSessao()) {
@@ -2764,6 +3105,17 @@ document.addEventListener('DOMContentLoaded', function() {
   checkEstoque();
   renderFils();
   if(!movimentacoes) movimentacoes = [];
+  // Inicializar dashboard como pagina inicial
+  var dpDe = document.getElementById('dp-de');
+  var dpAte = document.getElementById('dp-ate');
+  if(dpDe && dpAte) {
+    var hj = new Date();
+    dpAte.value = hoje();
+    var d = new Date(hj); d.setDate(hj.getDate()-6);
+    dpDe.value = d.toISOString().slice(0,10);
+  }
+  setPeriodo('semana');
+  document.getElementById('btn-dashboard').classList.add('active');
 });
 </script>
 </div><!-- /app-content -->
