@@ -467,7 +467,21 @@
     </div>
     <div class="card">
       <div class="stitle">Tempo e Energia</div>
-      <div class="field"><label>Horas de Impressao</label><input type="number" id="c-horas" placeholder="Ex: 4.5" step="0.5" oninput="calcular()"></div>
+      <div class="field">
+        <label>Tempo de Impressao</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div style="display:flex;flex-direction:column;gap:3px;flex:1;">
+            <input type="number" id="c-horas-h" placeholder="0" min="0" step="1" oninput="calcular()" style="text-align:center;">
+            <span style="font-size:10px;color:var(--text3);text-align:center;text-transform:uppercase;letter-spacing:1px;">horas</span>
+          </div>
+          <span style="color:var(--text3);font-size:18px;font-weight:300;padding-bottom:16px;">:</span>
+          <div style="display:flex;flex-direction:column;gap:3px;flex:1;">
+            <input type="number" id="c-horas-m" placeholder="0" min="0" max="59" step="1" oninput="calcular()" style="text-align:center;">
+            <span style="font-size:10px;color:var(--text3);text-align:center;text-transform:uppercase;letter-spacing:1px;">minutos</span>
+          </div>
+        </div>
+        <div id="c-horas-preview" style="font-size:11px;color:var(--text3);margin-top:4px;text-align:center;"></div>
+      </div>
       <div class="field"><label>Potencia da Impressora (W)</label><input type="number" id="c-watts" placeholder="200" value="200" step="10" oninput="calcular()"></div>
       <div class="field"><label>Custo do kWh (R$)</label><input type="number" id="c-kwh" placeholder="0.75" step="0.01" oninput="calcular()"></div>
       <div class="field"><label>Mao de Obra por Hora (R$)</label><input type="number" id="c-mdo" placeholder="15.00" step="0.50" oninput="calcular()"></div>
@@ -1309,7 +1323,21 @@ function calcular(){
   // Peso total para breakdown
   var pesoTotal = filsData.detalhes.reduce(function(s,d){ return s+d.peso; }, 0);
   const insumos=parseFloat(document.getElementById('c-insumos').value)||0;
-  const horas=parseFloat(document.getElementById('c-horas').value)||0;
+  // Converter horas + minutos para horas decimais
+  var horasH = parseInt(document.getElementById('c-horas-h').value) || 0;
+  var horasM = parseInt(document.getElementById('c-horas-m').value) || 0;
+  if(horasM > 59) { horasM = 59; document.getElementById('c-horas-m').value = 59; }
+  var horas = horasH + (horasM / 60);
+  // Preview do tempo total
+  var prevEl = document.getElementById('c-horas-preview');
+  if(prevEl) {
+    if(horasH > 0 || horasM > 0) {
+      prevEl.textContent = 'Total: ' + horas.toFixed(2) + 'h (' + (horasH > 0 ? horasH + 'h ' : '') + (horasM > 0 ? horasM + 'min' : '') + ')';
+      prevEl.style.color = 'var(--neon)';
+    } else {
+      prevEl.textContent = '';
+    }
+  }
   const watts=parseFloat(document.getElementById('c-watts').value)||0;
   const kwh=parseFloat(document.getElementById('c-kwh').value)||0;
   const mdo=parseFloat(document.getElementById('c-mdo').value)||0;
@@ -1320,7 +1348,7 @@ function calcular(){
   const embal=parseFloat(document.getElementById('c-embal').value)||0;
   const impostos=parseFloat(document.getElementById('c-impostos').value)||0;
   const margem=parseFloat(document.getElementById('c-margem').value)||0;
-  if(!horas&&pesoTotal<=0&&cFil<=0){document.getElementById('resultado').style.display='none';document.getElementById('sem-resultado').style.display='block';return;}
+  if(horas<=0&&pesoTotal<=0&&cFil<=0){document.getElementById('resultado').style.display='none';document.getElementById('sem-resultado').style.display='block';return;}
   const cEn=(watts/1000)*horas*kwh,cMdo=mdo*horas,cDep=(vi/vida)*horas,cMt=(manut/hmes)*horas;
   const cTotal=cFil+cEn+cMdo+cDep+cMt+insumos+embal;
   const cImp=cTotal/(1-impostos/100),pVenda=cImp/(1-margem/100),lucro=pVenda-cTotal;
@@ -1328,7 +1356,7 @@ function calcular(){
   var bdFil = filsData.detalhes.length > 1
     ? filsData.detalhes.map(function(d){ return ['  '+d.nome.split(' ').slice(0,2).join(' ')+' ('+d.peso+'g)', d.custo]; })
     : [['Filamento (' + pesoTotal.toFixed(0) + 'g)', cFil]];
-  var bdRows = bdFil.concat([['Insumos extras',insumos],['Energia eletrica',cEn],['Mao de obra',cMdo],['Depreciacao maquina',cDep],['Manutencao',cMt],['Embalagem / envio',embal],['Impostos ('+impostos+'%)',cImp-cTotal],['Margem de lucro ('+margem+'%)',pVenda-cImp],['Total -- preco de venda',pVenda]]);
+  var bdRows = bdFil.concat([['Insumos extras',insumos],['Energia eletrica ('+horasH+'h'+( horasM>0?' '+horasM+'min':'')+' a '+watts+'W)',cEn],['Mao de obra',cMdo],['Depreciacao maquina',cDep],['Manutencao',cMt],['Embalagem / envio',embal],['Impostos ('+impostos+'%)',cImp-cTotal],['Margem de lucro ('+margem+'%)',pVenda-cImp],['Total -- preco de venda',pVenda]]);
   document.getElementById('breakdown').innerHTML = bdRows.map(function(r){ return '<div class="breakdown-item"><span>'+r[0]+'</span><span>'+fmt(r[1])+'</span></div>'; }).join('');
   document.getElementById('r-preco').textContent=fmt(pVenda);document.getElementById('r-lucro').textContent='Lucro liquido estimado: '+fmt(lucro);
   document.getElementById('resultado').style.display='block';document.getElementById('sem-resultado').style.display='none';
@@ -1338,7 +1366,10 @@ function salvarComoPedido(){
   var filsCalc = getFilsCalc();
   var filNome = filsCalc.detalhes.map(function(d){ return d.nome; }).join(', ') || '';
   var pesoTotal2 = filsCalc.detalhes.reduce(function(s,d){ return s+d.peso; }, 0);
-  pedidos.unshift({id:Date.now(),nome,preco:document.getElementById('r-preco').textContent,data:new Date().toLocaleDateString('pt-BR'),status:'pendente',horas:document.getElementById('c-horas').value||'--',filNome,peso:pesoTotal2||'--'});
+  var hH = parseInt(document.getElementById('c-horas-h').value)||0;
+  var hM = parseInt(document.getElementById('c-horas-m').value)||0;
+  var tempoStr = hH > 0 || hM > 0 ? (hH > 0 ? hH+'h' : '') + (hM > 0 ? ' '+hM+'min' : '') : '--';
+  pedidos.unshift({id:Date.now(),nome,preco:document.getElementById('r-preco').textContent,data:new Date().toLocaleDateString('pt-BR'),status:'pendente',horas:tempoStr,filNome,peso:pesoTotal2||'--'});
   S.set('pedidos',pedidos);
   // Baixa de estoque dos filamentos usados
   var filsComIdx = [];
@@ -1361,7 +1392,7 @@ function salvarComoProduto(){
   const nome=document.getElementById('c-nome-peca').value||'Peca sem nome';
   const precoStr=document.getElementById('r-preco').textContent;
   const precoNum=parseFloat(precoStr.replace('R$ ','').replace(',','.'))||0;
-  produtos.unshift({id:Date.now(),nome,cat:'Outro',fils:[],filNome:'--',horas:document.getElementById('c-horas').value,precoNum,preco:precoStr,obs:''});
+  produtos.unshift({id:Date.now(),nome,cat:'Outro',fils:[],filNome:'--',horas:(function(){var h=parseInt(document.getElementById('c-horas-h').value)||0;var m=parseInt(document.getElementById('c-horas-m').value)||0;return h>0||m>0?(h>0?h+'h':'')+(m>0?' '+m+'min':''):'--';})(),precoNum,preco:precoStr,obs:''});
   S.set('produtos',produtos);alert('Produto salvo: '+nome);
 }
 
@@ -1526,7 +1557,7 @@ function salvarConfig(){
 }
 function aplicarCfg(){
   const m={w:'c-watts',kwh:'c-kwh',mdo:'c-mdo',vi:'c-val-imp',vida:'c-vida',manut:'c-manut',hmes:'c-hmes'};
-  for(const[k,id] of Object.entries(m)){if(cfg[k]){const el=document.getElementById(id);if(el)el.value=cfg[k];}}
+  for(const[k,id] of Object.entries(m)){if(cfg[k]){var el2=document.getElementById(id);if(el2)el2.value=cfg[k];}}
 }
 function checkEstoque(){
   const critico=filamentos.some(f=>(f.pesoRolo>0?(f.qtd/f.pesoRolo*100):0)<=15);
