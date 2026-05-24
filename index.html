@@ -77,6 +77,37 @@
   .fil-info-box{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:8px 12px;font-size:12px;color:var(--text2);margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
   input[type=color]{width:40px;height:36px;padding:2px;border:1px solid var(--border2);border-radius:var(--radius);cursor:pointer;background:var(--bg3);}
   .row-actions{display:flex;gap:6px;white-space:nowrap;}
+
+  /* ===== LOGIN ===== */
+  #login-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+  #login-screen.hidden{display:none;}
+  .login-box{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:2.5rem 2rem;width:100%;max-width:380px;position:relative;overflow:hidden;}
+  .login-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--neon),transparent);opacity:0.8;}
+  .login-box::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--neon),transparent);opacity:0.3;}
+  .login-logo{display:flex;flex-direction:column;align-items:center;margin-bottom:2rem;gap:12px;}
+  .login-logo img{width:80px;height:80px;object-fit:contain;filter:drop-shadow(0 0 12px #39ff14);}
+  .login-logo h2{font-size:22px;font-weight:700;color:var(--neon);text-shadow:var(--neon-glow);letter-spacing:4px;text-transform:uppercase;}
+  .login-logo p{font-size:11px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;}
+  .login-field{display:flex;flex-direction:column;gap:6px;margin-bottom:1rem;}
+  .login-field label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;font-weight:600;}
+  .login-field input{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:10px 14px;font-size:15px;color:var(--text);outline:none;transition:all 0.2s;width:100%;}
+  .login-field input:focus{border-color:var(--neon);box-shadow:0 0 0 2px rgba(57,255,20,0.1);}
+  .login-btn{width:100%;padding:11px;background:rgba(57,255,20,0.10);border:1px solid var(--neon);color:var(--neon);border-radius:var(--radius);cursor:pointer;font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;text-shadow:var(--neon-glow-sm);transition:all 0.2s;margin-top:.5rem;}
+  .login-btn:hover{background:rgba(57,255,20,0.20);box-shadow:var(--neon-glow);}
+  .login-btn:active{transform:scale(0.98);}
+  .login-error{background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius);padding:8px 12px;font-size:13px;color:var(--red-text);margin-top:1rem;display:none;text-align:center;}
+  .login-corner{position:absolute;width:16px;height:16px;border-color:var(--neon);border-style:solid;opacity:0.5;}
+  .login-corner.tl{top:10px;left:10px;border-width:2px 0 0 2px;}
+  .login-corner.tr{top:10px;right:10px;border-width:2px 2px 0 0;}
+  .login-corner.bl{bottom:10px;left:10px;border-width:0 0 2px 2px;}
+  .login-corner.br{bottom:10px;right:10px;border-width:0 2px 2px 0;}
+  .login-footer{margin-top:1.5rem;text-align:center;font-size:11px;color:var(--text3);}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+  .shake{animation:shake 0.4s ease;}
+  /* App oculto ate login */
+  #app-content{display:none;}
+  #app-content.visible{display:block;}
+
   ::-webkit-scrollbar{width:5px;height:5px;}
   ::-webkit-scrollbar-track{background:var(--bg);}
   ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
@@ -114,6 +145,48 @@
 </style>
 </head>
 <body>
+
+<!-- TELA DE LOGIN -->
+<div id="login-screen">
+  <div class="scan-line"></div>
+  <div class="login-box">
+    <div class="login-corner tl"></div>
+    <div class="login-corner tr"></div>
+    <div class="login-corner bl"></div>
+    <div class="login-corner br"></div>
+    <div class="login-logo">
+      <img src="Logo_AKP3D.jpg" alt="AKP 3D" onerror="this.style.display='none'">
+      <h2>AKP 3D</h2>
+      <p>Sistema de Gestao</p>
+    </div>
+    <div class="login-field">
+      <label><i class="ti ti-user"></i> Usuario</label>
+      <input type="text" id="login-user" placeholder="Digite seu usuario" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
+    </div>
+    <div class="login-field">
+      <label><i class="ti ti-lock"></i> Senha</label>
+      <div style="position:relative;">
+        <input type="password" id="login-pass" placeholder="Digite sua senha" autocomplete="current-password" onkeydown="if(event.key==='Enter')fazerLogin()" style="padding-right:42px;">
+        <button onclick="toggleSenha()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text2);cursor:pointer;padding:0;font-size:16px;" title="Mostrar/ocultar senha">
+          <i class="ti ti-eye" id="olho-icon"></i>
+        </button>
+      </div>
+    </div>
+    <!-- Lembrar senha -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;">
+        <input type="checkbox" id="login-lembrar" style="accent-color:var(--neon);width:15px;height:15px;cursor:pointer;">
+        <span style="font-size:12px;color:var(--text2);">Lembrar usuario e senha</span>
+      </label>
+    </div>
+    <button class="login-btn" onclick="fazerLogin()"><i class="ti ti-login"></i> Entrar</button>
+    <div class="login-error" id="login-error"><i class="ti ti-alert-circle"></i> Usuario ou senha incorretos</div>
+    <div class="login-footer">AKP 3D &copy; 2025 &mdash; Acesso restrito</div>
+  </div>
+</div>
+
+<!-- CONTEUDO DO APP -->
+<div id="app-content">
 <div class="scan-line"></div>
 <header>
   <img src="Logo_AKP3D.jpg" alt="AKP 3D" class="logo-img" onerror="this.style.display='none';document.getElementById('logo-fb').style.display='flex'">
@@ -1158,6 +1231,20 @@ function marcarPaga(i){faturas[i].status='paga';faturas[i].dataPagamento=hoje();
 function delFatura(i){if(confirm('Remover fatura?')){faturas.splice(i,1);S.set('faturas',faturas);renderContas();}}
 
 /* ---- CONFIG ---- */
+function alterarSenhaConfig() {
+  var sessao = S.get('sessao');
+  var userAtual = sessao ? sessao.user : 'admin';
+  var senhaAtual = document.getElementById('cfg-senha-atual').value;
+  var novaSenha  = document.getElementById('cfg-nova-senha').value;
+  var confirmar  = document.getElementById('cfg-conf-senha').value;
+  if(!senhaAtual) { alert('Digite a senha atual.'); return; }
+  if(alterarSenha(userAtual, senhaAtual, novaSenha, confirmar)) {
+    document.getElementById('cfg-senha-atual').value = '';
+    document.getElementById('cfg-nova-senha').value = '';
+    document.getElementById('cfg-conf-senha').value = '';
+  }
+}
+
 function loadCfg(){
   const m={nome:'cfg-nome',w:'cfg-w',vi:'cfg-vi',vida:'cfg-vida',kwh:'cfg-kwh',mdo:'cfg-mdo',manut:'cfg-manut',hmes:'cfg-hmes'};
   for(const[k,id] of Object.entries(m)){if(cfg[k])document.getElementById(id).value=cfg[k];}
@@ -1206,6 +1293,134 @@ function limparTudo(){
 
 /* ========== ESTOQUE ========== */
 let movimentacoes = S.get('movimentacoes') || [];
+
+
+/* ===== SISTEMA DE LOGIN ===== */
+// Credenciais padrao -- altere em Configuracoes
+var USUARIOS_PADRAO = [{ user: 'admin', pass: 'akp3d2025' }];
+
+function getUsuarios() {
+  return S.get('usuarios') || USUARIOS_PADRAO;
+}
+
+function fazerLogin() {
+  var user = (document.getElementById('login-user').value || '').trim().toLowerCase();
+  var pass  = document.getElementById('login-pass').value || '';
+  var lembrar = document.getElementById('login-lembrar').checked;
+  var usuarios = getUsuarios();
+  var ok = usuarios.some(function(u) {
+    return u.user.toLowerCase() === user && u.pass === pass;
+  });
+  if(ok) {
+    // Salvar ou remover credenciais lembradas
+    if(lembrar) {
+      S.set('lembrar_login', { user: user, pass: pass });
+    } else {
+      localStorage.removeItem('akp3d_lembrar_login');
+    }
+    S.set('sessao', { user: user, ts: Date.now() });
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('app-content').classList.add('visible');
+    document.getElementById('login-error').style.display = 'none';
+    document.getElementById('login-pass').value = '';
+    var hu = document.getElementById('header-user');
+    if(hu) hu.textContent = user;
+  } else {
+    var box = document.getElementById('login-screen').querySelector('.login-box');
+    box.classList.remove('shake');
+    void box.offsetWidth;
+    box.classList.add('shake');
+    document.getElementById('login-error').style.display = 'block';
+    document.getElementById('login-pass').value = '';
+    document.getElementById('login-pass').focus();
+  }
+}
+
+function toggleSenha() {
+  var inp = document.getElementById('login-pass');
+  var ico = document.getElementById('olho-icon');
+  if(inp.type === 'password') {
+    inp.type = 'text';
+    ico.className = 'ti ti-eye-off';
+  } else {
+    inp.type = 'password';
+    ico.className = 'ti ti-eye';
+  }
+}
+
+function fazerLogout() {
+  S.set('sessao', null);
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('app-content').classList.remove('visible');
+  // Manter campos preenchidos se lembrar senha estiver ativo
+  var lembrado = S.get('lembrar_login');
+  if(lembrado) {
+    document.getElementById('login-user').value = lembrado.user || '';
+    document.getElementById('login-pass').value = lembrado.pass || '';
+    document.getElementById('login-lembrar').checked = true;
+  } else {
+    document.getElementById('login-user').value = '';
+    document.getElementById('login-pass').value = '';
+    document.getElementById('login-lembrar').checked = false;
+  }
+  document.getElementById('login-error').style.display = 'none';
+}
+
+function verificarSessao() {
+  // Preencher campos se houver credenciais salvas
+  var lembrado = S.get('lembrar_login');
+  if(lembrado) {
+    document.getElementById('login-user').value = lembrado.user || '';
+    document.getElementById('login-pass').value = lembrado.pass || '';
+    document.getElementById('login-lembrar').checked = true;
+  }
+  var sessao = S.get('sessao');
+  // Sessao valida por 8 horas
+  var oito_horas = 8 * 60 * 60 * 1000;
+  if(sessao && sessao.ts && (Date.now() - sessao.ts) < oito_horas) {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('app-content').classList.add('visible');
+    return true;
+  }
+  // Sessao expirada -- se tem lembrar senha, fazer login automatico
+  if(lembrado && lembrado.user && lembrado.pass) {
+    var usuarios = getUsuarios();
+    var autoOk = usuarios.some(function(u) {
+      return u.user.toLowerCase() === lembrado.user.toLowerCase() && u.pass === lembrado.pass;
+    });
+    if(autoOk) {
+      S.set('sessao', { user: lembrado.user, ts: Date.now() });
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('app-content').classList.add('visible');
+      return true;
+    }
+  }
+  S.set('sessao', null);
+  document.getElementById('login-user').focus();
+  return false;
+}
+
+function alterarSenha(userAtual, senhaAtual, novaSenha, confirmar) {
+  if(novaSenha !== confirmar) { alert('As senhas nao conferem.'); return false; }
+  if(novaSenha.length < 6) { alert('A senha deve ter ao menos 6 caracteres.'); return false; }
+  var usuarios = getUsuarios();
+  var idx = -1;
+  usuarios.forEach(function(u, i) {
+    if(u.user.toLowerCase() === userAtual.toLowerCase() && u.pass === senhaAtual) idx = i;
+  });
+  if(idx < 0) { alert('Senha atual incorreta.'); return false; }
+  usuarios[idx].pass = novaSenha;
+  S.set('usuarios', usuarios);
+  // Atualizar credencial lembrada se existir
+  var lembrado = S.get('lembrar_login');
+  if(lembrado && lembrado.user.toLowerCase() === userAtual.toLowerCase()) {
+    lembrado.pass = novaSenha;
+    S.set('lembrar_login', lembrado);
+  }
+  alert('Senha alterada com sucesso!');
+  return true;
+}
+/* ===== FIM LOGIN ===== */
 
 // Converte qualquer quantidade e unidade para gramas
 function paraGramas(qtd, unidade) {
@@ -2471,6 +2686,11 @@ function delParceiro(i) { if(confirm('Remover parceiro?')) { parceiros.splice(i,
 
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
+  if(verificarSessao()) {
+    var s = S.get('sessao');
+    var hu = document.getElementById('header-user');
+    if(hu && s) hu.textContent = s.user;
+  }
   buildFilSelect();
   aplicarCfg();
   checkEstoque();
@@ -2478,5 +2698,6 @@ document.addEventListener('DOMContentLoaded', function() {
   if(!movimentacoes) movimentacoes = [];
 });
 </script>
+</div><!-- /app-content -->
 </body>
 </html>
