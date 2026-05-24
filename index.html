@@ -1112,19 +1112,22 @@ function renderFils(){
   document.getElementById('resumo-estoque').innerHTML=filamentos.length?`<div class="grid3" style="margin-bottom:1rem;"><div class="metric"><div class="lbl">Filamentos cadastrados</div><div class="val">${filamentos.length}</div></div><div class="metric"><div class="lbl">Total em estoque</div><div class="val">${tg.toFixed(0)}g</div></div><div class="metric"><div class="lbl">Valor em estoque</div><div class="val">${fmt(tv)}</div></div></div>`:'';
   const el=document.getElementById('lista-filamentos-tab');
   if(!filamentos.length){el.innerHTML='<div class="empty"><i class="ti ti-package"></i>Nenhum filamento cadastrado.<br><br><button class="btn" onclick="showFormFil(-1)"><i class="ti ti-plus"></i> Cadastrar primeiro filamento</button></div>';return;}
-  const ag={};filamentos.forEach(f=>{const k=f.modelo||'Outro';if(!ag[k])ag[k]=[];ag[k].push(f);});
-  let h='';
-  for(const[m,lista] of Object.entries(ag)){
+  const ag={};filamentos.forEach(function(f){var k=f.modelo||'Outro';if(!ag[k])ag[k]=[];ag[k].push(f);});
+  // Ordenar modelos e dentro de cada modelo ordenar por cor alfabeticamente
+  var modOrdenados=Object.keys(ag).sort(function(a,b){return a.localeCompare(b,'pt-BR');});
+  modOrdenados.forEach(function(k){ ag[k].sort(function(a,b){ return (a.corNome||'').localeCompare(b.corNome||'','pt-BR'); }); });
+  var h='';
+  modOrdenados.forEach(function(m){ var lista=ag[m];
     h+=`<div class="section-group"><div class="section-group-title">${m}</div><div class="overflow-x"><table><thead><tr><th></th><th>Marca</th><th>Cor</th><th>Diam.</th><th>Estoque</th><th>Preco/rolo</th><th>Custo/g</th><th>Temperatura</th><th>Data</th><th>Obs.</th><th></th></tr></thead><tbody>`;
-    lista.forEach(f=>{
-      const idx=filamentos.indexOf(f);
-      const cg=(f.preco>0&&f.pesoRolo>0)?(f.preco/f.pesoRolo).toFixed(3):'--';
+    lista.forEach(function(f){
+      var idx=filamentos.indexOf(f);
+      var cg=(f.preco>0&&f.pesoRolo>0)?(f.preco/f.pesoRolo).toFixed(3):'--';
       const pct=f.pesoRolo>0?(f.qtd/f.pesoRolo*100):0;
       const[sc,sl]=pct>50?['tag-green','Ok']:pct>15?['tag-amber','Baixo']:['tag-red','Critico'];
       h+=`<tr><td><span class="cor-dot" style="background:${f.corHex};"></span></td><td><strong>${f.marca}</strong></td><td>${f.corNome}</td><td>${f.diam}mm</td><td><span class="tag ${sc}">${f.qtd}g - ${sl}</span></td><td>${fmt(f.preco)}</td><td>R$ ${cg}/g</td><td>${f.temp?f.temp+'C':'--'}${f.tempMesa?' / '+f.tempMesa+'C':''}</td><td style="font-size:11px;color:var(--text2);">${fmtD(f.data)}</td><td style="font-size:11px;color:var(--text2);max-width:100px;">${f.obs||'--'}</td><td><div class="row-actions"><button class="btn-edit" onclick="showFormFil(${idx})"><i class="ti ti-edit"></i></button><button class="btn-del" onclick="delFil(${idx})"><i class="ti ti-trash"></i></button></div></td></tr>`;
     });
     h+='</tbody></table></div></div>';
-  }
+  });
   el.innerHTML=h;
 }
 function delFil(i){if(confirm('Remover filamento?')){filamentos.splice(i,1);S.set('filamentos',filamentos);renderFils();buildFilSelect();checkEstoque();}}
