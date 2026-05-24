@@ -191,8 +191,17 @@
 <header>
   <img src="Logo_AKP3D.jpg" alt="AKP 3D" class="logo-img" onerror="this.style.display='none';document.getElementById('logo-fb').style.display='flex'">
   <div id="logo-fb" style="display:none;width:44px;height:44px;background:var(--neon-dim);border:1px solid var(--neon);border-radius:8px;align-items:center;justify-content:center;color:var(--neon);font-size:22px;"><i class="ti ti-printer"></i></div>
-  <div><h1>AKP 3D</h1><div class="sub">Sistema de Gestão</div></div>
-  <div id="header-alert" style="margin-left:auto;display:none;"><span class="tag tag-red pulse"><i class="ti ti-alert-triangle"></i> Estoque crítico</span></div>
+  <div><h1>AKP 3D</h1><div class="sub">Sistema de Gestao</div></div>
+  <div id="header-alert" style="display:none;"><span class="tag tag-red pulse"><i class="ti ti-alert-triangle"></i> Estoque critico</span></div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:12px;">
+    <div style="display:flex;align-items:center;gap:6px;">
+      <i class="ti ti-user-circle" style="color:var(--neon);font-size:16px;"></i>
+      <span id="header-user" style="font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;"></span>
+    </div>
+    <button onclick="fazerLogout()" style="background:rgba(255,50,50,0.08);border:1px solid var(--red-border);color:var(--red-text);padding:6px 14px;border-radius:var(--radius);cursor:pointer;font-size:11px;font-weight:700;display:flex;align-items:center;gap:6px;letter-spacing:0.5px;text-transform:uppercase;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,50,50,0.18)'" onmouseout="this.style.background='rgba(255,50,50,0.08)'">
+      <i class="ti ti-logout"></i> Sair
+    </button>
+  </div>
 </header>
 <div class="container">
 <nav class="nav">
