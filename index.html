@@ -497,9 +497,20 @@
     </div>
     <div class="card">
       <div class="stitle">Comercial</div>
+      <div class="field"><label>Quantidade de Unidades</label><input type="number" id="c-qtd" placeholder="1" value="1" min="1" step="1" oninput="calcular()"></div>
       <div class="field"><label>Embalagem / Envio (R$)</label><input type="number" id="c-embal" placeholder="0.00" step="0.50" oninput="calcular()"></div>
       <div class="field"><label>Impostos e Taxas (%)</label><input type="number" id="c-impostos" placeholder="Ex: 6" step="0.5" oninput="calcular()"></div>
-      <div class="field"><label>Margem de Lucro desejada (%)</label><input type="number" id="c-margem" placeholder="Ex: 40" step="5" oninput="calcular()"></div>
+      <div class="field">
+        <label style="display:flex;align-items:center;justify-content:space-between;">
+          <span id="c-tipo-label">Markup (%)</span>
+          <div style="display:flex;gap:0;border:1px solid var(--border2);border-radius:var(--radius);overflow:hidden;">
+            <button id="btn-markup" onclick="setTipoCalc('markup')" style="padding:3px 10px;font-size:10px;font-weight:700;background:var(--neon-dim);color:var(--neon);border:none;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;">Markup</button>
+            <button id="btn-margem" onclick="setTipoCalc('margem')" style="padding:3px 10px;font-size:10px;font-weight:700;background:transparent;color:var(--text2);border:none;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px;">Margem</button>
+          </div>
+        </label>
+        <input type="number" id="c-markup" placeholder="Ex: 150" step="5" min="0" oninput="calcular()">
+        <div id="c-markup-info" style="font-size:11px;color:var(--text3);margin-top:3px;"></div>
+      </div>
       <div class="field"><label>Nome da Peca</label><input type="text" id="c-nome-peca" placeholder="Ex: Suporte de parede"></div>
     </div>
   </div>
@@ -512,8 +523,9 @@
     </div>
     <div class="card"><div class="stitle" style="font-size:11px;">Detalhamento de Custos</div><div id="breakdown"></div></div>
     <div class="result-box">
-      <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Preco de Venda Sugerido</div>
+      <div id="r-qtd-label" style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Preco de Venda por Unidade</div>
       <div style="font-size:36px;font-weight:700;color:var(--neon);text-shadow:var(--neon-glow);" id="r-preco">R$ 0,00</div>
+      <div id="r-preco-total" style="font-size:15px;color:var(--text2);margin-top:4px;display:none;"></div>
       <div style="font-size:12px;color:var(--text2);margin-top:6px;" id="r-lucro"></div>
     </div>
     <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap;">
@@ -992,6 +1004,20 @@
 </div>
 
 <script>
+var _tipoCalc = 'markup';
+function setTipoCalc(tipo) {
+  _tipoCalc = tipo;
+  var lbl = document.getElementById('c-tipo-label');
+  var btnM = document.getElementById('btn-markup');
+  var btnMg = document.getElementById('btn-margem');
+  if(lbl) lbl.textContent = tipo === 'markup' ? 'Markup (%)' : 'Margem de Lucro (%)';
+  if(btnM) { btnM.style.background = tipo==='markup' ? 'var(--neon-dim)' : 'transparent'; btnM.style.color = tipo==='markup' ? 'var(--neon)' : 'var(--text2)'; }
+  if(btnMg) { btnMg.style.background = tipo==='margem' ? 'var(--neon-dim)' : 'transparent'; btnMg.style.color = tipo==='margem' ? 'var(--neon)' : 'var(--text2)'; }
+  var inp = document.getElementById('c-markup');
+  if(inp) inp.placeholder = tipo === 'markup' ? 'Ex: 150 (150% = 2.5x custo)' : 'Ex: 40 (40% do preco e lucro)';
+  calcular();
+}
+
 const S={get:k=>{try{return JSON.parse(localStorage.getItem('akp3d_'+k)||'null');}catch{return null;}},set:(k,v)=>localStorage.setItem('akp3d_'+k,JSON.stringify(v))};
 let filamentos=S.get('filamentos')||[];
 let produtos=S.get('produtos')||[];
@@ -1322,7 +1348,7 @@ function calcular(){
   }
   // Peso total para breakdown
   var pesoTotal = filsData.detalhes.reduce(function(s,d){ return s+d.peso; }, 0);
-  const insumos=parseFloat(document.getElementById('c-insumos').value)||0;
+  var insumos=parseFloat(document.getElementById('c-insumos').value)||0;
   // Converter horas + minutos para horas decimais
   var horasH = parseInt(document.getElementById('c-horas-h').value) || 0;
   var horasM = parseInt(document.getElementById('c-horas-m').value) || 0;
@@ -1338,28 +1364,103 @@ function calcular(){
       prevEl.textContent = '';
     }
   }
-  const watts=parseFloat(document.getElementById('c-watts').value)||0;
-  const kwh=parseFloat(document.getElementById('c-kwh').value)||0;
-  const mdo=parseFloat(document.getElementById('c-mdo').value)||0;
-  const vi=parseFloat(document.getElementById('c-val-imp').value)||0;
-  const vida=parseFloat(document.getElementById('c-vida').value)||5000;
-  const manut=parseFloat(document.getElementById('c-manut').value)||0;
-  const hmes=parseFloat(document.getElementById('c-hmes').value)||160;
-  const embal=parseFloat(document.getElementById('c-embal').value)||0;
-  const impostos=parseFloat(document.getElementById('c-impostos').value)||0;
-  const margem=parseFloat(document.getElementById('c-margem').value)||0;
+  var watts=parseFloat(document.getElementById('c-watts').value)||0;
+  var kwh=parseFloat(document.getElementById('c-kwh').value)||0;
+  var mdo=parseFloat(document.getElementById('c-mdo').value)||0;
+  var vi=parseFloat(document.getElementById('c-val-imp').value)||0;
+  var vida=parseFloat(document.getElementById('c-vida').value)||5000;
+  var manut=parseFloat(document.getElementById('c-manut').value)||0;
+  var hmes=parseFloat(document.getElementById('c-hmes').value)||160;
+  var embal=parseFloat(document.getElementById('c-embal').value)||0;
+  var impostos=parseFloat(document.getElementById('c-impostos').value)||0;
   if(horas<=0&&pesoTotal<=0&&cFil<=0){document.getElementById('resultado').style.display='none';document.getElementById('sem-resultado').style.display='block';return;}
-  const cEn=(watts/1000)*horas*kwh,cMdo=mdo*horas,cDep=(vi/vida)*horas,cMt=(manut/hmes)*horas;
-  const cTotal=cFil+cEn+cMdo+cDep+cMt+insumos+embal;
-  const cImp=cTotal/(1-impostos/100),pVenda=cImp/(1-margem/100),lucro=pVenda-cTotal;
-  document.getElementById('r-fil').textContent=fmt(cFil);document.getElementById('r-en').textContent=fmt(cEn);document.getElementById('r-dep').textContent=fmt(cDep);document.getElementById('r-mdov').textContent=fmt(cMdo);
+  var qtd = Math.max(1, parseInt(document.getElementById('c-qtd').value) || 1);
+  var markupVal = parseFloat(document.getElementById('c-markup').value) || 0;
+  var tipoCalc = window._tipoCalc || 'markup';
+
+  const cEn=(watts/1000)*horas*kwh, cMdo=mdo*horas, cDep=(vi/vida)*horas, cMt=(manut/hmes)*horas;
+  // Custo total por LOTE (qtd unidades)
+  const cTotalLote = cFil + cEn + cMdo + cDep + cMt + insumos + embal;
+  // Custo por unidade
+  const cUnit = cTotalLote / qtd;
+  // Aplicar impostos sobre o custo unitario
+  const cUnitComImp = impostos > 0 ? cUnit / (1 - impostos/100) : cUnit;
+
+  // Calcular preco de venda por unidade
+  var pVendaUnit;
+  if(tipoCalc === 'markup') {
+    // Markup: preco = custo * (1 + markup/100)
+    // Ex: markup 150% => preco = custo * 2.5
+    pVendaUnit = cUnitComImp * (1 + markupVal/100);
+  } else {
+    // Margem: preco = custo / (1 - margem/100)
+    // Ex: margem 40% => preco = custo / 0.6
+    pVendaUnit = markupVal < 100 ? cUnitComImp / (1 - markupVal/100) : cUnitComImp * 2;
+  }
+
+  var lucroUnit = pVendaUnit - cUnit;
+  var margemReal = pVendaUnit > 0 ? (lucroUnit / pVendaUnit * 100) : 0;
+  var markupReal = cUnit > 0 ? ((pVendaUnit - cUnit) / cUnit * 100) : 0;
+  var pVendaLote = pVendaUnit * qtd;
+
+  // Info do campo markup/margem
+  var infoEl = document.getElementById('c-markup-info');
+  if(infoEl && markupVal > 0) {
+    if(tipoCalc === 'markup') {
+      infoEl.textContent = 'Margem equivalente: ' + margemReal.toFixed(1) + '% | Preco = Custo x ' + (1+markupVal/100).toFixed(2);
+      infoEl.style.color = 'var(--neon)';
+    } else {
+      infoEl.textContent = 'Markup equivalente: ' + markupReal.toFixed(1) + '% | Preco = Custo / ' + (1-markupVal/100).toFixed(2);
+      infoEl.style.color = 'var(--neon)';
+    }
+  }
+
+  document.getElementById('r-fil').textContent = fmt(cFil);
+  document.getElementById('r-en').textContent = fmt(cEn);
+  document.getElementById('r-dep').textContent = fmt(cDep);
+  document.getElementById('r-mdov').textContent = fmt(cMdo);
+
+  // Breakdown por unidade
   var bdFil = filsData.detalhes.length > 1
-    ? filsData.detalhes.map(function(d){ return ['  '+d.nome.split(' ').slice(0,2).join(' ')+' ('+d.peso+'g)', d.custo]; })
-    : [['Filamento (' + pesoTotal.toFixed(0) + 'g)', cFil]];
-  var bdRows = bdFil.concat([['Insumos extras',insumos],['Energia eletrica ('+horasH+'h'+( horasM>0?' '+horasM+'min':'')+' a '+watts+'W)',cEn],['Mao de obra',cMdo],['Depreciacao maquina',cDep],['Manutencao',cMt],['Embalagem / envio',embal],['Impostos ('+impostos+'%)',cImp-cTotal],['Margem de lucro ('+margem+'%)',pVenda-cImp],['Total -- preco de venda',pVenda]]);
-  document.getElementById('breakdown').innerHTML = bdRows.map(function(r){ return '<div class="breakdown-item"><span>'+r[0]+'</span><span>'+fmt(r[1])+'</span></div>'; }).join('');
-  document.getElementById('r-preco').textContent=fmt(pVenda);document.getElementById('r-lucro').textContent='Lucro liquido estimado: '+fmt(lucro);
-  document.getElementById('resultado').style.display='block';document.getElementById('sem-resultado').style.display='none';
+    ? filsData.detalhes.map(function(d){ return ['  '+d.nome.split(' ').slice(0,2).join(' ')+' ('+d.peso+'g)', d.custo/qtd]; })
+    : [['Filamento (' + (pesoTotal/qtd).toFixed(1) + 'g/un)', cFil/qtd]];
+  var impValUnit = cUnitComImp - cUnit;
+  var lucroLabel = tipoCalc === 'markup'
+    ? 'Markup ' + markupVal + '% (lucro/un)'
+    : 'Margem ' + markupVal + '% (lucro/un)';
+  var bdRows = bdFil.concat([
+    ['Insumos/embal. (por unidade)', (insumos+embal)/qtd],
+    ['Energia ('+horasH+'h'+(horasM>0?' '+horasM+'min':'')+' / '+qtd+'un)', cEn/qtd],
+    ['Mao de obra (por unidade)', cMdo/qtd],
+    ['Depreciacao + Manutencao', (cDep+cMt)/qtd],
+    ['Impostos ('+impostos+'%)', impValUnit],
+    [lucroLabel, lucroUnit],
+    ['Preco de venda por unidade', pVendaUnit]
+  ]);
+  document.getElementById('breakdown').innerHTML = bdRows.map(function(r){
+    return '<div class="breakdown-item"><span>'+r[0]+'</span><span>'+fmt(r[1])+'</span></div>';
+  }).join('');
+
+  // Resultado
+  var qtdLabel = document.getElementById('r-qtd-label');
+  if(qtdLabel) qtdLabel.textContent = qtd > 1 ? 'Preco de Venda por Unidade (' + qtd + ' un)' : 'Preco de Venda por Unidade';
+  document.getElementById('r-preco').textContent = fmt(pVendaUnit);
+  var totalEl = document.getElementById('r-preco-total');
+  if(totalEl) {
+    if(qtd > 1) {
+      totalEl.textContent = 'Total do lote (' + qtd + ' un): ' + fmt(pVendaLote);
+      totalEl.style.display = 'block';
+    } else {
+      totalEl.style.display = 'none';
+    }
+  }
+  document.getElementById('r-lucro').textContent =
+    'Lucro por unidade: ' + fmt(lucroUnit) +
+    ' | Margem: ' + margemReal.toFixed(1) + '%' +
+    ' | Markup: ' + markupReal.toFixed(1) + '%';
+
+  document.getElementById('resultado').style.display = 'block';
+  document.getElementById('sem-resultado').style.display = 'none';
 }
 function salvarComoPedido(){
   var nome=document.getElementById('c-nome-peca').value||'Peca sem nome';
