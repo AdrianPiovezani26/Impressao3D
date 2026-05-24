@@ -626,11 +626,30 @@
               <option>Outro acessorio</option>
             </select>
           </div>
-          <div class="field"><label>Quantidade</label><input type="number" id="cp-ac-qtd" placeholder="1" value="1" min="1" oninput="calcTotalCompra()"></div>
-          <div class="field"><label>Preco unitario (R$)</label><input type="number" id="cp-ac-preco" placeholder="0.00" step="0.50" oninput="calcTotalCompra()"></div>
-          <div class="field"><label>Total da compra (R$)</label><input type="number" id="cp-total-ac" readonly></div>
-          <div class="field"><label>Unidade</label>
-            <select id="cp-ac-unidade"><option>un</option><option>cx</option><option>kg</option><option>ml</option><option>m</option><option>par</option></select>
+          <div class="field">
+            <label>Quantidade *</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="number" id="cp-ac-qtd" placeholder="Ex: 2" value="1" min="1" step="1" oninput="calcTotalCompra()" style="flex:1;">
+              <select id="cp-ac-unidade" style="width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:8px;font-size:13px;background:var(--bg3);color:var(--text);" onchange="calcTotalCompra()">
+                <option value="un">un</option>
+                <option value="cx">cx</option>
+                <option value="kg">kg</option>
+                <option value="ml">ml</option>
+                <option value="m">m</option>
+                <option value="par">par</option>
+                <option value="pc">pc</option>
+                <option value="rolo">rolo</option>
+              </select>
+            </div>
+          </div>
+          <div class="field"><label>Preco unitario (R$) *</label><input type="number" id="cp-ac-preco" placeholder="0.00" step="0.01" min="0" oninput="calcTotalCompra()"></div>
+          <div class="field">
+            <label>Total da compra (R$)</label>
+            <input type="number" id="cp-total-ac" readonly style="color:var(--neon);font-weight:700;font-size:15px;">
+          </div>
+          <div class="field">
+            <label>Descricao / Referencia</label>
+            <input type="text" id="cp-ac-ref" placeholder="Ex: Ref. 0.4mm, modelo XYZ, cor...">
           </div>
         </div>
       </div>
@@ -1746,10 +1765,12 @@ function buildFornecedorSelect() {
 }
 
 function limparFormCompra() {
-  ['cp-nf','cp-fil-desc','cp-obs','cp-ac-nome'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  ['cp-rolos','cp-peso-rolo'].forEach(id => { const el=document.getElementById(id); if(el) el.value=el.placeholder||''; });
-  ['cp-preco-rolo','cp-total','cp-ac-preco','cp-ac-qtd','cp-total-ac'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  const fs = document.getElementById('cp-fil-estoque'); if(fs) fs.value = '';
+  ['cp-nf','cp-fil-desc','cp-obs','cp-ac-nome','cp-ac-ref'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  const rolosEl = document.getElementById('cp-rolos'); if(rolosEl) rolosEl.value='1';
+  const pesoEl = document.getElementById('cp-peso-rolo'); if(pesoEl) pesoEl.value='1000';
+  ['cp-preco-rolo','cp-total','cp-ac-preco','cp-total-ac'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  const qtdEl = document.getElementById('cp-ac-qtd'); if(qtdEl) qtdEl.value='1';
+  const filEs = document.getElementById('cp-fil-estoque'); if(filEs) filEs.value='';
   document.getElementById('cp-data').value = hoje();
 }
 
@@ -1782,10 +1803,13 @@ function salvarCompra() {
   } else {
     const qtd = parseFloat(document.getElementById('cp-ac-qtd').value) || 1;
     const precoUnit = parseFloat(document.getElementById('cp-ac-preco').value) || 0;
+    const ref = (document.getElementById('cp-ac-ref') || {}).value || '';
+    if(!document.getElementById('cp-ac-nome').value.trim()) { alert('Informe o nome do item'); return; }
     compra = {...compra,
-      desc: document.getElementById('cp-ac-nome').value || 'Item',
+      desc: document.getElementById('cp-ac-nome').value.trim(),
       cat: document.getElementById('cp-ac-cat').value,
       unidade: document.getElementById('cp-ac-unidade').value,
+      ref: ref,
       qtd, precoUnit, total: qtd * precoUnit
     };
   }
@@ -1843,7 +1867,10 @@ function cardCompra(c) {
           fmtD(c.data) +
           (c.fornNome ? ' - ' + c.fornNome : '') +
           (c.nf ? ' - NF: ' + c.nf : '') +
-          (c.tipo==='filamento' ? ' - ' + (c.rolos||1) + ' rolo(s) x ' + (c.pesoRolo||c.qtd||0) + 'g - ' + fmt(c.precoRolo||c.precoUnit||0) + '/rolo' : ' - Qtd: ' + (c.qtd||1) + ' ' + (c.unidade||'un')) +
+          (c.tipo==='filamento'
+            ? ' - ' + (c.rolos||1) + ' rolo(s) x ' + (c.pesoRolo||c.qtd||0) + 'g - ' + fmt(c.precoRolo||c.precoUnit||0) + '/rolo'
+            : ' - Qtd: <strong>' + (c.qtd||1) + ' ' + (c.unidade||'un') + '</strong>' + (c.precoUnit ? ' x ' + fmt(c.precoUnit) + '/un' : '')) +
+          (c.ref ? ' - Ref: ' + c.ref : '') +
           (c.pgto ? ' - ' + c.pgto : '') +
         '</span>' +
         (c.obs && c.obs !== 'Importado via XML NF-e' ? '<br><span style="font-size:11px;color:var(--text3);">' + c.obs + '</span>' : '') +
@@ -2488,12 +2515,25 @@ function importarItensXML() {
       });
 
     } else {
-      // Acessorio: apenas registrar compra
+      // Acessorio: registrar compra com quantidade e preco unitario do XML
+      // Normalizar unidade para exibicao
+      var unidadeExib = uCom.toLowerCase();
+      if(unidadeExib === 'un' || unidadeExib === 'und') unidadeExib = 'un';
       compras.unshift({
-        id: Date.now() + i, tipo: 'acessorio', desc: desc,
-        qtd: qtd, precoUnit: vUnit, total: total,
-        unidade: uCom, nf: nNF, data: data || hoje(),
-        fornNome: emitente, pgto: '', obs: 'Importado via XML NF-e', filIdx: -1
+        id: Date.now() + i,
+        tipo: 'acessorio',
+        desc: desc,
+        qtd: qtd,
+        precoUnit: vUnit,
+        total: total,
+        unidade: unidadeExib,
+        nf: nNF,
+        data: data || hoje(),
+        fornNome: emitente,
+        pgto: '',
+        ref: '',
+        obs: 'Importado via XML NF-e',
+        filIdx: -1
       });
     }
 
