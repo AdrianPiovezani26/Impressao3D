@@ -1552,8 +1552,13 @@ function renderProds(){
     el.innerHTML='<div class="empty"><i class="ti ti-box"></i>Nenhum produto cadastrado ainda.</div>';
     return;
   }
-  var rows = (window._filtroStatusProd === 'vendidos' ? produtos.filter(function(p){return p.vendido;}) :
-             window._filtroStatusProd === 'disponiveis' ? produtos.filter(function(p){return !p.vendido;}) :
+  // Calcular totais ANTES de usar
+  var totalVendidos = produtos.filter(function(p){ return p.vendido; }).length;
+  var totalDisp = produtos.length - totalVendidos;
+  var filtroStatus = window._filtroStatusProd || 'todos';
+
+  var rows = (filtroStatus === 'vendidos' ? produtos.filter(function(p){return p.vendido;}) :
+             filtroStatus === 'disponiveis' ? produtos.filter(function(p){return !p.vendido;}) :
              produtos).map(function(p) {
     var i = produtos.indexOf(p);
     var filsHtml = p.fils && p.fils.length
