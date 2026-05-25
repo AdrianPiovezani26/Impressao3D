@@ -1193,20 +1193,35 @@ function fmtD(d){if(!d)return'--';const p=d.split('-');return p.length===3?p[2]+
 function hoje(){return new Date().toISOString().slice(0,10);}
 
 function showTab(t){
-  document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
-  document.querySelectorAll('.nav button').forEach(e=>e.classList.remove('active'));
-  document.getElementById('tab-'+t).classList.add('active');
-  document.getElementById('btn-'+t).classList.add('active');
-  if(t==='dashboard')renderDashboard();
-  if(t==='filamentos')renderFils();
-  if(t==='produtos'){renderProds();buildFilOpts();}
-  if(t==='pedidos')renderPedidos();
-  if(t==='vendas'){renderVendas();buildProdOpts();}
-  if(t==='contas')renderContas();
-  if(t==='config')loadCfg();
-  if(t==='estoque'){renderEstoque();}
-  if(t==='compras'){buildFilSelectCompra();buildFornecedorSelect();document.getElementById('cp-data').value=hoje();renderComprasLancamento();}
-  if(t==='parceiros')renderParceiros();
+  // Ocultar todas as tabs com display direto
+  document.querySelectorAll('.tab').forEach(function(e){
+    e.classList.remove('active');
+    e.style.display = 'none';
+  });
+  document.querySelectorAll('.nav button').forEach(function(e){ e.classList.remove('active'); });
+  // Mostrar a tab escolhida
+  var alvo = document.getElementById('tab-'+t);
+  if(alvo) { alvo.classList.add('active'); alvo.style.display = 'block'; }
+  var btn = document.getElementById('btn-'+t);
+  if(btn) btn.classList.add('active');
+  // Renderizar conteudo
+  if(t==='dashboard')  renderDashboard();
+  if(t==='filamentos') renderFils();
+  if(t==='produtos')   { renderProds(); buildFilOpts(); }
+  if(t==='pedidos')    renderPedidos();
+  if(t==='vendas')     { renderVendas(); buildProdOpts(); }
+  if(t==='contas')     renderContas();
+  if(t==='config')     loadCfg();
+  if(t==='estoque')    renderEstoque();
+  if(t==='compras')    {
+    buildFilSelectCompra();
+    buildFornecedorSelect();
+    var cpData = document.getElementById('cp-data');
+    if(cpData) cpData.value = hoje();
+    // Ativar subtab lancamento por padrao
+    showSubtab('compras', 'lancamento');
+  }
+  if(t==='parceiros')  renderParceiros();
 }
 
 /* ---- FILAMENTOS ---- */
@@ -2352,18 +2367,33 @@ function renderMovimentacoes() {
 }
 
 function showSubtab(tab, sub) {
-  document.querySelectorAll('#tab-'+tab+' .subtab').forEach(function(e){ e.classList.remove('active'); });
-  document.querySelectorAll('#tab-'+tab+' .subtab-btn').forEach(function(e){ e.classList.remove('active'); });
-  var subtabEl = document.getElementById('subtab-'+tab+'-'+sub);
-  if(subtabEl) subtabEl.classList.add('active');
-  // Ativar o botao correto sem depender do evento
-  document.querySelectorAll('#tab-'+tab+' .subtab-btn').forEach(function(btn){
-    if(btn.getAttribute('onclick') && btn.getAttribute('onclick').includes("'"+sub+"'")) {
+  // Ocultar todas as subtabs desta tab usando display direto (nao depende de CSS class)
+  var allSubtabs = document.querySelectorAll('#tab-'+tab+' .subtab');
+  var allBtns    = document.querySelectorAll('#tab-'+tab+' .subtab-btn');
+  allSubtabs.forEach(function(e){
+    e.classList.remove('active');
+    e.style.display = 'none';
+  });
+  allBtns.forEach(function(e){ e.classList.remove('active'); });
+  // Mostrar a subtab escolhida
+  var alvo = document.getElementById('subtab-'+tab+'-'+sub);
+  if(alvo) {
+    alvo.classList.add('active');
+    alvo.style.display = 'block';
+  }
+  // Ativar botao correspondente
+  allBtns.forEach(function(btn){
+    var oc = btn.getAttribute('onclick') || '';
+    if(oc.indexOf("'"+sub+"'") >= 0 || oc.indexOf('"'+sub+'"') >= 0) {
       btn.classList.add('active');
     }
   });
-  if(sub === 'historico') renderCompras();
-  if(sub === 'lancamento') renderComprasLancamento();
+  // Renderizar conteudo
+  if(tab === 'compras') {
+    if(sub === 'historico')   renderCompras();
+    if(sub === 'lancamento')  renderComprasLancamento();
+    if(sub === 'importar')    { document.getElementById('xml-resultado') && (document.getElementById('xml-resultado').innerHTML = ''); }
+  }
 }
 
 function toggleTipoCompra() {
@@ -4041,7 +4071,22 @@ document.addEventListener('DOMContentLoaded', function() {
     dpDe.value = d.toISOString().slice(0,10);
   }
   setPeriodo('semana');
-  document.getElementById('btn-dashboard').classList.add('active');
+  // Garantir que apenas a tab dashboard esteja visivel no inicio
+  document.querySelectorAll('.tab').forEach(function(e){
+    e.style.display = 'none';
+    e.classList.remove('active');
+  });
+  var dashTab = document.getElementById('tab-dashboard');
+  if(dashTab) { dashTab.style.display = 'block'; dashTab.classList.add('active'); }
+  var dashBtn = document.getElementById('btn-dashboard');
+  if(dashBtn) dashBtn.classList.add('active');
+  // Inicializar subtabs de compras
+  document.querySelectorAll('#tab-compras .subtab').forEach(function(e){
+    e.style.display = 'none';
+    e.classList.remove('active');
+  });
+  var lancEl = document.getElementById('subtab-compras-lancamento');
+  if(lancEl) { lancEl.style.display = 'block'; lancEl.classList.add('active'); }
 });
 
 </script>
