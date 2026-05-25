@@ -515,19 +515,76 @@
     </div>
   </div>
   <div id="resultado" style="display:none;">
+    <!-- Resumo de Precos — 3 cards -->
+    <div style="margin-bottom:1.25rem;">
+      <div style="font-size:11px;font-weight:700;color:var(--neon);text-transform:uppercase;letter-spacing:2px;margin-bottom:1rem;display:flex;align-items:center;gap:8px;">
+        <i class="ti ti-chart-bar" style="font-size:16px;"></i> Resumo de Precos
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+
+        <!-- Card 1: Custo Unitario -->
+        <div style="background:linear-gradient(135deg,#0e1a0e 0%,#152015 100%);border:1px solid var(--border2);border-radius:12px;padding:1.5rem 1.25rem;position:relative;overflow:hidden;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--neon),transparent);opacity:0.5;pointer-events:none;"></div>
+          <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem;">Custo Unitario</div>
+          <div style="font-size:28px;font-weight:700;color:var(--text);margin-bottom:.75rem;" id="r-custo-unit">R$ 0,00</div>
+          <div style="font-size:11px;color:var(--text3);" id="r-custo-lote-info"></div>
+          <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:.75rem;">
+            <div style="font-size:11px;color:var(--text3);cursor:pointer;display:flex;align-items:center;gap:4px;" onclick="toggleDetalhamento()">
+              <i class="ti ti-list-details" style="font-size:13px;"></i> Ver detalhamento
+              <i class="ti ti-chevron-down" id="ico-detalhamento" style="font-size:12px;transition:transform 0.2s;"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Preco Consumidor (destaque) -->
+        <div style="background:linear-gradient(135deg,#0a1f3a 0%,#0d2a4f 100%);border:2px solid var(--blue-border);border-radius:12px;padding:1.5rem 1.25rem;position:relative;overflow:hidden;box-shadow:0 0 20px rgba(0,200,255,0.15);">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--blue-text),transparent);pointer-events:none;"></div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--blue-text);text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem;">
+            <i class="ti ti-user"></i> Preco Consumidor
+          </div>
+          <div style="font-size:28px;font-weight:700;color:var(--blue-text);text-shadow:0 0 10px rgba(0,200,255,0.4);margin-bottom:.75rem;" id="r-preco">R$ 0,00</div>
+          <div style="font-size:11px;color:var(--text3);" id="r-preco-total"></div>
+          <div style="margin-top:1rem;border-top:1px solid rgba(0,200,255,0.2);padding-top:.75rem;">
+            <div style="font-size:11px;color:var(--blue-text);opacity:0.7;" id="r-lucro"></div>
+          </div>
+        </div>
+
+        <!-- Card 3: Preco Lojista -->
+        <div style="background:linear-gradient(135deg,#1a1500 0%,#251e00 100%);border:1px solid var(--amber-border);border-radius:12px;padding:1.5rem 1.25rem;position:relative;overflow:hidden;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--amber-text),transparent);opacity:0.6;pointer-events:none;"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--amber-text);text-transform:uppercase;letter-spacing:1px;">
+              <i class="ti ti-building-store"></i> Preco Lojista
+            </div>
+          </div>
+          <div style="font-size:28px;font-weight:700;color:var(--amber-text);text-shadow:0 0 10px rgba(255,170,0,0.3);margin-bottom:.5rem;" id="r-preco-lojista">R$ 0,00</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:.75rem;">
+            <span style="font-size:11px;color:var(--text3);">Desconto:</span>
+            <input type="number" id="c-desc-lojista" value="30" min="0" max="80" step="5"
+              style="width:55px;padding:3px 6px;border:1px solid var(--amber-border);border-radius:4px;font-size:12px;font-weight:700;background:rgba(255,170,0,0.08);color:var(--amber-text);text-align:center;outline:none;"
+              oninput="calcular()" title="Desconto para lojista (%)">
+            <span style="font-size:11px;color:var(--text3);">% sobre o consumidor</span>
+          </div>
+          <div style="font-size:11px;color:var(--text3);" id="r-lojista-info"></div>
+        </div>
+
+      </div>
+      <div id="r-qtd-label" style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center;"></div>
+    </div>
+
+    <!-- Metricas de custo -->
     <div class="grid4" style="margin-bottom:1rem;">
       <div class="metric"><div class="lbl">Custo filamento</div><div class="val" id="r-fil">R$ 0,00</div></div>
       <div class="metric"><div class="lbl">Custo energia</div><div class="val" id="r-en">R$ 0,00</div></div>
       <div class="metric"><div class="lbl">Depreciacao</div><div class="val" id="r-dep">R$ 0,00</div></div>
       <div class="metric"><div class="lbl">Mao de obra</div><div class="val" id="r-mdov">R$ 0,00</div></div>
     </div>
-    <div class="card"><div class="stitle" style="font-size:11px;">Detalhamento de Custos</div><div id="breakdown"></div></div>
-    <div class="result-box">
-      <div id="r-qtd-label" style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Preco de Venda por Unidade</div>
-      <div style="font-size:36px;font-weight:700;color:var(--neon);text-shadow:var(--neon-glow);" id="r-preco">R$ 0,00</div>
-      <div id="r-preco-total" style="font-size:15px;color:var(--text2);margin-top:4px;display:none;"></div>
-      <div style="font-size:12px;color:var(--text2);margin-top:6px;" id="r-lucro"></div>
+
+    <!-- Detalhamento expansivel -->
+    <div id="detalhamento-wrap" style="display:none;">
+      <div class="card"><div class="stitle" style="font-size:11px;">Detalhamento de Custos por Unidade</div><div id="breakdown"></div></div>
     </div>
+
     <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap;">
       <button class="btn-ok" onclick="salvarComoPedido()"><i class="ti ti-plus"></i> Salvar como Pedido</button>
       <button class="btn" onclick="salvarComoProduto()"><i class="ti ti-box"></i> Salvar nos Produtos</button>
@@ -1003,7 +1060,15 @@
 
 </div>
 
-<script>
+<script>function toggleDetalhamento() {
+  var wrap = document.getElementById('detalhamento-wrap');
+  var ico  = document.getElementById('ico-detalhamento');
+  if(!wrap) return;
+  var aberto = wrap.style.display !== 'none';
+  wrap.style.display = aberto ? 'none' : 'block';
+  if(ico) ico.style.transform = aberto ? '' : 'rotate(180deg)';
+}
+
 var _tipoCalc = 'markup';
 function setTipoCalc(tipo) {
   _tipoCalc = tipo;
@@ -1441,23 +1506,48 @@ function calcular(){
     return '<div class="breakdown-item"><span>'+r[0]+'</span><span>'+fmt(r[1])+'</span></div>';
   }).join('');
 
-  // Resultado
-  var qtdLabel = document.getElementById('r-qtd-label');
-  if(qtdLabel) qtdLabel.textContent = qtd > 1 ? 'Preco de Venda por Unidade (' + qtd + ' un)' : 'Preco de Venda por Unidade';
+  // ---- Card 1: Custo Unitario ----
+  var custoUnitEl = document.getElementById('r-custo-unit');
+  if(custoUnitEl) custoUnitEl.textContent = fmt(cUnit);
+  var custoLoteInfoEl = document.getElementById('r-custo-lote-info');
+  if(custoLoteInfoEl) custoLoteInfoEl.textContent = qtd > 1 ? 'Lote de ' + qtd + ' un: ' + fmt(cTotalLote) : 'Custo total de producao';
+
+  // ---- Card 2: Preco Consumidor ----
   document.getElementById('r-preco').textContent = fmt(pVendaUnit);
   var totalEl = document.getElementById('r-preco-total');
   if(totalEl) {
     if(qtd > 1) {
-      totalEl.textContent = 'Total do lote (' + qtd + ' un): ' + fmt(pVendaLote);
-      totalEl.style.display = 'block';
+      totalEl.textContent = 'Lote (' + qtd + ' un): ' + fmt(pVendaLote);
     } else {
-      totalEl.style.display = 'none';
+      totalEl.textContent = '';
     }
   }
   document.getElementById('r-lucro').textContent =
-    'Lucro por unidade: ' + fmt(lucroUnit) +
-    ' | Margem: ' + margemReal.toFixed(1) + '%' +
-    ' | Markup: ' + markupReal.toFixed(1) + '%';
+    'Lucro: ' + fmt(lucroUnit) + ' | Margem: ' + margemReal.toFixed(1) + '% | Markup: ' + markupReal.toFixed(1) + '%';
+
+  // ---- Card 3: Preco Lojista ----
+  var descLojista = parseFloat(document.getElementById('c-desc-lojista').value) || 30;
+  if(descLojista > 80) descLojista = 80;
+  var precoLojista = pVendaUnit * (1 - descLojista/100);
+  var lucroLojista = precoLojista - cUnit;
+  var margemLojista = precoLojista > 0 ? (lucroLojista/precoLojista*100) : 0;
+  var lojistaEl = document.getElementById('r-preco-lojista');
+  if(lojistaEl) lojistaEl.textContent = fmt(precoLojista);
+  var lojistaInfoEl = document.getElementById('r-lojista-info');
+  if(lojistaInfoEl) {
+    if(lucroLojista >= 0) {
+      lojistaInfoEl.textContent = 'Lucro: ' + fmt(lucroLojista) + ' | Margem: ' + margemLojista.toFixed(1) + '%';
+      lojistaInfoEl.style.color = 'var(--amber-text)';
+    } else {
+      lojistaInfoEl.textContent = 'ATENCAO: preco abaixo do custo!';
+      lojistaInfoEl.style.color = 'var(--red-text)';
+    }
+    if(qtd > 1) lojistaInfoEl.textContent += ' | Lote: ' + fmt(precoLojista * qtd);
+  }
+
+  // ---- Rodape ----
+  var qtdLabel = document.getElementById('r-qtd-label');
+  if(qtdLabel) qtdLabel.textContent = qtd > 1 ? 'Precos calculados para lote de ' + qtd + ' unidades' : '';
 
   document.getElementById('resultado').style.display = 'block';
   document.getElementById('sem-resultado').style.display = 'none';
