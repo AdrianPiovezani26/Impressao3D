@@ -11,7 +11,7 @@
 <style>
   :root{--neon:#39ff14;--neon-dim:rgba(57,255,20,0.15);--neon-glow:0 0 8px #39ff14,0 0 20px rgba(57,255,20,0.4);--neon-glow-sm:0 0 4px #39ff14,0 0 10px rgba(57,255,20,0.3);--bg:#0a0f0a;--bg2:#0e140e;--bg3:#111811;--text:#e8ffe8;--text2:#7aab7a;--text3:#3d6b3d;--border:rgba(57,255,20,0.15);--border2:rgba(57,255,20,0.30);--green-bg:rgba(57,255,20,0.08);--green-text:#39ff14;--green-border:rgba(57,255,20,0.4);--amber-bg:rgba(255,170,0,0.10);--amber-text:#ffaa00;--amber-border:rgba(255,170,0,0.35);--red-bg:rgba(255,50,50,0.10);--red-text:#ff4444;--red-border:rgba(255,50,50,0.35);--blue-bg:rgba(0,200,255,0.08);--blue-text:#00c8ff;--blue-border:rgba(0,200,255,0.30);--radius:6px;--radius-lg:10px;}
   *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;background-image:linear-gradient(rgba(57,255,20,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(57,255,20,0.03) 1px,transparent 1px);background-size:40px 40px;position:relative;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;background-image:linear-gradient(rgba(57,255,20,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(57,255,20,0.03) 1px,transparent 1px);background-size:40px 40px;position:relative;overflow-x:hidden;}
   .scan-line{position:fixed;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--neon),transparent);animation:scan 4s linear infinite;z-index:200;opacity:0.4;pointer-events:none;}
   @keyframes scan{0%{transform:translateY(0)}100%{transform:translateY(100vh)}}
   @keyframes pulse-neon{0%,100%{opacity:1}50%{opacity:0.6}}
