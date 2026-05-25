@@ -1216,7 +1216,7 @@ function showTab(t){
   // Renderizar conteudo
   if(t==='dashboard')  renderDashboard();
   if(t==='filamentos') renderFils();
-  if(t==='produtos')   { renderProds(); buildFilOpts(); }
+  if(t==='produtos')   { sincronizarStatusProdutos(); renderProds(); buildFilOpts(); }
   if(t==='pedidos')    renderPedidos();
   if(t==='vendas')     { renderVendas(); buildProdOpts(); }
   if(t==='contas')     renderContas();
@@ -2079,6 +2079,7 @@ function salvarVenda(){
   document.getElementById('form-venda').style.display='none';
   ['v-cliente','v-obs'].forEach(id=>{document.getElementById(id).value='';});
   document.getElementById('v-valor').value='';document.getElementById('v-total').value='';document.getElementById('v-qtd').value='1';
+  sincronizarStatusProdutos();
   renderVendas();
 }
 function renderVendas(){
@@ -4428,6 +4429,32 @@ function importarPedidoVenda() {
   }, 250);
 }
 /* ===== FIM EDICAO PEDIDOS ===== */
+
+
+function sincronizarStatusProdutos() {
+  // Cruzar historico de vendas com produtos para marcar status
+  var alterou = false;
+  vendas.forEach(function(v) {
+    if(!v.prodNome || v.prodNome === 'Produto avulso') return;
+    // Buscar produto pelo nome exato
+    var idx = -1;
+    for(var i=0; i<produtos.length; i++) {
+      if(produtos[i].nome && produtos[i].nome.toLowerCase().trim() === v.prodNome.toLowerCase().trim()) {
+        idx = i; break;
+      }
+    }
+    if(idx >= 0 && !produtos[idx].vendido) {
+      produtos[idx].vendido = true;
+      produtos[idx].dataVenda = v.data || '';
+      produtos[idx].clienteVenda = v.cliente || '';
+      alterou = true;
+    }
+  });
+  if(alterou) {
+    S.set('produtos', produtos);
+    console.log('Status de produtos sincronizado com historico de vendas');
+  }
+}
 
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
