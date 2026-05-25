@@ -1664,12 +1664,67 @@ function salvarComoPedido(){
   limparCalc();
 }
 function salvarComoProduto(){
-  const nome=document.getElementById('c-nome-peca').value||'Peca sem nome';
-  const precoStr=document.getElementById('r-preco').textContent;
-  const precoNum=parseFloat(precoStr.replace('R$ ','').replace(',','.'))||0;
-  produtos.unshift({id:Date.now(),nome,cat:'Outro',fils:[],filNome:'--',horas:(function(){var h=parseInt(document.getElementById('c-horas-h').value)||0;var m=parseInt(document.getElementById('c-horas-m').value)||0;return h>0||m>0?(h>0?h+'h':'')+(m>0?' '+m+'min':''):'--';})(),precoNum,preco:precoStr,obs:''});
-  S.set('produtos',produtos);
-  alert('Produto salvo: '+nome);
+  var nome = document.getElementById('c-nome-peca').value || 'Peca sem nome';
+  var precoStr = document.getElementById('r-preco').textContent;
+  var precoNum = parseFloat(precoStr.replace('R$ ','').replace(',','.')) || 0;
+  var hH = parseInt(document.getElementById('c-horas-h').value)||0;
+  var hM = parseInt(document.getElementById('c-horas-m').value)||0;
+  var tempoStr = hH>0||hM>0 ? (hH>0?hH+'h ':'')+( hM>0?hM+'min':'') : '--';
+  var qtd = parseInt(document.getElementById('c-qtd').value)||1;
+
+  // Coletar filamentos das linhas de multi-filamento
+  var fils = [];
+  var filNomeStr = '--';
+  var listaFils = document.getElementById('c-fils-lista');
+  if(listaFils) {
+    listaFils.querySelectorAll('.fil-multi-item').forEach(function(item){
+      var sel    = item.querySelector('select');
+      var inputs = item.querySelectorAll('input');
+      var idx    = sel ? parseInt(sel.value) : -1;
+      var peso   = parseFloat(inputs[0].value) || 0;
+      var precoR = parseFloat(inputs[1].value) || 0;
+      var pesoR  = parseFloat(inputs[2].value) || 1000;
+      if(peso > 0) {
+        var filDado = {};
+        if(!isNaN(idx) && filamentos[idx]) {
+          filDado = {
+            filIdx:  idx,
+            filNome: filamentos[idx].marca + ' ' + filamentos[idx].modelo + ' ' + filamentos[idx].corNome,
+            corHex:  filamentos[idx].corHex || '#888',
+            peso:    peso,
+            precoRolo: precoR,
+            pesoRolo:  pesoR
+          };
+        } else {
+          filDado = {
+            filIdx: -1,
+            filNome: 'Manual',
+            corHex: '#888',
+            peso: peso,
+            precoRolo: precoR,
+            pesoRolo:  pesoR
+          };
+        }
+        fils.push(filDado);
+      }
+    });
+    filNomeStr = fils.length ? fils.map(function(f){ return f.filNome + ' (' + f.peso + 'g)'; }).join(', ') : '--';
+  }
+
+  produtos.unshift({
+    id: Date.now(),
+    nome: nome,
+    cat: 'Outro',
+    fils: fils,
+    filNome: filNomeStr,
+    horas: tempoStr,
+    qtd: qtd,
+    precoNum: precoNum,
+    preco: precoStr,
+    obs: ''
+  });
+  S.set('produtos', produtos);
+  alert('Produto salvo: ' + nome + (fils.length ? '\n' + fils.length + ' filamento(s) registrado(s).' : ''));
   salvarNoHistoricoSilencioso();
   limparCalc();
 }
@@ -3687,6 +3742,27 @@ function coletarDadosCalc() {
   var custo = parseFloat(document.getElementById('r-custo-unit').textContent.replace('R$ ','').replace(',','.')) || 0;
   var precoUnit = parseFloat(document.getElementById('r-preco').textContent.replace('R$ ','').replace(',','.')) || 0;
   var precoLoj = parseFloat(document.getElementById('r-preco-lojista').textContent.replace('R$ ','').replace(',','.')) || 0;
+  // Coletar detalhes completos dos filamentos para restaurar depois
+  var filsDetalhes = [];
+  var listaFils = document.getElementById('c-fils-lista');
+  if(listaFils) {
+    listaFils.querySelectorAll('.fil-multi-item').forEach(function(item){
+      var sel = item.querySelector('select');
+      var inputs = item.querySelectorAll('input');
+      var idx = sel ? parseInt(sel.value) : -1;
+      var peso = parseFloat(inputs[0].value)||0;
+      var precoR = parseFloat(inputs[1].value)||0;
+      var pesoR = parseFloat(inputs[2].value)||1000;
+      if(peso > 0) {
+        filsDetalhes.push({
+          filIdx: isNaN(idx) ? -1 : idx,
+          filNome: (!isNaN(idx) && filamentos[idx]) ? filamentos[idx].marca+' '+filamentos[idx].modelo+' '+filamentos[idx].corNome : 'Manual',
+          corHex: (!isNaN(idx) && filamentos[idx]) ? filamentos[idx].corHex : '#888',
+          peso: peso, precoRolo: precoR, pesoRolo: pesoR
+        });
+      }
+    });
+  }
   return {
     id: Date.now(),
     nome: document.getElementById('c-nome-peca').value || 'Sem nome',
@@ -3699,6 +3775,7 @@ function coletarDadosCalc() {
     tipoCalc: window._tipoCalc || 'markup',
     descLojista: parseFloat(document.getElementById('c-desc-lojista').value)||30,
     fils: filsCalc.detalhes.map(function(d){ return d.nome.split(' ').slice(0,3).join(' ')+'('+d.peso+'g)'; }).join(', ') || '--',
+    filsDetalhes: filsDetalhes,
     custoUnit: custo,
     precoUnit: precoUnit,
     precoLojista: precoLoj,
@@ -3839,10 +3916,17 @@ function pedidoHistCalc(id) {
 function produtoHistCalc(id) {
   var h = _histCalc.find(function(x){ return x.id===id; });
   if(!h) return;
+  // Reconstruir fils a partir dos dados salvos no historico
+  var fils = h.filsDetalhes || [];
+  var filNome = fils.length ? fils.map(function(f){ return f.filNome+' ('+f.peso+'g)'; }).join(', ') : (h.fils||'--');
   produtos.unshift({
-    id: Date.now(), nome: h.nome, cat: 'Outro',
-    fils: [], filNome: h.fils || '--',
+    id: Date.now(),
+    nome: h.nome,
+    cat: 'Outro',
+    fils: fils,
+    filNome: filNome,
     horas: h.tempoStr || '--',
+    qtd: h.qtd || 1,
     precoNum: h.precoUnit,
     preco: fmt(h.precoUnit),
     obs: 'Lojista: ' + fmt(h.precoLojista)
