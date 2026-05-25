@@ -1548,56 +1548,55 @@ function salvarProduto(){
 }
 function renderProds(){
   var el = document.getElementById('lista-produtos');
+  if(!el) return;
   if(!produtos.length){
     el.innerHTML='<div class="empty"><i class="ti ti-box"></i>Nenhum produto cadastrado ainda.</div>';
     return;
   }
-  // Calcular totais ANTES de usar
   var totalVendidos = produtos.filter(function(p){ return p.vendido; }).length;
   var totalDisp = produtos.length - totalVendidos;
   var filtroStatus = window._filtroStatusProd || 'todos';
+  var lista = filtroStatus==='vendidos' ? produtos.filter(function(p){return p.vendido;}) :
+              filtroStatus==='disponiveis' ? produtos.filter(function(p){return !p.vendido;}) :
+              produtos;
 
-  var rows = (filtroStatus === 'vendidos' ? produtos.filter(function(p){return p.vendido;}) :
-             filtroStatus === 'disponiveis' ? produtos.filter(function(p){return !p.vendido;}) :
-             produtos).map(function(p) {
+  var rows = lista.map(function(p){
     var i = produtos.indexOf(p);
-    var filsHtml = p.fils && p.fils.length
-      ? p.fils.map(function(f){
-          return '<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;">' +
-            '<span class="cor-dot" style="background:'+(f.corHex||'#555')+';"></span>' +
-            f.filNome + ' <span style="color:var(--text3);">('+f.peso+'g)</span></div>';
-        }).join('')
-      : '--';
-    var statusVendido = p.vendido
-      ? '<span class="tag tag-green" style="font-size:10px;margin-left:6px;"><i class="ti ti-check"></i> Vendido</span>' +
-        (p.clienteVenda ? '<br><span style="font-size:10px;color:var(--text3);">Cliente: '+p.clienteVenda+(p.dataVenda?' em '+fmtD(p.dataVenda):'')+'</span>' : '')
+    var filsHtml = p.fils && p.fils.length ? p.fils.map(function(f){
+      return '<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;">' +
+        '<span class="cor-dot" style="background:'+(f.corHex||'#555')+'"></span>' +
+        f.filNome + ' <span style="color:var(--text3);">('+f.peso+'g)</span></div>';
+    }).join('') : '--';
+    var vendidoBadge = p.vendido
+      ? '<span class="tag tag-green" style="font-size:10px;margin-left:6px;"><i class="ti ti-check"></i> Vendido'+(p.clienteVenda?' - '+p.clienteVenda:'')+'</span>'
       : '';
-    var qtdBadge = (p.qtd&&p.qtd>1)
+    var qtdBadge = p.qtd && p.qtd > 1
       ? '<span class="tag '+(p.estoqueZerado?'tag-red':'tag-blue')+'" style="font-size:10px;margin-left:4px;">'+(p.estoqueZerado?'Estoque zerado':p.qtd+' un')+'</span>'
       : '';
+    var btnVender = '<button class="btn-ok" onclick="venderProduto('+i+')" style="padding:5px 10px;font-size:11px;" title="'+(p.vendido?'Vender novamente':'Vender')+'"><i class="ti ti-shopping-cart"></i> '+(p.vendido?'Vender novamente':'Vender')+'</button>';
     var rowStyle = p.vendido ? 'background:rgba(57,255,20,0.03);' : '';
-    var row = '<tr id="prod-row-'+i+'" style="'+rowStyle+'">' +
-      '<td><strong>'+p.nome+'</strong>'+statusVendido+qtdBadge+
-      (p.obs?'<br><span style="font-size:11px;color:var(--text2);">'+p.obs+'</span>':'')+'</td>' +
-      '<td><span class="tag tag-blue">'+p.cat+'</span></td>' +
+    return '<tr id="prod-row-'+i+'" style="'+rowStyle+'">' +
+      '<td><strong>'+p.nome+'</strong>'+vendidoBadge+qtdBadge+
+        (p.obs?'<br><span style="font-size:11px;color:var(--text2);">'+p.obs+'</span>':'')+'</td>' +
+      '<td><span class="tag tag-blue">'+(p.cat||'Outro')+'</span></td>' +
       '<td style="font-size:12px;">'+filsHtml+'</td>' +
       '<td>'+(p.horas&&p.horas!='--'?p.horas:'--')+'</td>' +
       '<td style="font-weight:700;color:'+(p.vendido?'var(--text2)':'var(--neon)')+';text-shadow:'+(p.vendido?'none':'var(--neon-glow-sm)')+';">'+p.preco+'</td>' +
       '<td><div class="row-actions">' +
         '<button class="btn-edit" onclick="abrirEditProd('+i+')" title="Editar"><i class="ti ti-edit"></i></button>' +
-        '<button class="btn-ok" onclick="venderProduto('+i+')" style="padding:5px 10px;font-size:11px;background:'+(p.vendido?'rgba(57,255,20,0.05)':'')+';" title="'+(p.vendido?'Vender novamente':'Vender')+'"><i class="ti ti-shopping-cart"></i> '+(p.vendido?'Vender novamente':'Vender')+'</button>' +
+        btnVender +
         '<button class="btn-del" onclick="delProd('+i+')"><i class="ti ti-trash"></i></button>' +
       '</div></td>' +
-    '</tr>';
-    // Linha de edicao inline (oculta inicialmente)
-    var editRow = '<tr id="prod-edit-'+i+'" style="display:none;">' +
+    '</tr>' +
+    '<tr id="prod-edit-'+i+'" style="display:none;">' +
       '<td colspan="6" class="prod-edit-row">' +
         '<div class="prod-edit-box">' +
           '<div class="grid2">' +
             '<div class="field"><label>Nome</label><input type="text" id="pe-nome-'+i+'" value="'+p.nome.replace(/"/g,'&quot;')+'"></div>' +
-            '<div class="field"><label>Categoria</label><select id="pe-cat-'+i+'">'+
-              ['Decoracao','Utilidade','Miniatura','Suporte','Chaveiro','Placa','Caixa','Peca Tecnica','Outro']
-              .map(function(c){ return '<option'+(p.cat===c?' selected':'')+'>'+c+'</option>'; }).join('')+
+            '<div class="field"><label>Categoria</label><select id="pe-cat-'+i+'">' +
+              ['Decoracao','Utilidade','Miniatura','Suporte','Chaveiro','Placa','Caixa','Peca Tecnica','Outro'].map(function(c){
+                return '<option'+(p.cat===c?' selected':'')+'>'+c+'</option>';
+              }).join('') +
             '</select></div>' +
             '<div class="field"><label>Preco de Venda (R$)</label><input type="number" id="pe-preco-'+i+'" value="'+(p.precoNum||'')+'" step="0.01" min="0"></div>' +
             '<div class="field"><label>Horas de impressao</label><input type="text" id="pe-horas-'+i+'" value="'+(p.horas&&p.horas!='--'?p.horas:'')+'" placeholder="Ex: 2h 30min"></div>' +
@@ -1613,19 +1612,12 @@ function renderProds(){
         '</div>' +
       '</td>' +
     '</tr>';
-    return row + editRow;
   }).join('');
 
-  var resumoProd = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1rem;">' +
-    '<div class="metric" style="padding:8px 14px;flex:none;">' +
-      '<div class="lbl">Total</div><div class="val" style="font-size:16px;">'+produtos.length+'</div>' +
-    '</div>' +
-    '<div class="metric" style="padding:8px 14px;flex:none;border-color:var(--neon);">' +
-      '<div class="lbl">Disponiveis</div><div class="val" style="font-size:16px;color:var(--neon);">'+totalDisp+'</div>' +
-    '</div>' +
-    '<div class="metric" style="padding:8px 14px;flex:none;border-color:var(--green-border);">' +
-      '<div class="lbl">Vendidos</div><div class="val" style="font-size:16px;color:var(--text2);">'+totalVendidos+'</div>' +
-    '</div>' +
+  var resumo = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1rem;">' +
+    '<div class="metric" style="padding:8px 14px;flex:none;"><div class="lbl">Total</div><div class="val" style="font-size:16px;">'+produtos.length+'</div></div>' +
+    '<div class="metric" style="padding:8px 14px;flex:none;border-color:var(--neon);"><div class="lbl">Disponiveis</div><div class="val" style="font-size:16px;color:var(--neon);">'+totalDisp+'</div></div>' +
+    '<div class="metric" style="padding:8px 14px;flex:none;border-color:var(--green-border);"><div class="lbl">Vendidos</div><div class="val" style="font-size:16px;color:var(--text2);">'+totalVendidos+'</div></div>' +
     '<div style="margin-left:auto;display:flex;gap:6px;">' +
       '<button class="subtab-btn '+(filtroStatus==='todos'?'active':'')+'" onclick="setFiltroProd(this,&quot;todos&quot;)">Todos</button>' +
       '<button class="subtab-btn '+(filtroStatus==='disponiveis'?'active':'')+'" onclick="setFiltroProd(this,&quot;disponiveis&quot;)">Disponiveis</button>' +
@@ -1633,9 +1625,9 @@ function renderProds(){
     '</div>' +
   '</div>';
 
-  el.innerHTML = resumoProd + '<div class="overflow-x"><table>' +
+  el.innerHTML = resumo + '<div class="overflow-x"><table>' +
     '<thead><tr><th>Produto</th><th>Categoria</th><th>Filamentos</th><th>Horas</th><th>Preco</th><th></th></tr></thead>' +
-    '<tbody>' + rows + '</tbody></table></div>';
+    '<tbody>'+rows+'</tbody></table></div>';
 
   // Preencher filamentos nas linhas de edicao
   produtos.forEach(function(p, i){
