@@ -2352,11 +2352,18 @@ function renderMovimentacoes() {
 }
 
 function showSubtab(tab, sub) {
-  document.querySelectorAll('#tab-'+tab+' .subtab').forEach(e => e.classList.remove('active'));
-  document.querySelectorAll('#tab-'+tab+' .subtab-btn').forEach(e => e.classList.remove('active'));
-  document.getElementById('subtab-'+tab+'-'+sub).classList.add('active');
-  event.currentTarget.classList.add('active');
+  document.querySelectorAll('#tab-'+tab+' .subtab').forEach(function(e){ e.classList.remove('active'); });
+  document.querySelectorAll('#tab-'+tab+' .subtab-btn').forEach(function(e){ e.classList.remove('active'); });
+  var subtabEl = document.getElementById('subtab-'+tab+'-'+sub);
+  if(subtabEl) subtabEl.classList.add('active');
+  // Ativar o botao correto sem depender do evento
+  document.querySelectorAll('#tab-'+tab+' .subtab-btn').forEach(function(btn){
+    if(btn.getAttribute('onclick') && btn.getAttribute('onclick').includes("'"+sub+"'")) {
+      btn.classList.add('active');
+    }
+  });
   if(sub === 'historico') renderCompras();
+  if(sub === 'lancamento') renderComprasLancamento();
 }
 
 function toggleTipoCompra() {
