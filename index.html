@@ -191,6 +191,18 @@
   .gauge-fill{height:6px;border-radius:3px;transition:width 0.5s;}
   .gauge-val{font-size:12px;font-weight:700;width:70px;text-align:right;flex-shrink:0;}
 
+
+  /* Historico de precificacao */
+  .hist-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:10px;transition:border-color 0.2s;}
+  .hist-card:hover{border-color:var(--border2);}
+  .hist-card-top{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
+  .hist-preco-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;}
+  .hist-preco-item{background:var(--bg3);border-radius:var(--radius);padding:8px;text-align:center;}
+  .hist-preco-label{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;}
+  .hist-preco-val{font-size:16px;font-weight:700;}
+  .hist-fils{font-size:11px;color:var(--text3);margin-bottom:8px;}
+  .hist-acoes{display:flex;gap:6px;flex-wrap:wrap;}
+
 </style>
 </head>
 <body>
@@ -588,9 +600,20 @@
     <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap;">
       <button class="btn-ok" onclick="salvarComoPedido()"><i class="ti ti-plus"></i> Salvar como Pedido</button>
       <button class="btn" onclick="salvarComoProduto()"><i class="ti ti-box"></i> Salvar nos Produtos</button>
+      <button class="btn" onclick="salvarNoHistorico()"><i class="ti ti-history"></i> Salvar no Historico</button>
+      <button class="btn-del" onclick="limparCalc()" style="margin-left:auto;"><i class="ti ti-refresh"></i> Limpar</button>
     </div>
   </div>
   <div id="sem-resultado" style="text-align:center;padding:3rem;color:var(--text3);font-size:13px;"><i class="ti ti-calculator" style="font-size:36px;display:block;margin-bottom:8px;"></i>Preencha os campos acima para calcular</div>
+
+  <!-- HISTORICO DE PRECIFICACOES -->
+  <div id="historico-calc-wrap" style="display:none;margin-top:1.5rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
+      <div class="stitle" style="margin:0;font-size:12px;"><i class="ti ti-history"></i> Historico de Precificacoes</div>
+      <button class="btn-del" onclick="limparHistoricoCalc()" style="font-size:11px;padding:4px 10px;"><i class="ti ti-trash"></i> Limpar historico</button>
+    </div>
+    <div id="historico-calc-lista"></div>
+  </div>
 </div>
 
 <!-- PEDIDOS -->
@@ -1038,29 +1061,7 @@
       <div class="field"><label>Agencia</label><input type="text" id="par-agencia" placeholder="0000-0"></div>
       <div class="field"><label>Conta</label><input type="text" id="par-conta" placeholder="00000-0"></div>
       <div class="field"><label>Tipo de Conta</label>
-        <select id="par-tipo-conta"><option>Corrente</option><option>Poupanca</option><option>Pagamento</option></select>
-      </div>
-      <div class="field"><label>Chave Pix</label><input type="text" id="par-pix" placeholder="CPF, CNPJ, e-mail, tel ou chave aleatoria"></div>
-    </div>
-
-    <!-- Obs -->
-    <div class="field"><label>Observacoes</label>
-      <textarea id="par-obs" rows="2" placeholder="Informacoes adicionais, condicoes comerciais..."></textarea>
-    </div>
-
-    <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">
-      <button class="btn-ok" onclick="salvarParceiro()"><i class="ti ti-device-floppy"></i> Salvar</button>
-      <button class="btn" onclick="document.getElementById('form-parceiro').style.display='none'">Cancelar</button>
-    </div>
-  </div>
-
-  <div id="resumo-parceiros" style="margin-bottom:1rem;"></div>
-  <div id="lista-parceiros"></div>
-</div>
-
-</div>
-
-<script>function toggleDetalhamento() {
+        <select id="par-tipo-conta"><option>Correntefunction toggleDetalhamento() {
   var wrap = document.getElementById('detalhamento-wrap');
   var ico  = document.getElementById('ico-detalhamento');
   if(!wrap) return;
@@ -1578,13 +1579,18 @@ function salvarComoPedido(){
     }
   }
   alert('Pedido salvo: '+nome);
+  salvarNoHistoricoSilencioso();
+  limparCalc();
 }
 function salvarComoProduto(){
   const nome=document.getElementById('c-nome-peca').value||'Peca sem nome';
   const precoStr=document.getElementById('r-preco').textContent;
   const precoNum=parseFloat(precoStr.replace('R$ ','').replace(',','.'))||0;
   produtos.unshift({id:Date.now(),nome,cat:'Outro',fils:[],filNome:'--',horas:(function(){var h=parseInt(document.getElementById('c-horas-h').value)||0;var m=parseInt(document.getElementById('c-horas-m').value)||0;return h>0||m>0?(h>0?h+'h':'')+(m>0?' '+m+'min':''):'--';})(),precoNum,preco:precoStr,obs:''});
-  S.set('produtos',produtos);alert('Produto salvo: '+nome);
+  S.set('produtos',produtos);
+  alert('Produto salvo: '+nome);
+  salvarNoHistoricoSilencioso();
+  limparCalc();
 }
 
 /* ---- PEDIDOS ---- */
@@ -3514,6 +3520,197 @@ function renderDashboard() {
   }
 }
 /* ===== FIM DASHBOARD ===== */
+
+
+/* ===== HISTORICO DE PRECIFICACAO ===== */
+var _histCalc = S.get('hist_calc') || [];
+
+function coletarDadosCalc() {
+  // Coletar todos os dados atuais da tela de precificacao
+  var hH = parseInt(document.getElementById('c-horas-h').value)||0;
+  var hM = parseInt(document.getElementById('c-horas-m').value)||0;
+  var filsCalc = getFilsCalc();
+  var custo = parseFloat(document.getElementById('r-custo-unit').textContent.replace('R$ ','').replace(',','.')) || 0;
+  var precoUnit = parseFloat(document.getElementById('r-preco').textContent.replace('R$ ','').replace(',','.')) || 0;
+  var precoLoj = parseFloat(document.getElementById('r-preco-lojista').textContent.replace('R$ ','').replace(',','.')) || 0;
+  return {
+    id: Date.now(),
+    nome: document.getElementById('c-nome-peca').value || 'Sem nome',
+    data: hoje(),
+    hora: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+    qtd: parseInt(document.getElementById('c-qtd').value)||1,
+    horasH: hH, horasM: hM,
+    tempoStr: hH>0||hM>0 ? (hH>0?hH+'h ':'')+( hM>0?hM+'min':'') : '--',
+    markup: parseFloat(document.getElementById('c-markup').value)||0,
+    tipoCalc: window._tipoCalc || 'markup',
+    descLojista: parseFloat(document.getElementById('c-desc-lojista').value)||30,
+    fils: filsCalc.detalhes.map(function(d){ return d.nome.split(' ').slice(0,3).join(' ')+'('+d.peso+'g)'; }).join(', ') || '--',
+    custoUnit: custo,
+    precoUnit: precoUnit,
+    precoLojista: precoLoj,
+    watts: parseFloat(document.getElementById('c-watts').value)||0,
+    kwh: parseFloat(document.getElementById('c-kwh').value)||0,
+    mdo: parseFloat(document.getElementById('c-mdo').value)||0,
+    impostos: parseFloat(document.getElementById('c-impostos').value)||0,
+    embal: parseFloat(document.getElementById('c-embal').value)||0,
+    insumos: parseFloat(document.getElementById('c-insumos').value)||0,
+  };
+}
+
+function salvarNoHistorico() {
+  if(!document.getElementById('resultado') || document.getElementById('resultado').style.display === 'none') {
+    alert('Calcule o preco primeiro antes de salvar no historico.');
+    return;
+  }
+  var dados = coletarDadosCalc();
+  _histCalc.unshift(dados);
+  S.set('hist_calc', _histCalc);
+  renderHistoricoCalc();
+  alert('Salvo no historico: ' + dados.nome);
+}
+
+function salvarNoHistoricoSilencioso() {
+  if(!document.getElementById('resultado') || document.getElementById('resultado').style.display === 'none') return;
+  var dados = coletarDadosCalc();
+  _histCalc.unshift(dados);
+  // Manter maximo 50 entradas
+  if(_histCalc.length > 50) _histCalc = _histCalc.slice(0,50);
+  S.set('hist_calc', _histCalc);
+  renderHistoricoCalc();
+}
+
+function limparCalc() {
+  // Salvar no historico antes de limpar
+  salvarNoHistoricoSilencioso();
+  // Limpar campos de filamentos
+  var lista = document.getElementById('c-fils-lista');
+  if(lista) lista.innerHTML = '';
+  // Limpar campos de texto/numero
+  var campos = ['c-insumos','c-horas-h','c-horas-m','c-nome-peca','c-markup'];
+  campos.forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  // Resetar qtd
+  var qtdEl = document.getElementById('c-qtd'); if(qtdEl) qtdEl.value='1';
+  // Ocultar resultado
+  document.getElementById('resultado').style.display = 'none';
+  document.getElementById('sem-resultado').style.display = 'block';
+  // Limpar previews
+  var prevEl = document.getElementById('c-horas-preview'); if(prevEl) prevEl.textContent='';
+  var custoEl = document.getElementById('c-fil-custo-total'); if(custoEl) custoEl.style.display='none';
+  var markupInfo = document.getElementById('c-markup-info'); if(markupInfo) markupInfo.textContent='';
+  // Fechar detalhamento
+  var detWrap = document.getElementById('detalhamento-wrap'); if(detWrap) detWrap.style.display='none';
+  var icoD = document.getElementById('ico-detalhamento'); if(icoD) icoD.style.transform='';
+}
+
+function renderHistoricoCalc() {
+  var wrap = document.getElementById('historico-calc-wrap');
+  var lista = document.getElementById('historico-calc-lista');
+  if(!wrap || !lista) return;
+  if(!_histCalc.length) { wrap.style.display='none'; return; }
+  wrap.style.display = 'block';
+  lista.innerHTML = _histCalc.map(function(h) {
+    var lucroUnit = h.precoUnit - h.custoUnit;
+    var margemReal = h.precoUnit > 0 ? (lucroUnit/h.precoUnit*100).toFixed(1) : '0';
+    return '<div class="hist-card">' +
+      '<div class="hist-card-top">' +
+        '<div>' +
+          '<strong style="font-size:14px;">' + h.nome + '</strong>' +
+          '<span class="tag tag-blue" style="margin-left:8px;font-size:10px;">' + h.qtd + ' un</span>' +
+          '<br><span style="font-size:11px;color:var(--text3);">' + fmtD(h.data) + ' ' + (h.hora||'') + ' - ' + h.tempoStr + (h.fils!='--'?' - '+h.fils:'') + '</span>' +
+        '</div>' +
+        '<div style="display:flex;gap:6px;align-items:center;">' +
+          '<span style="font-size:10px;color:var(--text3);">' + (h.tipoCalc==='markup'?'Markup':'Margem') + ': ' + h.markup + '%</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="hist-preco-grid">' +
+        '<div class="hist-preco-item">' +
+          '<div class="hist-preco-label">Custo Unit.</div>' +
+          '<div class="hist-preco-val" style="color:var(--text);">' + fmt(h.custoUnit) + '</div>' +
+        '</div>' +
+        '<div class="hist-preco-item" style="border:1px solid var(--blue-border);">' +
+          '<div class="hist-preco-label" style="color:var(--blue-text);">Consumidor</div>' +
+          '<div class="hist-preco-val" style="color:var(--blue-text);">' + fmt(h.precoUnit) + '</div>' +
+          '<div style="font-size:10px;color:var(--text3);">Margem: ' + margemReal + '%</div>' +
+        '</div>' +
+        '<div class="hist-preco-item" style="border:1px solid var(--amber-border);">' +
+          '<div class="hist-preco-label" style="color:var(--amber-text);">Lojista (-' + h.descLojista + '%)</div>' +
+          '<div class="hist-preco-val" style="color:var(--amber-text);">' + fmt(h.precoLojista) + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="hist-acoes">' +
+        '<button class="btn" onclick="editarHistCalc(' + h.id + ')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-edit"></i> Editar / Recalcular</button>' +
+        '<button class="btn-ok" onclick="pedidoHistCalc(' + h.id + ')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-plus"></i> Salvar como Pedido</button>' +
+        '<button class="btn" onclick="produtoHistCalc(' + h.id + ')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-box"></i> Salvar nos Produtos</button>' +
+        '<button class="btn-del" onclick="delHistCalc(' + h.id + ')" style="font-size:11px;padding:5px 10px;margin-left:auto;"><i class="ti ti-trash"></i></button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function editarHistCalc(id) {
+  var h = _histCalc.find(function(x){ return x.id===id; });
+  if(!h) return;
+  // Restaurar campos principais
+  document.getElementById('c-nome-peca').value = h.nome || '';
+  document.getElementById('c-qtd').value = h.qtd || 1;
+  document.getElementById('c-horas-h').value = h.horasH || 0;
+  document.getElementById('c-horas-m').value = h.horasM || 0;
+  document.getElementById('c-markup').value = h.markup || 0;
+  document.getElementById('c-desc-lojista').value = h.descLojista || 30;
+  if(h.embal) document.getElementById('c-embal').value = h.embal;
+  if(h.impostos) document.getElementById('c-impostos').value = h.impostos;
+  if(h.insumos) document.getElementById('c-insumos').value = h.insumos;
+  setTipoCalc(h.tipoCalc || 'markup');
+  // Scroll e recalcular
+  document.getElementById('tab-calc').scrollIntoView({behavior:'smooth'});
+  calcular();
+}
+
+function pedidoHistCalc(id) {
+  var h = _histCalc.find(function(x){ return x.id===id; });
+  if(!h) return;
+  pedidos.unshift({
+    id: Date.now(), nome: h.nome,
+    preco: fmt(h.precoUnit),
+    data: new Date().toLocaleDateString('pt-BR'),
+    status: 'pendente',
+    horas: h.tempoStr || '--',
+    filNome: h.fils || '--',
+    peso: '--'
+  });
+  S.set('pedidos', pedidos);
+  alert('Pedido criado: ' + h.nome + ' - ' + fmt(h.precoUnit));
+}
+
+function produtoHistCalc(id) {
+  var h = _histCalc.find(function(x){ return x.id===id; });
+  if(!h) return;
+  produtos.unshift({
+    id: Date.now(), nome: h.nome, cat: 'Outro',
+    fils: [], filNome: h.fils || '--',
+    horas: h.tempoStr || '--',
+    precoNum: h.precoUnit,
+    preco: fmt(h.precoUnit),
+    obs: 'Lojista: ' + fmt(h.precoLojista)
+  });
+  S.set('produtos', produtos);
+  alert('Produto salvo: ' + h.nome + ' - ' + fmt(h.precoUnit));
+}
+
+function delHistCalc(id) {
+  if(!confirm('Remover do historico?')) return;
+  _histCalc = _histCalc.filter(function(x){ return x.id!==id; });
+  S.set('hist_calc', _histCalc);
+  renderHistoricoCalc();
+}
+
+function limparHistoricoCalc() {
+  if(!confirm('Limpar todo o historico de precificacoes?')) return;
+  _histCalc = [];
+  S.set('hist_calc', _histCalc);
+  renderHistoricoCalc();
+}
+/* ===== FIM HISTORICO PRECIFICACAO ===== */
 
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
