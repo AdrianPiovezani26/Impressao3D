@@ -1897,31 +1897,55 @@ function calcular(){
   document.getElementById('sem-resultado').style.display = 'none';
 }
 function salvarComoPedido(){
-  var nome=upper(document.getElementById('c-nome-peca').value)||'PECA SEM NOME';
+  var nome = upper(document.getElementById('c-nome-peca').value)||'PECA SEM NOME';
   var filsCalc = getFilsCalc();
   var filNome = filsCalc.detalhes.map(function(d){ return d.nome; }).join(', ') || '';
   var pesoTotal2 = filsCalc.detalhes.reduce(function(s,d){ return s+d.peso; }, 0);
   var hH = parseInt(document.getElementById('c-horas-h').value)||0;
   var hM = parseInt(document.getElementById('c-horas-m').value)||0;
   var tempoStr = hH > 0 || hM > 0 ? (hH > 0 ? hH+'h' : '') + (hM > 0 ? ' '+hM+'min' : '') : '--';
-  pedidos.unshift({id:Date.now(),nome,preco:document.getElementById('r-preco').textContent,data:new Date().toLocaleDateString('pt-BR'),status:'pendente',horas:tempoStr,filNome,peso:pesoTotal2||'--'});
-  S.set('pedidos',pedidos);
-  // Baixa de estoque dos filamentos usados
+
+  // Pegar quantidade e precos corretamente
+  var qtd = Math.max(1, parseInt(document.getElementById('c-qtd').value) || 1);
+  var precoUnitEl = document.getElementById('r-preco');
+  var precoUnitStr = precoUnitEl ? precoUnitEl.textContent : 'R$ 0,00';
+  var precoUnitNum = parseFloat(precoUnitStr.replace('R$','').replace(/\./g,'').replace(',','.').trim()) || 0;
+  var precoTotalNum = precoUnitNum * qtd;
+  // Formatar total como string
+  var precoTotalStr = fmt(precoTotalNum);
+
+  pedidos.unshift({
+    id: Date.now(),
+    nome: nome,
+    qtd: qtd,
+    precoUnit: precoUnitNum,
+    preco: precoTotalStr,
+    data: new Date().toLocaleDateString('pt-BR'),
+    status: 'pendente',
+    horas: tempoStr,
+    filNome: filNome,
+    peso: pesoTotal2 * qtd || '--'
+  });
+  S.set('pedidos', pedidos);
+
+  // Baixa de estoque -- o peso informado na precificacao ja e o total do lote
   var filsComIdx = [];
   document.getElementById('c-fils-lista').querySelectorAll('.fil-multi-item').forEach(function(item){
     var sel = item.querySelector('select');
     var idx = sel ? parseInt(sel.value) : -1;
-    var peso = parseFloat(item.querySelectorAll('input')[0].value)||0;
-    if(!isNaN(idx) && filamentos[idx] && peso > 0) filsComIdx.push({filIdx:idx,peso:peso});
+    var pesoTotal = parseFloat(item.querySelectorAll('input')[0].value)||0; // ja e o total
+    if(!isNaN(idx) && filamentos[idx] && pesoTotal > 0) filsComIdx.push({filIdx:idx, peso:pesoTotal});
   });
   if(filsComIdx.length > 0) {
-    var resumo = filsComIdx.map(function(f){ return '* '+filamentos[f.filIdx].marca+' '+filamentos[f.filIdx].modelo+': '+f.peso+'g'; }).join('\n');
-    if(confirm('Deseja dar baixa no estoque dos filamentos?\n\n' + resumo + '\n\nClique OK para confirmar.')) {
-      baixarEstoqueProduto(filsComIdx, 'Pedido: ' + nome);
+    var resumo = filsComIdx.map(function(f){
+      return '* '+filamentos[f.filIdx].marca+' '+filamentos[f.filIdx].modelo+': '+f.peso+'g';
+    }).join('\n');
+    if(confirm('Deseja dar baixa no estoque dos filamentos?\n\nTotal do lote ('+qtd+' un):\n' + resumo + '\n\nClique OK para confirmar.')) {
+      baixarEstoqueProduto(filsComIdx, 'Pedido: ' + nome + ' ('+qtd+' un)');
       buildFilSelect();
     }
   }
-  alert('Pedido salvo: '+nome);
+  alert('Pedido salvo!\n\nProduto: '+nome+'\nQuantidade: '+qtd+' unidade(s)\nValor unitario: '+fmt(precoUnitNum)+'\nTotal: '+precoTotalStr);
   salvarNoHistoricoSilencioso();
   limparCalc();
 }
