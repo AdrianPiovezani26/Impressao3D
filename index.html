@@ -1446,9 +1446,20 @@ function venderProduto(i) {
     // Selecionar produto no select
     var selProd = document.getElementById('v-produto');
     if(selProd) {
+      var nomeProd = p.nome.toLowerCase().trim();
+      var achou = false;
+      // 1. Busca exata pelo nome completo
       for(var j=0; j<selProd.options.length; j++){
-        if(selProd.options[j].text.toLowerCase().includes(p.nome.toLowerCase().split(' ')[0])){
-          selProd.selectedIndex = j; break;
+        if(selProd.options[j].text.toLowerCase().trim() === nomeProd){
+          selProd.selectedIndex = j; achou = true; break;
+        }
+      }
+      // 2. Se nao achou exato, busca por nome completo contido
+      if(!achou) {
+        for(var j=0; j<selProd.options.length; j++){
+          if(selProd.options[j].text.toLowerCase().includes(nomeProd)){
+            selProd.selectedIndex = j; break;
+          }
         }
       }
     }
