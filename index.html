@@ -3248,8 +3248,7 @@ function importarItensXML() {
   alert(linhas.join('\n'));
 
   document.getElementById('xml-resultado').innerHTML = '';
-  document.querySelectorAll('#tab-compras .subtab-btn').forEach(function(b,i2) { b.classList.toggle('active', i2===1); });
-  document.querySelectorAll('#tab-compras .subtab').forEach(function(s,i2) { s.classList.toggle('active', i2===1); });
+  showSubtab('compras','historico');
   renderCompras();
 }
 
