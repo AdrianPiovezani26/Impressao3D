@@ -25,7 +25,7 @@
   .nav button{padding:7px 13px;border-radius:var(--radius);border:1px solid transparent;background:transparent;color:var(--text2);cursor:pointer;font-size:12px;font-weight:600;letter-spacing:0.5px;transition:all 0.2s;display:flex;align-items:center;gap:6px;text-transform:uppercase;}
   .nav button.active{background:var(--neon-dim);color:var(--neon);border-color:var(--border2);box-shadow:var(--neon-glow-sm);text-shadow:0 0 8px var(--neon);}
   .nav button:hover:not(.active){background:rgba(57,255,20,0.05);color:var(--text);}
-  .tab{display:none !important;}.tab.active{display:block !important;}
+  .tab{display:none;}.tab.active{display:block;}
   .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1rem;position:relative;}
   .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--neon),transparent);opacity:0.35;pointer-events:none;}
   .card:hover{border-color:var(--border2);}
@@ -120,7 +120,7 @@
   .subtab-btn{padding:6px 14px;border-radius:var(--radius);border:1px solid transparent;background:transparent;color:var(--text2);cursor:pointer;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;transition:all 0.2s;}
   .subtab-btn.active{background:var(--neon-dim);color:var(--neon);border-color:var(--border2);}
   .subtab-btn:hover:not(.active){background:rgba(57,255,20,0.05);color:var(--text);}
-  .subtab{display:none !important;}.subtab.active{display:block !important;}
+  .subtab{display:none;}.subtab.active{display:block;}
   .xml-drop{border:2px dashed var(--border2);border-radius:var(--radius-lg);padding:2rem;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--bg3);}
   .xml-drop:hover,.xml-drop.drag{border-color:var(--neon);box-shadow:var(--neon-glow-sm);}
   .xml-drop i{font-size:36px;display:block;margin-bottom:8px;color:var(--text3);}
@@ -1196,12 +1196,12 @@ function showTab(t){
   // Ocultar todas as tabs com display direto
   document.querySelectorAll('.tab').forEach(function(e){
     e.classList.remove('active');
-    e.style.display = 'none';
+    e.style.cssText += ';display:none';
   });
   document.querySelectorAll('.nav button').forEach(function(e){ e.classList.remove('active'); });
   // Mostrar a tab escolhida
   var alvo = document.getElementById('tab-'+t);
-  if(alvo) { alvo.classList.add('active'); alvo.style.display = 'block'; }
+  if(alvo) { alvo.classList.add('active'); alvo.style.cssText += ';display:block'; }
   var btn = document.getElementById('btn-'+t);
   if(btn) btn.classList.add('active');
   // Renderizar conteudo
@@ -2372,14 +2372,14 @@ function showSubtab(tab, sub) {
   var allBtns    = document.querySelectorAll('#tab-'+tab+' .subtab-btn');
   allSubtabs.forEach(function(e){
     e.classList.remove('active');
-    e.style.display = 'none';
+    e.style.cssText += ';display:none';
   });
   allBtns.forEach(function(e){ e.classList.remove('active'); });
   // Mostrar a subtab escolhida
   var alvo = document.getElementById('subtab-'+tab+'-'+sub);
   if(alvo) {
     alvo.classList.add('active');
-    alvo.style.display = 'block';
+    alvo.style.cssText += ';display:block';
   }
   // Ativar botao correspondente
   allBtns.forEach(function(btn){
@@ -4070,22 +4070,24 @@ document.addEventListener('DOMContentLoaded', function() {
     dpDe.value = d.toISOString().slice(0,10);
   }
   setPeriodo('semana');
-  // Garantir que apenas a tab dashboard esteja visivel no inicio
+  // Inicializar TODAS as tabs: ocultar todas via style, mostrar apenas dashboard
   document.querySelectorAll('.tab').forEach(function(e){
-    e.style.display = 'none';
+    e.style.cssText += ';display:none';
     e.classList.remove('active');
   });
+  // Inicializar TODAS as subtabs de compras: ocultar via style
+  document.querySelectorAll('.subtab').forEach(function(e){
+    e.style.cssText += ';display:none';
+    e.classList.remove('active');
+  });
+  // Mostrar dashboard
   var dashTab = document.getElementById('tab-dashboard');
-  if(dashTab) { dashTab.style.display = 'block'; dashTab.classList.add('active'); }
+  if(dashTab) { dashTab.style.cssText += ';display:block'; dashTab.classList.add('active'); }
   var dashBtn = document.getElementById('btn-dashboard');
   if(dashBtn) dashBtn.classList.add('active');
-  // Inicializar subtabs de compras
-  document.querySelectorAll('#tab-compras .subtab').forEach(function(e){
-    e.style.display = 'none';
-    e.classList.remove('active');
-  });
+  // Preparar subtab lancamento como padrao para compras
   var lancEl = document.getElementById('subtab-compras-lancamento');
-  if(lancEl) { lancEl.style.display = 'block'; lancEl.classList.add('active'); }
+  if(lancEl) { lancEl.style.cssText += ';display:block'; lancEl.classList.add('active'); }
 });
 
 </script>
