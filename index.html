@@ -1341,14 +1341,33 @@ function showFormProd(idx){
   editProdIdx=idx;
   document.getElementById('form-prod').style.display='block';
   document.getElementById('form-prod-titulo').textContent=idx<0?'Cadastrar Produto':'Editar Produto';
-  const p=idx>=0?produtos[idx]:{};
+  var p=idx>=0?produtos[idx]:{};
   document.getElementById('p-nome').value=p.nome||'';
   document.getElementById('p-cat').value=p.cat||'Decoracao';
   document.getElementById('p-horas').value=p.horas||'';
   document.getElementById('p-preco').value=p.precoNum||'';
   document.getElementById('p-obs').value=p.obs||'';
   document.getElementById('p-fils-lista').innerHTML='';
-  if(p.fils&&p.fils.length)p.fils.forEach(f=>addFilProd(f.filIdx,f.peso));
+  // Carregar filamentos salvos no produto
+  if(p.fils && p.fils.length) {
+    p.fils.forEach(function(f){ addFilProd(f.filIdx, f.peso); });
+  } else if(idx >= 0 && p.nome) {
+    // Buscar filamentos de pedido com mesmo nome automaticamente
+    var pedRel = null;
+    for(var pi=0; pi<pedidos.length; pi++){
+      if(pedidos[pi].nome && p.nome &&
+         pedidos[pi].nome.toLowerCase() === p.nome.toLowerCase() &&
+         pedidos[pi].fils && pedidos[pi].fils.length) {
+        pedRel = pedidos[pi]; break;
+      }
+    }
+    if(pedRel) {
+      pedRel.fils.forEach(function(f){ addFilProd(f.filIdx, f.peso); });
+      produtos[idx].fils = pedRel.fils;
+      produtos[idx].filNome = pedRel.fils.map(function(f){ return f.filNome; }).join(', ');
+      S.set('produtos', produtos);
+    }
+  }
 }
 function salvarProduto(){
   const nome=document.getElementById('p-nome').value.trim();
