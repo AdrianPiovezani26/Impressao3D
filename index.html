@@ -1061,7 +1061,27 @@
       <div class="field"><label>Agencia</label><input type="text" id="par-agencia" placeholder="0000-0"></div>
       <div class="field"><label>Conta</label><input type="text" id="par-conta" placeholder="00000-0"></div>
       <div class="field"><label>Tipo de Conta</label>
-        <select id="par-tipo-conta"><option>Correntefunction toggleDetalhamento() {
+        <select id="par-tipo-conta"><option>Corrente</option><option>Poupanca</option><option>Pagamento</option></select>
+      </div>
+      <div class="field"><label>Chave Pix</label><input type="text" id="par-pix" placeholder="CPF, CNPJ, e-mail, tel ou chave aleatoria"></div>
+    </div>
+    <div class="field"><label>Observacoes</label>
+      <textarea id="par-obs" rows="2" placeholder="Informacoes adicionais, condicoes comerciais..."></textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">
+      <button class="btn-ok" onclick="salvarParceiro()"><i class="ti ti-device-floppy"></i> Salvar</button>
+      <button class="btn" onclick="document.getElementById('form-parceiro').style.display='none'">Cancelar</button>
+    </div>
+  </div>
+  <div id="resumo-parceiros" style="margin-bottom:1rem;"></div>
+  <div id="lista-parceiros"></div>
+</div>
+
+</div><!-- fim tab-parceiros -->
+</div><!-- /app-content -->
+
+<script>
+function toggleDetalhamento() {
   var wrap = document.getElementById('detalhamento-wrap');
   var ico  = document.getElementById('ico-detalhamento');
   if(!wrap) return;
@@ -3737,6 +3757,6 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-dashboard').classList.add('active');
 });
 </script>
-</div><!-- /app-content -->
+
 </body>
 </html>
