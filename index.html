@@ -25,7 +25,7 @@
   .nav button{padding:7px 13px;border-radius:var(--radius);border:1px solid transparent;background:transparent;color:var(--text2);cursor:pointer;font-size:12px;font-weight:600;letter-spacing:0.5px;transition:all 0.2s;display:flex;align-items:center;gap:6px;text-transform:uppercase;}
   .nav button.active{background:var(--neon-dim);color:var(--neon);border-color:var(--border2);box-shadow:var(--neon-glow-sm);text-shadow:0 0 8px var(--neon);}
   .nav button:hover:not(.active){background:rgba(57,255,20,0.05);color:var(--text);}
-  .tab{display:none;}.tab.active{display:block;}
+  .tab{display:none !important;}.tab.active{display:block !important;}
   .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1rem;position:relative;}
   .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--neon),transparent);opacity:0.35;pointer-events:none;}
   .card:hover{border-color:var(--border2);}
@@ -120,7 +120,7 @@
   .subtab-btn{padding:6px 14px;border-radius:var(--radius);border:1px solid transparent;background:transparent;color:var(--text2);cursor:pointer;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;transition:all 0.2s;}
   .subtab-btn.active{background:var(--neon-dim);color:var(--neon);border-color:var(--border2);}
   .subtab-btn:hover:not(.active){background:rgba(57,255,20,0.05);color:var(--text);}
-  .subtab{display:none;}.subtab.active{display:block;}
+  .subtab{display:none !important;}.subtab.active{display:block !important;}
   .xml-drop{border:2px dashed var(--border2);border-radius:var(--radius-lg);padding:2rem;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--bg3);}
   .xml-drop:hover,.xml-drop.drag{border-color:var(--neon);box-shadow:var(--neon-glow-sm);}
   .xml-drop i{font-size:36px;display:block;margin-bottom:8px;color:var(--text3);}
