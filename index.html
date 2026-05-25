@@ -3324,42 +3324,51 @@ function salvarParceiro() {
 }
 
 function renderParceiros() {
-  const filtro = document.getElementById('filtro-parceiro-tipo').value;
-  const lista = filtro ? parceiros.filter(p => p.tipo === filtro) : parceiros;
-  const nCli = parceiros.filter(p=>p.tipo==='cliente'||p.tipo==='ambos').length;
-  const nFor = parceiros.filter(p=>p.tipo==='fornecedor'||p.tipo==='ambos').length;
-  document.getElementById('resumo-parceiros').innerHTML = parceiros.length ?
-    `<div class="grid3" style="margin-bottom:1rem;">
-      <div class="metric"><div class="lbl">Total de parceiros</div><div class="val">${parceiros.length}</div></div>
-      <div class="metric"><div class="lbl">Clientes</div><div class="val" style="color:var(--blue-text);">${nCli}</div></div>
-      <div class="metric"><div class="lbl">Fornecedores</div><div class="val" style="color:var(--amber-text);">${nFor}</div></div>
-    </div>` : '';
-  const el = document.getElementById('lista-parceiros');
-  if(!lista.length) { el.innerHTML = '<div class="empty"><i class="ti ti-users"></i>Nenhum parceiro cadastrado ainda.<br><br><button class="btn" onclick="showFormParceiro(-1)"><i class="ti ti-plus"></i> Cadastrar primeiro parceiro</button></div>'; return; }
-  const TCOR = {cliente:'tag-blue', fornecedor:'tag-amber', ambos:'tag-green'};
-  const TNOME = {cliente:'Cliente', fornecedor:'Fornecedor', ambos:'Cliente e Fornecedor'};
-  el.innerHTML = lista.map(p => `<div class="item-card">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
-      <div>
-        <strong style="font-size:15px;">${p.razao}</strong>
-        ${p.fantasia ? `<span style="font-size:12px;color:var(--text2);margin-left:8px;">(${p.fantasia})</span>` : ''}
-        <span class="tag ${TCOR[p.tipo]||'tag-blue'}" style="margin-left:8px;">${TNOME[p.tipo]||p.tipo}</span>
-        <span class="tag tag-blue" style="margin-left:4px;">${p.pessoa==='PJ'?'PJ':'PF'}</span>
-        <br><span style="font-size:12px;color:var(--text2);">
-          ${p.doc ? p.doc : ''}
-          ${p.email ? ' - ' + p.email : ''}
-          ${p.tel ? ' - ' + p.tel : ''}
-          ${p.cidade ? ' - ' + p.cidade + (p.uf?'/'+p.uf:'') : ''}
-        </span>
-        ${p.pix ? `<br><span style="font-size:11px;color:var(--text3);"><i class="ti ti-qrcode" style="font-size:11px;"></i> Pix: ${p.pix}</span>` : ''}
-      </div>
-      <div class="row-actions">
-        <button class="btn-edit" onclick="showFormParceiro(${parceiros.indexOf(p)})"><i class="ti ti-edit"></i></button>
-        <button class="btn-del" onclick="delParceiro(${parceiros.indexOf(p)})"><i class="ti ti-trash"></i></button>
-      </div>
-    </div>
-    ${p.obs ? `<div style="font-size:11px;color:var(--text3);">${p.obs}</div>` : ''}
-  </div>`).join('');
+  var filtro = document.getElementById('filtro-parceiro-tipo').value;
+  var lista = filtro ? parceiros.filter(function(p){ return p.tipo === filtro; }) : parceiros;
+  var nCli = parceiros.filter(function(p){ return p.tipo==='cliente'||p.tipo==='ambos'; }).length;
+  var nFor = parceiros.filter(function(p){ return p.tipo==='fornecedor'||p.tipo==='ambos'; }).length;
+  var resumoEl = document.getElementById('resumo-parceiros');
+  if(resumoEl) resumoEl.innerHTML = parceiros.length ?
+    '<div class="grid3" style="margin-bottom:1rem;">' +
+      '<div class="metric"><div class="lbl">Total de parceiros</div><div class="val">'+parceiros.length+'</div></div>' +
+      '<div class="metric"><div class="lbl">Clientes</div><div class="val" style="color:var(--blue-text);">'+nCli+'</div></div>' +
+      '<div class="metric"><div class="lbl">Fornecedores</div><div class="val" style="color:var(--amber-text);">'+nFor+'</div></div>' +
+    '</div>' : '';
+  var el = document.getElementById('lista-parceiros');
+  if(!el) return;
+  if(!lista.length) {
+    el.innerHTML = '<div class="empty"><i class="ti ti-users"></i>Nenhum parceiro cadastrado ainda.<br><br>' +
+      '<button class="btn" onclick="showFormParceiro(-1)"><i class="ti ti-plus"></i> Cadastrar primeiro parceiro</button></div>';
+    return;
+  }
+  var TCOR  = {cliente:'tag-blue', fornecedor:'tag-amber', ambos:'tag-green'};
+  var TNOME = {cliente:'Cliente', fornecedor:'Fornecedor', ambos:'Cliente e Fornecedor'};
+  el.innerHTML = lista.map(function(p) {
+    var idx = parceiros.indexOf(p);
+    return '<div class="item-card">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
+        '<div>' +
+          '<strong style="font-size:15px;">' + (p.razao||'Sem nome') + '</strong>' +
+          (p.fantasia ? '<span style="font-size:12px;color:var(--text2);margin-left:8px;">('+p.fantasia+')</span>' : '') +
+          '<span class="tag '+(TCOR[p.tipo]||'tag-blue')+'" style="margin-left:8px;">'+(TNOME[p.tipo]||p.tipo)+'</span>' +
+          '<span class="tag tag-blue" style="margin-left:4px;">'+(p.pessoa==='PJ'?'PJ':'PF')+'</span>' +
+          '<br><span style="font-size:12px;color:var(--text2);">' +
+            (p.doc ? p.doc : '') +
+            (p.email ? ' - '+p.email : '') +
+            (p.tel ? ' - '+p.tel : '') +
+            (p.cidade ? ' - '+p.cidade+(p.uf?'/'+p.uf:'') : '') +
+          '</span>' +
+          (p.pix ? '<br><span style="font-size:11px;color:var(--text3);"><i class="ti ti-qrcode" style="font-size:11px;"></i> Pix: '+p.pix+'</span>' : '') +
+        '</div>' +
+        '<div class="row-actions">' +
+          '<button class="btn-edit" onclick="showFormParceiro('+idx+')"><i class="ti ti-edit"></i></button>' +
+          '<button class="btn-del" onclick="delParceiro('+idx+')"><i class="ti ti-trash"></i></button>' +
+        '</div>' +
+      '</div>' +
+      (p.obs ? '<div style="font-size:11px;color:var(--text3);">'+p.obs+'</div>' : '') +
+    '</div>';
+  }).join('');
 }
 function delParceiro(i) { if(confirm('Remover parceiro?')) { parceiros.splice(i,1); S.set('parceiros',parceiros); renderParceiros(); buildFornecedorSelect(); } }
 
