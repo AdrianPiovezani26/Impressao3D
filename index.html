@@ -1434,6 +1434,11 @@ function salvarProdInline(i) {
   renderProds();
 }
 
+function setFiltroProd(btn, status) {
+  window._filtroStatusProd = status;
+  renderProds();
+}
+
 function venderProduto(i) {
   var p = produtos[i];
   if(!p) return;
@@ -1547,7 +1552,10 @@ function renderProds(){
     el.innerHTML='<div class="empty"><i class="ti ti-box"></i>Nenhum produto cadastrado ainda.</div>';
     return;
   }
-  var rows = produtos.map(function(p, i) {
+  var rows = (window._filtroStatusProd === 'vendidos' ? produtos.filter(function(p){return p.vendido;}) :
+             window._filtroStatusProd === 'disponiveis' ? produtos.filter(function(p){return !p.vendido;}) :
+             produtos).map(function(p) {
+    var i = produtos.indexOf(p);
     var filsHtml = p.fils && p.fils.length
       ? p.fils.map(function(f){
           return '<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;">' +
@@ -1555,16 +1563,24 @@ function renderProds(){
             f.filNome + ' <span style="color:var(--text3);">('+f.peso+'g)</span></div>';
         }).join('')
       : '--';
-    var row = '<tr id="prod-row-'+i+'">' +
-      '<td><strong>'+p.nome+'</strong>'+(p.obs?'<br><span style="font-size:11px;color:var(--text2);">'+p.obs+'</span>':'')+
-      (p.qtd&&p.qtd>1?'<br><span class="tag tag-blue" style="font-size:10px;">'+p.qtd+' un</span>':'')+'</td>' +
+    var statusVendido = p.vendido
+      ? '<span class="tag tag-green" style="font-size:10px;margin-left:6px;"><i class="ti ti-check"></i> Vendido</span>' +
+        (p.clienteVenda ? '<br><span style="font-size:10px;color:var(--text3);">Cliente: '+p.clienteVenda+(p.dataVenda?' em '+fmtD(p.dataVenda):'')+'</span>' : '')
+      : '';
+    var qtdBadge = (p.qtd&&p.qtd>1)
+      ? '<span class="tag '+(p.estoqueZerado?'tag-red':'tag-blue')+'" style="font-size:10px;margin-left:4px;">'+(p.estoqueZerado?'Estoque zerado':p.qtd+' un')+'</span>'
+      : '';
+    var rowStyle = p.vendido ? 'background:rgba(57,255,20,0.03);' : '';
+    var row = '<tr id="prod-row-'+i+'" style="'+rowStyle+'">' +
+      '<td><strong>'+p.nome+'</strong>'+statusVendido+qtdBadge+
+      (p.obs?'<br><span style="font-size:11px;color:var(--text2);">'+p.obs+'</span>':'')+'</td>' +
       '<td><span class="tag tag-blue">'+p.cat+'</span></td>' +
       '<td style="font-size:12px;">'+filsHtml+'</td>' +
       '<td>'+(p.horas&&p.horas!='--'?p.horas:'--')+'</td>' +
-      '<td style="font-weight:700;color:var(--neon);text-shadow:var(--neon-glow-sm);">'+p.preco+'</td>' +
+      '<td style="font-weight:700;color:'+(p.vendido?'var(--text2)':'var(--neon)')+';text-shadow:'+(p.vendido?'none':'var(--neon-glow-sm)')+';">'+p.preco+'</td>' +
       '<td><div class="row-actions">' +
         '<button class="btn-edit" onclick="abrirEditProd('+i+')" title="Editar"><i class="ti ti-edit"></i></button>' +
-        '<button class="btn-ok" onclick="venderProduto('+i+')" style="padding:5px 10px;font-size:11px;" title="Vender"><i class="ti ti-shopping-cart"></i> Vender</button>' +
+        '<button class="btn-ok" onclick="venderProduto('+i+')" style="padding:5px 10px;font-size:11px;background:'+(p.vendido?'rgba(57,255,20,0.05)':'')+';" title="'+(p.vendido?'Vender novamente':'Vender')+'"><i class="ti ti-shopping-cart"></i> '+(p.vendido?'Vender novamente':'Vender')+'</button>' +
         '<button class="btn-del" onclick="delProd('+i+')"><i class="ti ti-trash"></i></button>' +
       '</div></td>' +
     '</tr>';
@@ -1595,7 +1611,24 @@ function renderProds(){
     return row + editRow;
   }).join('');
 
-  el.innerHTML = '<div class="overflow-x"><table>' +
+  var resumoProd = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1rem;">' +
+    '<div class="metric" style="padding:8px 14px;flex:none;">' +
+      '<div class="lbl">Total</div><div class="val" style="font-size:16px;">'+produtos.length+'</div>' +
+    '</div>' +
+    '<div class="metric" style="padding:8px 14px;flex:none;border-color:var(--neon);">' +
+      '<div class="lbl">Disponiveis</div><div class="val" style="font-size:16px;color:var(--neon);">'+totalDisp+'</div>' +
+    '</div>' +
+    '<div class="metric" style="padding:8px 14px;flex:none;border-color:var(--green-border);">' +
+      '<div class="lbl">Vendidos</div><div class="val" style="font-size:16px;color:var(--text2);">'+totalVendidos+'</div>' +
+    '</div>' +
+    '<div style="margin-left:auto;display:flex;gap:6px;">' +
+      '<button class="subtab-btn '+(filtroStatus==='todos'?'active':'')+'" onclick="setFiltroProd(this,&quot;todos&quot;)">Todos</button>' +
+      '<button class="subtab-btn '+(filtroStatus==='disponiveis'?'active':'')+'" onclick="setFiltroProd(this,&quot;disponiveis&quot;)">Disponiveis</button>' +
+      '<button class="subtab-btn '+(filtroStatus==='vendidos'?'active':'')+'" onclick="setFiltroProd(this,&quot;vendidos&quot;)">Vendidos</button>' +
+    '</div>' +
+  '</div>';
+
+  el.innerHTML = resumoProd + '<div class="overflow-x"><table>' +
     '<thead><tr><th>Produto</th><th>Categoria</th><th>Filamentos</th><th>Horas</th><th>Preco</th><th></th></tr></thead>' +
     '<tbody>' + rows + '</tbody></table></div>';
 
@@ -2027,6 +2060,18 @@ function salvarVenda(){
   const statusPgto=document.getElementById('v-status-pgto').value;
   const venda={id:Date.now(),cliente,prodNome,valor:total,qtd:parseInt(document.getElementById('v-qtd').value)||1,pgto:document.getElementById('v-pgto').value,statusPgto,data:document.getElementById('v-data').value,venc:document.getElementById('v-venc').value,obs:document.getElementById('v-obs').value};
   vendas.unshift(venda);S.set('vendas',vendas);
+  // Marcar produto como vendido
+  if(!isNaN(pIdx) && produtos[pIdx]) {
+    var qtdVendida = venda.qtd || 1;
+    var qtdProd = parseInt(produtos[pIdx].qtd) || 1;
+    var novaQtd = qtdProd - qtdVendida;
+    produtos[pIdx].vendido = true;
+    produtos[pIdx].dataVenda = venda.data;
+    produtos[pIdx].clienteVenda = cliente;
+    produtos[pIdx].qtdEstoque = novaQtd > 0 ? novaQtd : 0;
+    if(novaQtd <= 0) produtos[pIdx].estoqueZerado = true;
+    S.set('produtos', produtos);
+  }
   if(statusPgto==='pendente'){
     faturas.unshift({id:Date.now()+1,vendaId:venda.id,cliente,descricao:prodNome+' (x'+venda.qtd+')',valor:total,venc:venda.venc||'',data:venda.data,status:'pendente'});
     S.set('faturas',faturas);alert('Venda salva! Fatura criada automaticamente em Contas a Receber.');
