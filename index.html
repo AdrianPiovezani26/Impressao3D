@@ -220,6 +220,14 @@
   .prod-edit-box{background:var(--bg3);border-top:2px solid var(--neon);border-bottom:2px solid var(--neon);padding:1rem 1.25rem;animation:fadeIn 0.15s ease;}
   @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 
+
+  /* Padronizar maiusculas em inputs de texto */
+  input[type=text]:not(.no-upper),
+  input[type=search]:not(.no-upper),
+  textarea:not(.no-upper) {
+    text-transform: uppercase;
+  }
+
 </style>
 </head>
 <body>
@@ -1131,6 +1139,12 @@
 
 <script>
 
+// Converter texto para maiusculas padronizado
+function upper(str) {
+  return str ? str.toString().toUpperCase().trim() : '';
+}
+
+
 function toggleDetalhamento() {
   var wrap = document.getElementById('detalhamento-wrap');
   var ico  = document.getElementById('ico-detalhamento');
@@ -1295,7 +1309,7 @@ function salvarFilamento(){
   var qtdEmG = paraGramas(qtd, unidQtd);
   var pesoRoloRaw = parseFloat(document.getElementById('f-peso-rolo').value)||1000;
   var pesoRoloEmG = paraGramas(pesoRoloRaw, unidRolo);
-  const f={id:editFilIdx>=0?filamentos[editFilIdx].id:Date.now(),marca,modelo:document.getElementById('f-modelo').value,corNome:document.getElementById('f-cor-nome').value.trim()||'Nao informada',corHex:document.getElementById('f-cor-hex').value,diam:document.getElementById('f-diam').value,qtd:qtdEmG,preco:parseFloat(document.getElementById('f-preco').value)||0,pesoRolo:pesoRoloEmG,temp:document.getElementById('f-temp').value,tempMesa:document.getElementById('f-temp-mesa').value,data:document.getElementById('f-data').value,obs:document.getElementById('f-obs').value};
+  const f={id:editFilIdx>=0?filamentos[editFilIdx].id:Date.now(),marca,modelo:document.getElementById('f-modelo').value,corNome:upper(document.getElementById('f-cor-nome').value)||'NAO INFORMADA',corHex:document.getElementById('f-cor-hex').value,diam:document.getElementById('f-diam').value,qtd:qtdEmG,preco:parseFloat(document.getElementById('f-preco').value)||0,pesoRolo:pesoRoloEmG,temp:document.getElementById('f-temp').value,tempMesa:document.getElementById('f-temp-mesa').value,data:document.getElementById('f-data').value,obs:document.getElementById('f-obs').value};
   if(editFilIdx>=0)filamentos[editFilIdx]=f;else filamentos.unshift(f);
   S.set('filamentos',filamentos);fecharFormFil();renderFils();buildFilSelect();checkEstoque();
 }
@@ -1403,7 +1417,7 @@ function addFilProdInline(i, filIdx, pesoVal) {
 }
 
 function salvarProdInline(i) {
-  var nome = (document.getElementById('pe-nome-'+i).value||'').trim();
+  var nome = upper(document.getElementById('pe-nome-'+i).value);
   if(!nome){ alert('Informe o nome do produto'); return; }
   var precoNum = parseFloat(document.getElementById('pe-preco-'+i).value)||0;
   var horas = document.getElementById('pe-horas-'+i).value || '--';
@@ -1883,7 +1897,7 @@ function calcular(){
   document.getElementById('sem-resultado').style.display = 'none';
 }
 function salvarComoPedido(){
-  var nome=document.getElementById('c-nome-peca').value||'Peca sem nome';
+  var nome=upper(document.getElementById('c-nome-peca').value)||'PECA SEM NOME';
   var filsCalc = getFilsCalc();
   var filNome = filsCalc.detalhes.map(function(d){ return d.nome; }).join(', ') || '';
   var pesoTotal2 = filsCalc.detalhes.reduce(function(s,d){ return s+d.peso; }, 0);
@@ -1912,7 +1926,7 @@ function salvarComoPedido(){
   limparCalc();
 }
 function salvarComoProduto(){
-  var nome = document.getElementById('c-nome-peca').value || 'Peca sem nome';
+  var nome = upper(document.getElementById('c-nome-peca').value) || 'PECA SEM NOME';
   var precoStr = document.getElementById('r-preco').textContent;
   var precoNum = parseFloat(precoStr.replace('R$ ','').replace(',','.')) || 0;
   var hH = parseInt(document.getElementById('c-horas-h').value)||0;
@@ -2048,7 +2062,7 @@ function showFormVenda(){
   if(vv) { vv.removeEventListener('input',calcTotalVenda); vv.addEventListener('input',calcTotalVenda); }
 }
 function salvarVenda(){
-  const cliente=document.getElementById('v-cliente').value.trim();
+  const cliente=upper(document.getElementById('v-cliente').value);
   const total=parseFloat(document.getElementById('v-total').value)||0;
   if(!cliente){alert('Informe o nome do cliente');return;}
   if(!total){alert('Informe o valor da venda');return;}
@@ -2076,6 +2090,7 @@ function salvarVenda(){
   document.getElementById('form-venda').style.display='none';
   ['v-cliente','v-obs'].forEach(id=>{document.getElementById(id).value='';});
   document.getElementById('v-valor').value='';document.getElementById('v-total').value='';document.getElementById('v-qtd').value='1';
+  converterDadosParaMaiusculas();
   sincronizarStatusProdutos();
   renderVendas();
 }
@@ -2538,7 +2553,7 @@ function salvarAjuste() {
   var qtdRaw = parseFloat(document.getElementById('aj-qtd').value) || 0;
   var unidAjuste = document.getElementById('aj-unid').value;
   var qtd = paraGramas(qtdRaw, unidAjuste);
-  var motivo = document.getElementById('aj-motivo').value.trim();
+  var motivo = upper(document.getElementById('aj-motivo').value);
   if(isNaN(filIdx) || filIdx < 0) { alert('Selecione um filamento'); return; }
   if(qtd <= 0) { alert('Informe a quantidade'); return; }
   registrarMovimentacao(filIdx, tipo, qtd, motivo || 'Ajuste manual', 'Ajuste manual');
@@ -2832,7 +2847,7 @@ function salvarCompra() {
     const ref = (document.getElementById('cp-ac-ref') || {}).value || '';
     if(!document.getElementById('cp-ac-nome').value.trim()) { alert('Informe o nome do item'); return; }
     compra = {...compra,
-      desc: document.getElementById('cp-ac-nome').value.trim(),
+      desc: upper(document.getElementById('cp-ac-nome').value),
       cat: document.getElementById('cp-ac-cat').value,
       unidade: document.getElementById('cp-ac-unidade').value,
       ref: ref,
@@ -4453,6 +4468,69 @@ function sincronizarStatusProdutos() {
   }
 }
 
+
+function converterDadosParaMaiusculas() {
+  var alterou = false;
+  var campos_texto = ['nome','razao','fantasia','cliente','prodNome','desc','corNome','marca','modelo','filNome','cat','motivo','obs'];
+
+  // Converter filamentos
+  filamentos.forEach(function(f) {
+    if(f.marca && f.marca !== f.marca.toUpperCase()) { f.marca = f.marca.toUpperCase(); alterou = true; }
+    if(f.modelo && f.modelo !== f.modelo.toUpperCase()) { f.modelo = f.modelo.toUpperCase(); alterou = true; }
+    if(f.corNome && f.corNome !== f.corNome.toUpperCase()) { f.corNome = f.corNome.toUpperCase(); alterou = true; }
+  });
+
+  // Converter produtos
+  produtos.forEach(function(p) {
+    if(p.nome && p.nome !== p.nome.toUpperCase()) { p.nome = p.nome.toUpperCase(); alterou = true; }
+    if(p.cat && p.cat !== p.cat.toUpperCase()) { p.cat = p.cat.toUpperCase(); alterou = true; }
+    if(p.clienteVenda && p.clienteVenda !== p.clienteVenda.toUpperCase()) { p.clienteVenda = p.clienteVenda.toUpperCase(); alterou = true; }
+  });
+
+  // Converter pedidos
+  pedidos.forEach(function(p) {
+    if(p.nome && p.nome !== p.nome.toUpperCase()) { p.nome = p.nome.toUpperCase(); alterou = true; }
+    if(p.filNome && p.filNome !== p.filNome.toUpperCase()) { p.filNome = p.filNome.toUpperCase(); alterou = true; }
+  });
+
+  // Converter vendas
+  vendas.forEach(function(v) {
+    if(v.cliente && v.cliente !== v.cliente.toUpperCase()) { v.cliente = v.cliente.toUpperCase(); alterou = true; }
+    if(v.prodNome && v.prodNome !== v.prodNome.toUpperCase()) { v.prodNome = v.prodNome.toUpperCase(); alterou = true; }
+  });
+
+  // Converter compras
+  compras.forEach(function(c) {
+    if(c.desc && c.desc !== c.desc.toUpperCase()) { c.desc = c.desc.toUpperCase(); alterou = true; }
+    if(c.fornNome && c.fornNome !== c.fornNome.toUpperCase()) { c.fornNome = c.fornNome.toUpperCase(); alterou = true; }
+  });
+
+  // Converter parceiros
+  parceiros.forEach(function(p) {
+    if(p.razao && p.razao !== p.razao.toUpperCase()) { p.razao = p.razao.toUpperCase(); alterou = true; }
+    if(p.fantasia && p.fantasia !== p.fantasia.toUpperCase()) { p.fantasia = p.fantasia.toUpperCase(); alterou = true; }
+    if(p.cidade && p.cidade !== p.cidade.toUpperCase()) { p.cidade = p.cidade.toUpperCase(); alterou = true; }
+    if(p.bairro && p.bairro !== p.bairro.toUpperCase()) { p.bairro = p.bairro.toUpperCase(); alterou = true; }
+  });
+
+  // Converter faturas
+  faturas.forEach(function(f) {
+    if(f.cliente && f.cliente !== f.cliente.toUpperCase()) { f.cliente = f.cliente.toUpperCase(); alterou = true; }
+    if(f.descricao && f.descricao !== f.descricao.toUpperCase()) { f.descricao = f.descricao.toUpperCase(); alterou = true; }
+  });
+
+  if(alterou) {
+    S.set('filamentos', filamentos);
+    S.set('produtos', produtos);
+    S.set('pedidos', pedidos);
+    S.set('vendas', vendas);
+    S.set('compras', compras);
+    S.set('parceiros', parceiros);
+    S.set('faturas', faturas);
+    console.log('Dados convertidos para maiusculas');
+  }
+}
+
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
   if(verificarSessao()) {
@@ -4494,6 +4572,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var lancEl = document.getElementById('subtab-compras-lancamento');
   if(lancEl) { lancEl.style.cssText += ';display:block'; lancEl.classList.add('active'); }
 });
+
 
 
 </script>
