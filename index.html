@@ -710,6 +710,7 @@
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn-ok" onclick="salvarConfig()"><i class="ti ti-device-floppy"></i> Salvar e Aplicar</button>
+      <button class="btn-ok" onclick="fazerBackup()" style="background:rgba(0,200,255,0.10);border-color:var(--blue-border);color:var(--blue-text);"><i class="ti ti-database-export"></i> Backup Agora</button>
       <button class="btn" onclick="exportarDados()"><i class="ti ti-download"></i> Exportar JSON</button>
       <button class="btn" onclick="document.getElementById('import-file').click()"><i class="ti ti-upload"></i> Importar JSON</button>
       <input type="file" id="import-file" accept=".json" style="display:none;" onchange="lerImporte(this)">
@@ -1857,6 +1858,37 @@ function checkEstoque(){
   const critico=filamentos.some(f=>(f.pesoRolo>0?(f.qtd/f.pesoRolo*100):0)<=15);
   document.getElementById('header-alert').style.display=critico?'block':'none';
 }
+function fazerBackup() {
+  var dados = {};
+  var chaves = ['filamentos','produtos','pedidos','vendas','faturas','compras',
+                'parceiros','movimentacoes','cfg','mapa_xml','hist_calc'];
+  chaves.forEach(function(k) {
+    var val = S.get(k);
+    if(val !== null) dados['akp3d_'+k] = val;
+  });
+  var total = Object.keys(dados).reduce(function(s,k){
+    return s + (Array.isArray(dados[k]) ? dados[k].length : 1);
+  }, 0);
+  var json = JSON.stringify(dados, null, 2);
+  var blob = new Blob([json], {type:'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'AKP3D_backup_' + hoje() + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  // Mostrar confirmacao
+  var resumo = [
+    (dados['akp3d_filamentos']||[]).length + ' filamentos',
+    (dados['akp3d_compras']||[]).length + ' compras',
+    (dados['akp3d_parceiros']||[]).length + ' parceiros',
+    (dados['akp3d_pedidos']||[]).length + ' pedidos',
+    (dados['akp3d_movimentacoes']||[]).length + ' movimentacoes'
+  ].join(' | ');
+  alert('Backup salvo com sucesso!\n\n' + resumo + '\n\nArquivo: AKP3D_backup_' + hoje() + '.json');
+}
+
 function exportarDados(){
   const blob=new Blob([JSON.stringify({filamentos,produtos,pedidos,vendas,faturas,compras,parceiros,movimentacoes,cfg,exportadoEm:new Date().toISOString()},null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='akp3d_backup_'+hoje()+'.json';a.click();
