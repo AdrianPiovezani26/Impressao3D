@@ -1993,34 +1993,93 @@ function salvarComoProduto(){
 
 /* ---- PEDIDOS ---- */
 function renderPedidos(){
-  const filtro=document.getElementById('filtro-ped').value;
-  const lista=filtro?pedidos.filter(p=>p.status===filtro):pedidos;
-  const tot=pedidos.length,pend=pedidos.filter(p=>p.status==='pendente').length,imp=pedidos.filter(p=>p.status==='imprimindo').length,conc=pedidos.filter(p=>p.status==='concluido').length;
-  document.getElementById('resumo-pedidos').innerHTML=pedidos.length?`<div class="grid4" style="margin-bottom:1rem;"><div class="metric"><div class="lbl">Total</div><div class="val">${tot}</div></div><div class="metric"><div class="lbl">Pendentes</div><div class="val" style="color:var(--amber-text);">${pend}</div></div><div class="metric"><div class="lbl">Imprimindo</div><div class="val" style="color:var(--blue-text);">${imp}</div></div><div class="metric"><div class="lbl">Concluidos</div><div class="val">${conc}</div></div></div>`:'';
-  const el=document.getElementById('lista-pedidos');
-  if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-clipboard-list"></i>Nenhum pedido encontrado.</div>';return;}
-    var CR = {pendente:'tag-amber', imprimindo:'tag-blue', concluido:'tag-green'};
+  var filtro = document.getElementById('filtro-ped').value;
+  var lista = filtro ? pedidos.filter(function(p){ return p.status===filtro; }) : pedidos;
+  var tot  = pedidos.length;
+  var pend = pedidos.filter(function(p){ return p.status==='pendente'; }).length;
+  var imp  = pedidos.filter(function(p){ return p.status==='imprimindo'; }).length;
+  var conc = pedidos.filter(function(p){ return p.status==='concluido'; }).length;
+
+  // Calcular faturamento total dos pedidos
+  var faturamento = pedidos.reduce(function(s,p){
+    var v = parseFloat((p.preco||'').toString().replace('R$ ','').replace(/\./g,'').replace(',','.')) || 0;
+    return s + v;
+  }, 0);
+
+  var resumoEl = document.getElementById('resumo-pedidos');
+  if(resumoEl) resumoEl.innerHTML = pedidos.length ? 
+    '<div class="grid4" style="margin-bottom:1rem;">' +
+      '<div class="metric"><div class="lbl">Total</div><div class="val">'+tot+'</div></div>' +
+      '<div class="metric"><div class="lbl">Pendentes</div><div class="val" style="color:var(--amber-text);">'+pend+'</div></div>' +
+      '<div class="metric"><div class="lbl">Imprimindo</div><div class="val" style="color:var(--blue-text);">'+imp+'</div></div>' +
+      '<div class="metric"><div class="lbl">Concluidos</div><div class="val">'+conc+'</div></div>' +
+    '</div>' : '';
+
+  var el = document.getElementById('lista-pedidos');
+  if(!lista.length){ el.innerHTML='<div class="empty"><i class="ti ti-clipboard-list"></i>Nenhum pedido encontrado.</div>'; return; }
+
+  var CR = {pendente:'tag-amber', imprimindo:'tag-blue', concluido:'tag-green'};
+  var LABEL = {pendente:'Pendente', imprimindo:'Imprimindo', concluido:'Concluido'};
+
   el.innerHTML = lista.map(function(p) {
     var idx = pedidos.indexOf(p);
     var editavel = p.status !== 'concluido';
-    var qtdTag = (p.qtd && p.qtd > 1) ? '<span class="tag tag-blue" style="margin-left:6px;font-size:10px;">'+p.qtd+' un</span>' : '';
-    var obsInfo = p.obs ? '<br><span style="font-size:11px;color:var(--text3);font-style:italic;">'+p.obs+'</span>' : '';
+
+    // Calcular quantidade, valor unitario e total
+    var qtd = parseInt(p.qtd) || 1;
+    var precoTotal = parseFloat((p.preco||'').toString().replace('R$ ','').replace(/\./g,'').replace(',','.')) || 0;
+    // Tentar usar precoUnit salvo, senao calcular
+    var precoUnit = parseFloat(p.precoUnit) || (qtd > 0 ? precoTotal / qtd : precoTotal);
+    // Se precoUnit ficou igual ao total (pedido antigo), manter total e recalcular unit
+    if(precoUnit === precoTotal && qtd > 1) precoUnit = precoTotal / qtd;
+
+    var obsInfo = p.obs ? '<div style="font-size:11px;color:var(--text3);font-style:italic;margin-top:4px;">'+p.obs+'</div>' : '';
+
+    // Info de filamento e tempo
+    var infoLinha = '';
+    if(p.data) infoLinha += '<span style="color:var(--text3);">'+p.data+'</span>';
+    if(p.horas && p.horas !== '--') infoLinha += ' <span style="color:var(--text3);">| '+p.horas+'</span>';
+    if(p.peso && p.peso !== '--') infoLinha += ' <span style="color:var(--text3);">| '+p.peso+'g</span>';
+    if(p.filNome && p.filNome !== '--') infoLinha += ' <span style="color:var(--text3);">| '+p.filNome+'</span>';
+
+    // Box de valores (quantidade, unitario, total)
+    var valoresBox =
+      '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:8px;padding:8px 12px;background:var(--bg3);border-radius:var(--radius);border:1px solid var(--border);">' +
+        '<div style="text-align:center;">' +
+          '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Qtd</div>' +
+          '<div style="font-size:16px;font-weight:700;color:var(--text);">'+qtd+'</div>' +
+        '</div>' +
+        '<div style="width:1px;height:30px;background:var(--border2);"></div>' +
+        '<div style="text-align:center;">' +
+          '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Valor Unit.</div>' +
+          '<div style="font-size:16px;font-weight:700;color:var(--text);">'+fmt(precoUnit)+'</div>' +
+        '</div>' +
+        '<div style="width:1px;height:30px;background:var(--border2);"></div>' +
+        '<div style="text-align:center;">' +
+          '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Total</div>' +
+          '<div style="font-size:18px;font-weight:700;color:var(--neon);text-shadow:var(--neon-glow-sm);">'+fmt(precoTotal)+'</div>' +
+        '</div>' +
+        (qtd > 1 ? '' : '') +
+      '</div>';
+
     var btnEditar = editavel
       ? '<button class="btn-edit" onclick="abrirEdicaoPedido('+idx+')" title="Editar pedido"><i class="ti ti-edit"></i> Editar</button>' +
-        '<button class="btn" onclick="abrirEdicaoPedido('+idx+')" style="color:var(--blue-text);border-color:var(--blue-border);font-size:11px;padding:5px 10px;" title="Importar para venda" id="btn-vender-'+idx+'"><i class="ti ti-shopping-cart"></i> Vender</button>'
+        '<button class="btn" onclick="abrirEdicaoPedido('+idx+')" style="color:var(--blue-text);border-color:var(--blue-border);font-size:11px;padding:5px 10px;"><i class="ti ti-shopping-cart"></i> Vender</button>'
       : '<span style="font-size:11px;color:var(--text3);padding:5px 8px;display:inline-flex;align-items:center;gap:4px;"><i class="ti ti-lock"></i> Concluido</span>';
+
     return '<div class="item-card">' +
-      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:8px;">' +
-        '<div>' +
-          '<strong style="font-size:15px;">'+p.nome+'</strong>' +
-          '<span class="tag '+(CR[p.status]||'tag-blue')+'" style="margin-left:8px;font-size:10px;">'+p.status+'</span>' +
-          qtdTag +
-          '<br><span style="font-size:12px;color:var(--text2);">'+p.data+' - '+p.horas+(p.peso&&p.peso!='--'?' - '+p.peso+'g':'')+(p.filNome?' - '+p.filNome:'')+'</span>' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
+            '<strong style="font-size:15px;">'+p.nome+'</strong>' +
+            '<span class="tag '+(CR[p.status]||'tag-blue')+'" style="font-size:10px;">'+(LABEL[p.status]||p.status)+'</span>' +
+          '</div>' +
+          '<div style="font-size:11px;margin-top:4px;">'+infoLinha+'</div>' +
           obsInfo +
         '</div>' +
-        '<strong style="font-size:18px;color:var(--neon);text-shadow:var(--neon-glow-sm);">'+p.preco+'</strong>' +
       '</div>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
+      valoresBox +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;">' +
         '<select onchange="updPedSt('+idx+',this.value)" style="padding:5px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:12px;background:var(--bg2);color:var(--text);">' +
           '<option value="pendente"'+(p.status==='pendente'?' selected':'')+'>Pendente</option>' +
           '<option value="imprimindo"'+(p.status==='imprimindo'?' selected':'')+'>Imprimindo</option>' +
@@ -2032,6 +2091,7 @@ function renderPedidos(){
     '</div>';
   }).join('');
 }
+
 function updPedSt(i,v){pedidos[i].status=v;S.set('pedidos',pedidos);renderPedidos();}
 function delPed(i){if(confirm('Remover pedido?')){pedidos.splice(i,1);S.set('pedidos',pedidos);renderPedidos();}}
 
