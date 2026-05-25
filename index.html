@@ -215,6 +215,11 @@
   .modal-box{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:1.5rem;width:100%;max-width:520px;position:relative;max-height:90vh;overflow-y:auto;}
   .modal-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--neon),transparent);opacity:0.6;pointer-events:none;}
   .modal-title{font-size:13px;font-weight:700;color:var(--neon);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:1.25rem;display:flex;align-items:center;gap:8px;}
+
+  .prod-edit-row td{padding:0 !important;}
+  .prod-edit-box{background:var(--bg3);border-top:2px solid var(--neon);border-bottom:2px solid var(--neon);padding:1rem 1.25rem;animation:fadeIn 0.15s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+
 </style>
 </head>
 <body>
@@ -1123,6 +1128,7 @@
     </div>
   </div>
 </div>
+
 <script>
 
 function toggleDetalhamento() {
@@ -1337,7 +1343,137 @@ function getFilsProd(){
     return{filIdx:idx,filNome:`${filamentos[idx].marca} ${filamentos[idx].modelo} ${filamentos[idx].corNome}`,corHex:filamentos[idx].corHex,peso};
   }).filter(Boolean);
 }
+
+function _snapProd(i) {
+  var p = produtos[i];
+  return p ? JSON.stringify({
+    nome: document.getElementById('pe-nome-'+i).value,
+    cat:  document.getElementById('pe-cat-'+i).value,
+    preco:document.getElementById('pe-preco-'+i).value,
+    horas:document.getElementById('pe-horas-'+i).value,
+    obs:  document.getElementById('pe-obs-'+i).value
+  }) : null;
+}
+
+function abrirEditProd(i) {
+  // Verificar se outro produto esta aberto com alteracoes
+  if(editProdIdx >= 0 && editProdIdx !== i) {
+    var snapAtual = _snapProd(editProdIdx);
+    if(snapAtual !== _prodSnapShot) {
+      if(!confirm('Voce fez alteracoes em "' + produtos[editProdIdx].nome + '"!\nDeseja descartar e editar outro produto?')) return;
+    }
+    fecharEditProd(editProdIdx);
+  }
+  editProdIdx = i;
+  var editRow = document.getElementById('prod-edit-'+i);
+  if(editRow) {
+    editRow.style.display = 'table-row';
+    // Rolar ate o elemento
+    editRow.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+  // Salvar snapshot inicial para detectar alteracoes
+  setTimeout(function(){ _prodSnapShot = _snapProd(i); }, 100);
+}
+
+function fecharEditProd(i) {
+  var editRow = document.getElementById('prod-edit-'+i);
+  if(editRow) editRow.style.display = 'none';
+  if(editProdIdx === i) { editProdIdx = -1; _prodSnapShot = null; }
+}
+
+function addFilProdInline(i, filIdx, pesoVal) {
+  var container = document.getElementById('pe-fils-'+i);
+  if(!container) return;
+  var d = document.createElement('div');
+  d.className = 'fil-multi-item';
+  var sel = document.createElement('select');
+  sel.style.cssText = 'flex:2;min-width:150px;border:1px solid var(--border2);border-radius:var(--radius);padding:5px 8px;font-size:12px;background:var(--bg2);color:var(--text);';
+  sel.innerHTML = '<option value="">-- Sem filamento --</option>' +
+    filamentos.map(function(f,fi){ return '<option value="'+fi+'">'+ f.marca+' '+f.modelo+' -- '+f.corNome+'</option>'; }).join('');
+  if(filIdx !== undefined && filIdx >= 0) sel.value = filIdx;
+  var inp = document.createElement('input');
+  inp.type='number'; inp.placeholder='Peso (g)'; inp.min='0'; inp.step='1';
+  inp.style.cssText='width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:5px 8px;font-size:12px;background:var(--bg2);color:var(--text);';
+  if(pesoVal) inp.value = pesoVal;
+  var btn = document.createElement('button');
+  btn.className='rm'; btn.innerHTML='<i class="ti ti-x"></i>';
+  btn.addEventListener('click', function(){ d.remove(); });
+  d.appendChild(sel); d.appendChild(inp); d.appendChild(btn);
+  container.appendChild(d);
+}
+
+function salvarProdInline(i) {
+  var nome = (document.getElementById('pe-nome-'+i).value||'').trim();
+  if(!nome){ alert('Informe o nome do produto'); return; }
+  var precoNum = parseFloat(document.getElementById('pe-preco-'+i).value)||0;
+  var horas = document.getElementById('pe-horas-'+i).value || '--';
+  var obs   = document.getElementById('pe-obs-'+i).value || '';
+  var cat   = document.getElementById('pe-cat-'+i).value;
+  // Coletar filamentos
+  var fils = [];
+  var container = document.getElementById('pe-fils-'+i);
+  if(container) {
+    container.querySelectorAll('.fil-multi-item').forEach(function(item){
+      var sel  = item.querySelector('select');
+      var inp  = item.querySelector('input');
+      var idx2 = sel ? parseInt(sel.value) : -1;
+      var peso = parseFloat(inp ? inp.value : 0) || 0;
+      if(!isNaN(idx2) && filamentos[idx2] && peso > 0) {
+        fils.push({ filIdx:idx2, filNome:filamentos[idx2].marca+' '+filamentos[idx2].modelo+' '+filamentos[idx2].corNome, corHex:filamentos[idx2].corHex, peso:peso });
+      }
+    });
+  }
+  produtos[i] = Object.assign({}, produtos[i], {
+    nome:nome, cat:cat, precoNum:precoNum,
+    preco: precoNum ? fmt(precoNum) : '--',
+    horas:horas, obs:obs, fils:fils,
+    filNome: fils.length ? fils.map(function(f){ return f.filNome; }).join(', ') : '--'
+  });
+  S.set('produtos', produtos);
+  fecharEditProd(i);
+  renderProds();
+}
+
+function venderProduto(i) {
+  var p = produtos[i];
+  if(!p) return;
+  fecharEditProd(i);
+  showTab('vendas');
+  setTimeout(function(){
+    var formVenda = document.getElementById('form-venda');
+    if(formVenda) formVenda.style.display = 'block';
+    buildProdOpts();
+    // Selecionar produto no select
+    var selProd = document.getElementById('v-produto');
+    if(selProd) {
+      for(var j=0; j<selProd.options.length; j++){
+        if(selProd.options[j].text.toLowerCase().includes(p.nome.toLowerCase().split(' ')[0])){
+          selProd.selectedIndex = j; break;
+        }
+      }
+    }
+    // Preencher preco e data
+    var vValor = document.getElementById('v-valor');
+    var vData  = document.getElementById('v-data');
+    var vQtd   = document.getElementById('v-qtd');
+    if(vValor) vValor.value = p.precoNum ? p.precoNum.toFixed(2) : '';
+    if(vData)  vData.value  = hoje();
+    if(vQtd)   vQtd.value   = '1';
+    calcTotalVenda();
+  }, 250);
+}
+
 function showFormProd(idx){
+  if(idx >= 0){ abrirEditProd(idx); return; }
+  // Novo produto: usar formulario normal
+  editProdIdx = -1;
+  document.getElementById('form-prod').style.display = 'block';
+  document.getElementById('form-prod-titulo').textContent = 'Cadastrar Produto';
+  ['p-nome','p-horas','p-preco','p-obs'].forEach(function(id){ var el=document.getElementById(id); if(el)el.value=''; });
+  document.getElementById('p-cat').value = 'Decoracao';
+  document.getElementById('p-fils-lista').innerHTML = '';
+}
+function showFormProd_legado(idx){
   editProdIdx=idx;
   document.getElementById('form-prod').style.display='block';
   document.getElementById('form-prod-titulo').textContent=idx<0?'Cadastrar Produto':'Editar Produto';
@@ -1395,17 +1531,69 @@ function salvarProduto(){
   }
 }
 function renderProds(){
-  const el=document.getElementById('lista-produtos');
-  if(!produtos.length){el.innerHTML='<div class="empty"><i class="ti ti-box"></i>Nenhum produto cadastrado ainda.</div>';return;}
-  el.innerHTML='<div class="overflow-x"><table><thead><tr><th>Produto</th><th>Categoria</th><th>Filamentos utilizados</th><th>Horas</th><th>Preco</th><th></th></tr></thead><tbody>'+
-  produtos.map((p,i)=>`<tr>
-    <td><strong>${p.nome}</strong>${p.obs?'<br><span style="font-size:11px;color:var(--text2);">'+p.obs+'</span>':''}</td>
-    <td><span class="tag tag-blue">${p.cat}</span></td>
-    <td style="font-size:12px;">${p.fils&&p.fils.length?p.fils.map(f=>`<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;"><span class="cor-dot" style="background:${f.corHex||'#555'};"></span>${f.filNome} <span style="color:var(--text3);">(${f.peso}g)</span></div>`).join(''):'--'}</td>
-    <td>${p.horas?p.horas+'h':'--'}</td>
-    <td style="font-weight:700;color:var(--neon);text-shadow:var(--neon-glow-sm);">${p.preco}</td>
-    <td><div class="row-actions"><button class="btn-edit" onclick="showFormProd(${i})"><i class="ti ti-edit"></i></button><button class="btn-del" onclick="delProd(${i})"><i class="ti ti-trash"></i></button></div></td>
-  </tr>`).join('')+'</tbody></table></div>';
+  var el = document.getElementById('lista-produtos');
+  if(!produtos.length){
+    el.innerHTML='<div class="empty"><i class="ti ti-box"></i>Nenhum produto cadastrado ainda.</div>';
+    return;
+  }
+  var rows = produtos.map(function(p, i) {
+    var filsHtml = p.fils && p.fils.length
+      ? p.fils.map(function(f){
+          return '<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;">' +
+            '<span class="cor-dot" style="background:'+(f.corHex||'#555')+';"></span>' +
+            f.filNome + ' <span style="color:var(--text3);">('+f.peso+'g)</span></div>';
+        }).join('')
+      : '--';
+    var row = '<tr id="prod-row-'+i+'">' +
+      '<td><strong>'+p.nome+'</strong>'+(p.obs?'<br><span style="font-size:11px;color:var(--text2);">'+p.obs+'</span>':'')+
+      (p.qtd&&p.qtd>1?'<br><span class="tag tag-blue" style="font-size:10px;">'+p.qtd+' un</span>':'')+'</td>' +
+      '<td><span class="tag tag-blue">'+p.cat+'</span></td>' +
+      '<td style="font-size:12px;">'+filsHtml+'</td>' +
+      '<td>'+(p.horas&&p.horas!='--'?p.horas:'--')+'</td>' +
+      '<td style="font-weight:700;color:var(--neon);text-shadow:var(--neon-glow-sm);">'+p.preco+'</td>' +
+      '<td><div class="row-actions">' +
+        '<button class="btn-edit" onclick="abrirEditProd('+i+')" title="Editar"><i class="ti ti-edit"></i></button>' +
+        '<button class="btn-ok" onclick="venderProduto('+i+')" style="padding:5px 10px;font-size:11px;" title="Vender"><i class="ti ti-shopping-cart"></i> Vender</button>' +
+        '<button class="btn-del" onclick="delProd('+i+')"><i class="ti ti-trash"></i></button>' +
+      '</div></td>' +
+    '</tr>';
+    // Linha de edicao inline (oculta inicialmente)
+    var editRow = '<tr id="prod-edit-'+i+'" style="display:none;">' +
+      '<td colspan="6" class="prod-edit-row">' +
+        '<div class="prod-edit-box">' +
+          '<div class="grid2">' +
+            '<div class="field"><label>Nome</label><input type="text" id="pe-nome-'+i+'" value="'+p.nome.replace(/"/g,'&quot;')+'"></div>' +
+            '<div class="field"><label>Categoria</label><select id="pe-cat-'+i+'">'+
+              ['Decoracao','Utilidade','Miniatura','Suporte','Chaveiro','Placa','Caixa','Peca Tecnica','Outro']
+              .map(function(c){ return '<option'+(p.cat===c?' selected':'')+'>'+c+'</option>'; }).join('')+
+            '</select></div>' +
+            '<div class="field"><label>Preco de Venda (R$)</label><input type="number" id="pe-preco-'+i+'" value="'+(p.precoNum||'')+'" step="0.01" min="0"></div>' +
+            '<div class="field"><label>Horas de impressao</label><input type="text" id="pe-horas-'+i+'" value="'+(p.horas&&p.horas!='--'?p.horas:'')+'" placeholder="Ex: 2h 30min"></div>' +
+          '</div>' +
+          '<div class="field"><label>Observacao</label><input type="text" id="pe-obs-'+i+'" value="'+(p.obs||'').replace(/"/g,'&quot;')+'"></div>' +
+          '<div id="pe-fils-'+i+'" style="margin-bottom:10px;"></div>' +
+          '<button class="btn" onclick="addFilProdInline('+i+')" style="font-size:11px;margin-bottom:10px;"><i class="ti ti-plus"></i> Filamento</button>' +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+            '<button class="btn-ok" onclick="salvarProdInline('+i+')"><i class="ti ti-device-floppy"></i> Salvar</button>' +
+            '<button class="btn-ok" onclick="venderProduto('+i+')" style="background:rgba(0,200,255,0.10);border-color:var(--blue-border);color:var(--blue-text);"><i class="ti ti-shopping-cart"></i> Vender</button>' +
+            '<button class="btn" onclick="fecharEditProd('+i+')"><i class="ti ti-x"></i> Cancelar</button>' +
+          '</div>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+    return row + editRow;
+  }).join('');
+
+  el.innerHTML = '<div class="overflow-x"><table>' +
+    '<thead><tr><th>Produto</th><th>Categoria</th><th>Filamentos</th><th>Horas</th><th>Preco</th><th></th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table></div>';
+
+  // Preencher filamentos nas linhas de edicao
+  produtos.forEach(function(p, i){
+    if(p.fils && p.fils.length) {
+      p.fils.forEach(function(f){ addFilProdInline(i, f.filIdx, f.peso); });
+    }
+  });
 }
 function delProd(i){if(confirm('Remover produto?')){produtos.splice(i,1);S.set('produtos',produtos);renderProds();}}
 
@@ -4226,6 +4414,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var lancEl = document.getElementById('subtab-compras-lancamento');
   if(lancEl) { lancEl.style.cssText += ';display:block'; lancEl.classList.add('active'); }
 });
+
 
 </script>
 </body>
