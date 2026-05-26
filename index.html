@@ -645,10 +645,52 @@
 <div id="tab-pedidos" class="tab">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
     <span class="stitle" style="margin:0;">Pedidos</span>
-    <select id="filtro-ped" onchange="renderPedidos()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);">
-      <option value="">Todos</option><option value="pendente">Pendente</option><option value="imprimindo">Imprimindo</option><option value="concluido">Concluido</option>
-    </select>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <select id="filtro-ped" onchange="renderPedidos()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);">
+        <option value="">Todos</option><option value="pendente">Pendente</option><option value="imprimindo">Imprimindo</option><option value="concluido">Concluido</option>
+      </select>
+      <button class="btn-ok" onclick="toggleFormPedido()"><i class="ti ti-plus"></i> Novo Pedido</button>
+    </div>
   </div>
+
+  <!-- Formulario de novo pedido manual -->
+  <div id="form-pedido-manual" style="display:none;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1.25rem;position:relative;">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--neon),transparent);opacity:0.5;border-radius:var(--radius-lg) var(--radius-lg) 0 0;pointer-events:none;"></div>
+    <div class="stitle" style="font-size:12px;margin-bottom:1rem;"><i class="ti ti-clipboard-list"></i> Novo Pedido Manual</div>
+    <div class="grid2">
+      <div class="field"><label>Nome da Peca / Produto</label><input type="text" id="npm-nome" placeholder="Ex: FUNKO POP BATMAN"></div>
+      <div class="field"><label>Status Inicial</label>
+        <select id="npm-status" style="border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);width:100%;">
+          <option value="pendente">Pendente</option>
+          <option value="imprimindo">Imprimindo</option>
+          <option value="concluido">Concluido</option>
+        </select>
+      </div>
+      <div class="field"><label>Quantidade de Unidades</label><input type="number" id="npm-qtd" placeholder="1" value="1" min="1" step="1" oninput="calcTotalPedidoManual()"></div>
+      <div class="field"><label>Preco por Unidade (R$)</label><input type="number" id="npm-preco-unit" placeholder="0.00" step="0.01" min="0" oninput="calcTotalPedidoManual()"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Filamento(s) utilizado(s)</label><input type="text" id="npm-filnome" placeholder="Ex: PLA PRETO, PETG CINZA"></div>
+      <div class="field"><label>Tempo de Impressao</label><input type="text" id="npm-horas" placeholder="Ex: 2H 30MIN"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Peso total do filamento (g)</label><input type="number" id="npm-peso" placeholder="Ex: 150" step="0.1" min="0"></div>
+      <div class="field"><label>Data do Pedido</label><input type="date" id="npm-data"></div>
+    </div>
+    <div class="field"><label>Observacao</label><input type="text" id="npm-obs" placeholder="Informacoes adicionais..."></div>
+    <!-- Total em destaque -->
+    <div id="npm-total-box" style="display:none;background:var(--neon-dim);border:1px solid var(--border2);border-radius:var(--radius);padding:10px 14px;margin-bottom:1rem;display:flex;align-items:center;gap:16px;">
+      <div><span style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Total do Pedido</span><br>
+        <span id="npm-total-val" style="font-size:22px;font-weight:700;color:var(--neon);text-shadow:var(--neon-glow-sm);">R$ 0,00</span>
+      </div>
+      <div style="font-size:12px;color:var(--text3);" id="npm-total-info"></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn-ok" onclick="salvarPedidoManual()"><i class="ti ti-device-floppy"></i> Salvar Pedido</button>
+      <button class="btn" onclick="toggleFormPedido()"><i class="ti ti-x"></i> Cancelar</button>
+    </div>
+  </div>
+
   <div id="resumo-pedidos" style="margin-bottom:1rem;"></div>
   <div id="lista-pedidos"></div>
 </div>
@@ -2014,6 +2056,78 @@ function salvarComoProduto(){
   salvarNoHistoricoSilencioso();
   limparCalc();
 }
+
+/* ===== PEDIDO MANUAL ===== */
+function toggleFormPedido() {
+  var form = document.getElementById('form-pedido-manual');
+  if(!form) return;
+  var aberto = form.style.display !== 'none';
+  form.style.display = aberto ? 'none' : 'block';
+  if(!aberto) {
+    // Limpar e inicializar campos
+    ['npm-nome','npm-filnome','npm-horas','npm-obs'].forEach(function(id){
+      var el = document.getElementById(id); if(el) el.value = '';
+    });
+    document.getElementById('npm-qtd').value = '1';
+    document.getElementById('npm-preco-unit').value = '';
+    document.getElementById('npm-peso').value = '';
+    document.getElementById('npm-status').value = 'pendente';
+    document.getElementById('npm-data').value = hoje();
+    calcTotalPedidoManual();
+    setTimeout(function(){ var el=document.getElementById('npm-nome'); if(el) el.focus(); }, 100);
+  }
+}
+
+function calcTotalPedidoManual() {
+  var qtd   = parseInt(document.getElementById('npm-qtd').value) || 1;
+  var preco = parseFloat(document.getElementById('npm-preco-unit').value) || 0;
+  var total = qtd * preco;
+  var box   = document.getElementById('npm-total-box');
+  var val   = document.getElementById('npm-total-val');
+  var info  = document.getElementById('npm-total-info');
+  if(box)  box.style.display  = preco > 0 ? 'flex' : 'none';
+  if(val)  val.textContent    = fmt(total);
+  if(info) info.textContent   = qtd > 1 ? qtd + ' un x ' + fmt(preco) + ' cada' : '';
+}
+
+function salvarPedidoManual() {
+  var nome = upper(document.getElementById('npm-nome').value);
+  if(!nome) { alert('Informe o nome da peca ou produto.'); return; }
+  var qtd       = Math.max(1, parseInt(document.getElementById('npm-qtd').value) || 1);
+  var precoUnit = parseFloat(document.getElementById('npm-preco-unit').value) || 0;
+  var total     = qtd * precoUnit;
+  var status    = document.getElementById('npm-status').value;
+  var filNome   = upper(document.getElementById('npm-filnome').value) || '--';
+  var horas     = upper(document.getElementById('npm-horas').value) || '--';
+  var peso      = parseFloat(document.getElementById('npm-peso').value) || '--';
+  var data      = document.getElementById('npm-data').value;
+  var obs       = upper(document.getElementById('npm-obs').value);
+
+  // Formatar data para pt-BR
+  var dataFormatada = data
+    ? new Date(data + 'T00:00:00').toLocaleDateString('pt-BR')
+    : new Date().toLocaleDateString('pt-BR');
+
+  pedidos.unshift({
+    id:        Date.now(),
+    nome:      nome,
+    qtd:       qtd,
+    precoUnit: precoUnit,
+    preco:     precoUnit > 0 ? fmt(total) : '--',
+    data:      dataFormatada,
+    status:    status,
+    horas:     horas,
+    filNome:   filNome,
+    peso:      peso,
+    obs:       obs
+  });
+  S.set('pedidos', pedidos);
+  toggleFormPedido();
+  renderPedidos();
+  renderDashboard();
+  alert('Pedido salvo!\n\n' + nome + '\n' + qtd + ' un' + (precoUnit > 0 ? ' | ' + fmt(precoUnit) + '/un | Total: ' + fmt(total) : ''));
+}
+/* ===== FIM PEDIDO MANUAL ===== */
 
 /* ---- PEDIDOS ---- */
 function renderPedidos(){
