@@ -632,12 +632,38 @@
   <div id="sem-resultado" style="text-align:center;padding:3rem;color:var(--text3);font-size:13px;"><i class="ti ti-calculator" style="font-size:36px;display:block;margin-bottom:8px;"></i>Preencha os campos acima para calcular</div>
 
   <!-- HISTORICO DE PRECIFICACOES -->
-  <div id="historico-calc-wrap" style="display:none;margin-top:1.5rem;">
+  <div id="historico-calc-wrap" style="margin-top:1.5rem;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
       <div class="stitle" style="margin:0;font-size:12px;"><i class="ti ti-history"></i> Historico de Precificacoes</div>
-      <button class="btn-del" onclick="limparHistoricoCalc()" style="font-size:11px;padding:4px 10px;"><i class="ti ti-trash"></i> Limpar historico</button>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <span id="hist-calc-count" style="font-size:11px;color:var(--text3);"></span>
+        <button class="btn-del" onclick="limparHistoricoCalc()" style="font-size:11px;padding:4px 10px;"><i class="ti ti-trash"></i> Limpar</button>
+      </div>
+    </div>
+    <!-- Busca e filtros -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;">
+      <input type="text" id="hist-calc-busca" placeholder="Buscar por nome..." oninput="renderHistoricoCalc()"
+        style="flex:1;min-width:180px;border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);outline:none;">
+      <select id="hist-calc-filtro" onchange="renderHistoricoCalc()"
+        style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+        <option value="">Todos os periodos</option>
+        <option value="hoje">Hoje</option>
+        <option value="semana">Esta semana</option>
+        <option value="mes">Este mes</option>
+      </select>
+      <select id="hist-calc-ordem" onchange="renderHistoricoCalc()"
+        style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+        <option value="recente">Mais recente</option>
+        <option value="antigo">Mais antigo</option>
+        <option value="nome">Nome A-Z</option>
+        <option value="preco">Maior preco</option>
+      </select>
     </div>
     <div id="historico-calc-lista"></div>
+    <div id="hist-calc-vazio" style="display:none;text-align:center;padding:2rem;color:var(--text3);font-size:13px;">
+      <i class="ti ti-history" style="font-size:32px;display:block;margin-bottom:8px;"></i>
+      Nenhuma precificacao encontrada
+    </div>
   </div>
 </div>
 
@@ -1156,7 +1182,8 @@
     <div class="field"><label>Nome da Peca</label><input type="text" id="mp-nome" placeholder="Nome do pedido"></div>
     <div class="grid2">
       <div class="field"><label>Quantidade de Unidades</label><input type="number" id="mp-qtd" placeholder="1" min="1" step="1" value="1" oninput="atualizarTotalPedido()"></div>
-      <div class="field"><label>Preco por Unidade (R$)</label><input type="number" id="mp-preco-unit" placeholder="0.00" step="0.01" min="0" oninput="atualizarTotalPedido()"></div>
+      <div class="field"><label>Preco por Unidade (R$)</label><input type="number" id="mp-preco-unit" placeholder="0.00" step="0.01 min="0" oninput="atualizarTotalPedido()">
+    </div>
     </div>
     <div class="field">
       <label>Total do Pedido</label>
@@ -1180,6 +1207,7 @@
 </div>
 
 <script>
+
 
 // Converter texto para maiusculas padronizado
 function upper(str) {
@@ -1278,6 +1306,7 @@ function showTab(t){
   if(t==='contas')     renderContas();
   if(t==='config')     loadCfg();
   if(t==='estoque')    renderEstoque();
+  if(t==='calc')     { renderHistoricoCalc(); }
   if(t==='compras')    {
     buildFilSelectCompra();
     buildFornecedorSelect();
@@ -4322,42 +4351,81 @@ function limparCalc() {
 }
 
 function renderHistoricoCalc() {
-  var wrap = document.getElementById('historico-calc-wrap');
+  var wrap  = document.getElementById('historico-calc-wrap');
   var lista = document.getElementById('historico-calc-lista');
+  var vazio = document.getElementById('hist-calc-vazio');
+  var count = document.getElementById('hist-calc-count');
   if(!wrap || !lista) return;
-  if(!_histCalc.length) { wrap.style.display='none'; return; }
-  wrap.style.display = 'block';
-  lista.innerHTML = _histCalc.map(function(h) {
-    var lucroUnit = h.precoUnit - h.custoUnit;
+
+  var busca  = (document.getElementById('hist-calc-busca')  || {}).value || '';
+  var filtro = (document.getElementById('hist-calc-filtro') || {}).value || '';
+  var ordem  = (document.getElementById('hist-calc-ordem')  || {}).value || 'recente';
+  var hj     = hoje();
+  var semAtr = new Date(); semAtr.setDate(semAtr.getDate()-7);
+  var semStr = semAtr.toISOString().slice(0,10);
+  var mesStr = hj.slice(0,7);
+
+  var lista2 = _histCalc.filter(function(h) {
+    // Filtro busca
+    if(busca && !(h.nome||'').toUpperCase().includes(busca.toUpperCase())) return false;
+    // Filtro periodo
+    if(filtro === 'hoje'   && h.data !== hj) return false;
+    if(filtro === 'semana' && h.data < semStr) return false;
+    if(filtro === 'mes'    && (h.data||'').slice(0,7) !== mesStr) return false;
+    return true;
+  });
+
+  // Ordenar
+  lista2 = lista2.slice().sort(function(a,b){
+    if(ordem === 'antigo') return (a.data+a.hora) > (b.data+b.hora) ? 1 : -1;
+    if(ordem === 'nome')   return (a.nome||'').localeCompare(b.nome||'');
+    if(ordem === 'preco')  return (b.precoUnit||0) - (a.precoUnit||0);
+    return (b.data+b.hora) > (a.data+a.hora) ? 1 : -1; // recente
+  });
+
+  if(count) count.textContent = lista2.length + ' de ' + _histCalc.length + ' registro(s)';
+
+  if(!lista2.length) {
+    lista.innerHTML = '';
+    if(vazio) vazio.style.display = 'block';
+    return;
+  }
+  if(vazio) vazio.style.display = 'none';
+
+  lista.innerHTML = lista2.map(function(h) {
+    var lucroUnit  = (h.precoUnit||0) - (h.custoUnit||0);
     var margemReal = h.precoUnit > 0 ? (lucroUnit/h.precoUnit*100).toFixed(1) : '0';
+    var markupReal = h.custoUnit > 0 ? ((h.precoUnit-h.custoUnit)/h.custoUnit*100).toFixed(1) : '0';
     return '<div class="hist-card">' +
       '<div class="hist-card-top">' +
-        '<div>' +
+        '<div style="flex:1;min-width:0;">' +
           '<strong style="font-size:14px;">' + h.nome + '</strong>' +
-          '<span class="tag tag-blue" style="margin-left:8px;font-size:10px;">' + h.qtd + ' un</span>' +
-          '<br><span style="font-size:11px;color:var(--text3);">' + fmtD(h.data) + ' ' + (h.hora||'') + ' - ' + h.tempoStr + (h.fils!='--'?' - '+h.fils:'') + '</span>' +
-        '</div>' +
-        '<div style="display:flex;gap:6px;align-items:center;">' +
-          '<span style="font-size:10px;color:var(--text3);">' + (h.tipoCalc==='markup'?'Markup':'Margem') + ': ' + h.markup + '%</span>' +
+          '<span class="tag tag-blue" style="margin-left:8px;font-size:10px;">' + (h.qtd||1) + ' un</span>' +
+          '<span class="tag ' + (h.tipoCalc==='markup'?'tag-amber':'tag-green') + '" style="margin-left:4px;font-size:10px;">' + (h.tipoCalc==='markup'?'Markup':'Margem') + ' ' + (h.markup||0) + '%</span>' +
+          '<br><span style="font-size:11px;color:var(--text3);">' +
+            fmtD(h.data) + ' ' + (h.hora||'') +
+            (h.tempoStr&&h.tempoStr!='--'?' | '+h.tempoStr:'') +
+            (h.fils&&h.fils!='--'?' | '+h.fils:'') +
+          '</span>' +
         '</div>' +
       '</div>' +
       '<div class="hist-preco-grid">' +
         '<div class="hist-preco-item">' +
           '<div class="hist-preco-label">Custo Unit.</div>' +
-          '<div class="hist-preco-val" style="color:var(--text);">' + fmt(h.custoUnit) + '</div>' +
+          '<div class="hist-preco-val" style="color:var(--text);">' + fmt(h.custoUnit||0) + '</div>' +
         '</div>' +
         '<div class="hist-preco-item" style="border:1px solid var(--blue-border);">' +
           '<div class="hist-preco-label" style="color:var(--blue-text);">Consumidor</div>' +
-          '<div class="hist-preco-val" style="color:var(--blue-text);">' + fmt(h.precoUnit) + '</div>' +
-          '<div style="font-size:10px;color:var(--text3);">Margem: ' + margemReal + '%</div>' +
+          '<div class="hist-preco-val" style="color:var(--blue-text);">' + fmt(h.precoUnit||0) + '</div>' +
+          '<div style="font-size:10px;color:var(--text3);">Margem: ' + margemReal + '% | Markup: ' + markupReal + '%</div>' +
         '</div>' +
         '<div class="hist-preco-item" style="border:1px solid var(--amber-border);">' +
-          '<div class="hist-preco-label" style="color:var(--amber-text);">Lojista (-' + h.descLojista + '%)</div>' +
-          '<div class="hist-preco-val" style="color:var(--amber-text);">' + fmt(h.precoLojista) + '</div>' +
+          '<div class="hist-preco-label" style="color:var(--amber-text);">Lojista (-' + (h.descLojista||30) + '%)</div>' +
+          '<div class="hist-preco-val" style="color:var(--amber-text);">' + fmt(h.precoLojista||0) + '</div>' +
         '</div>' +
       '</div>' +
       '<div class="hist-acoes">' +
-        '<button class="btn" onclick="editarHistCalc(' + h.id + ')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-edit"></i> Editar / Recalcular</button>' +
+        '<button class="btn-ok" onclick="editarHistCalc(' + h.id + ')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-edit"></i> Editar / Recalcular</button>' +
         '<button class="btn-ok" onclick="pedidoHistCalc(' + h.id + ')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-plus"></i> Salvar como Pedido</button>' +
         '<button class="btn" onclick="produtoHistCalc(' + h.id + ')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-box"></i> Salvar nos Produtos</button>' +
         '<button class="btn-del" onclick="delHistCalc(' + h.id + ')" style="font-size:11px;padding:5px 10px;margin-left:auto;"><i class="ti ti-trash"></i></button>' +
@@ -4810,6 +4878,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var lancEl = document.getElementById('subtab-compras-lancamento');
   if(lancEl) { lancEl.style.cssText += ';display:block'; lancEl.classList.add('active'); }
 });
+
 
 
 
