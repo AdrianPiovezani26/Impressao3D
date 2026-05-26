@@ -244,6 +244,29 @@
   .fin-subtab-content{display:none;}
   .fin-subtab-content.active{display:block;}
 
+
+  /* ===== RELATORIOS ===== */
+  .rel-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1rem;}
+  .rel-card::before{content:'';display:block;height:2px;background:linear-gradient(90deg,transparent,var(--neon),transparent);opacity:0.4;margin:-1.25rem -1.25rem 1.25rem;border-radius:var(--radius-lg) var(--radius-lg) 0 0;}
+  .rel-titulo{font-size:11px;font-weight:700;color:var(--neon);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:1rem;display:flex;align-items:center;gap:8px;}
+  .rel-tabela{width:100%;border-collapse:collapse;font-size:13px;}
+  .rel-tabela th{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;padding:6px 10px;border-bottom:1px solid var(--border2);text-align:left;}
+  .rel-tabela td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text);}
+  .rel-tabela tr:last-child td{border-bottom:none;}
+  .rel-tabela tr:hover td{background:var(--bg3);}
+  .rel-tabela .num{text-align:right;font-weight:700;}
+  .rel-tabela .pos{width:28px;text-align:center;color:var(--text3);font-size:11px;}
+  .rel-barra-wrap{background:var(--bg3);border-radius:3px;height:6px;margin-top:4px;overflow:hidden;}
+  .rel-barra{height:6px;border-radius:3px;background:var(--neon);box-shadow:var(--neon-glow-sm);transition:width 0.6s;}
+  .rel-periodo{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:1.25rem;}
+  .rel-periodo button{padding:6px 14px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;transition:all 0.2s;}
+  .rel-periodo button.active{background:var(--neon-dim);color:var(--neon);border-color:var(--border2);}
+  .rel-periodo button:hover:not(.active){border-color:var(--neon);color:var(--neon);}
+  .rel-periodo input[type=date]{border:1px solid var(--border2);border-radius:var(--radius);padding:6px 10px;font-size:12px;background:var(--bg3);color:var(--text);outline:none;}
+  .rel-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media(max-width:600px){.rel-grid{grid-template-columns:1fr;}}
+  .rel-empty{text-align:center;padding:2rem;color:var(--text3);font-size:13px;}
+
 </style>
 </head>
 <body>
@@ -318,6 +341,7 @@
   <button onclick="showTab('compras')" id="btn-compras"><i class="ti ti-shopping-bag"></i> Compras</button>
   <button onclick="showTab('financeiro')" id="btn-financeiro"><i class="ti ti-chart-bar"></i> Financeiro</button>
   <button onclick="showTab('parceiros')" id="btn-parceiros"><i class="ti ti-users"></i> Parceiros</button>
+  <button onclick="showTab('relatorios')" id="btn-relatorios"><i class="ti ti-report-analytics"></i> Relatorios</button>
   <button onclick="showTab('config')" id="btn-config"><i class="ti ti-settings"></i> Configuracões</button>
 </nav>
 
@@ -843,6 +867,134 @@
     <div class="sep"></div>
     <div class="stitle" style="color:var(--red-text);">Zona de Perigo</div>
     <button class="btn-del" onclick="limparTudo()"><i class="ti ti-trash"></i> Apagar todos os dados</button>
+  </div>
+</div>
+
+
+<!-- RELATORIOS -->
+<div id="tab-relatorios" class="tab">
+  <!-- Filtro de periodo global -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
+    <span class="stitle" style="margin:0;"><i class="ti ti-report-analytics"></i> Relatorios</span>
+    <div style="display:flex;gap:8px;">
+      <button class="btn" onclick="exportarRelatorio()" style="font-size:12px;"><i class="ti ti-download"></i> Exportar PDF</button>
+    </div>
+  </div>
+
+  <!-- Periodo -->
+  <div class="rel-periodo">
+    <span style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;">Periodo:</span>
+    <button class="active" id="rel-btn-mes" onclick="setRelPeriodo('mes')">Este Mes</button>
+    <button id="rel-btn-trimestre" onclick="setRelPeriodo('trimestre')">Trimestre</button>
+    <button id="rel-btn-ano" onclick="setRelPeriodo('ano')">Este Ano</button>
+    <button id="rel-btn-custom" onclick="setRelPeriodo('custom')">Personalizado</button>
+    <div id="rel-custom-datas" style="display:none;gap:6px;align-items:center;">
+      <input type="date" id="rel-de" onchange="renderRelatorios()">
+      <span style="color:var(--text3);font-size:12px;">ate</span>
+      <input type="date" id="rel-ate" onchange="renderRelatorios()">
+    </div>
+    <span id="rel-label" style="font-size:11px;color:var(--text3);margin-left:4px;"></span>
+  </div>
+
+  <!-- Subtabs -->
+  <div class="subtab-nav" style="margin-bottom:1.25rem;">
+    <button class="subtab-btn active" onclick="showRelSubtab('vendas')"><i class="ti ti-shopping-cart"></i> Vendas</button>
+    <button class="subtab-btn" onclick="showRelSubtab('produtos')"><i class="ti ti-box"></i> Produtos</button>
+    <button class="subtab-btn" onclick="showRelSubtab('clientes')"><i class="ti ti-users"></i> Clientes</button>
+    <button class="subtab-btn" onclick="showRelSubtab('filamentos')"><i class="ti ti-package"></i> Filamentos</button>
+    <button class="subtab-btn" onclick="showRelSubtab('financeiro')"><i class="ti ti-chart-bar"></i> Financeiro</button>
+  </div>
+
+  <!-- SUBTAB VENDAS -->
+  <div id="rel-sub-vendas" class="subtab active">
+    <div id="rel-kpis-vendas" style="margin-bottom:1.25rem;"></div>
+    <div class="rel-grid">
+      <div class="rel-card">
+        <div class="rel-titulo"><i class="ti ti-trending-up"></i> Evolucao de Vendas</div>
+        <div id="rel-evolucao-vendas"></div>
+      </div>
+      <div class="rel-card">
+        <div class="rel-titulo"><i class="ti ti-chart-pie"></i> Formas de Pagamento</div>
+        <div id="rel-formas-pgto"></div>
+      </div>
+    </div>
+    <div class="rel-card">
+      <div class="rel-titulo"><i class="ti ti-list"></i> Detalhamento de Vendas</div>
+      <div id="rel-detalhe-vendas"></div>
+    </div>
+  </div>
+
+  <!-- SUBTAB PRODUTOS -->
+  <div id="rel-sub-produtos" class="subtab" style="display:none;">
+    <div class="rel-grid">
+      <div class="rel-card">
+        <div class="rel-titulo"><i class="ti ti-trophy"></i> Produtos Mais Vendidos</div>
+        <div id="rel-top-produtos"></div>
+      </div>
+      <div class="rel-card">
+        <div class="rel-titulo"><i class="ti ti-chart-bar"></i> Receita por Produto</div>
+        <div id="rel-receita-produto"></div>
+      </div>
+    </div>
+    <div class="rel-card">
+      <div class="rel-titulo"><i class="ti ti-box"></i> Estoque vs Vendidos</div>
+      <div id="rel-estoque-vendidos"></div>
+    </div>
+  </div>
+
+  <!-- SUBTAB CLIENTES -->
+  <div id="rel-sub-clientes" class="subtab" style="display:none;">
+    <div class="rel-card">
+      <div class="rel-titulo"><i class="ti ti-crown"></i> Top Clientes por Faturamento</div>
+      <div id="rel-top-clientes"></div>
+    </div>
+    <div class="rel-grid">
+      <div class="rel-card">
+        <div class="rel-titulo"><i class="ti ti-repeat"></i> Frequencia de Compra</div>
+        <div id="rel-freq-clientes"></div>
+      </div>
+      <div class="rel-card">
+        <div class="rel-titulo"><i class="ti ti-users"></i> Perfil dos Clientes</div>
+        <div id="rel-perfil-clientes"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUBTAB FILAMENTOS -->
+  <div id="rel-sub-filamentos" class="subtab" style="display:none;">
+    <div class="rel-grid">
+      <div class="rel-card">
+        <div class="rel-titulo"><i class="ti ti-package"></i> Consumo por Filamento</div>
+        <div id="rel-consumo-fil"></div>
+      </div>
+      <div class="rel-card">
+        <div class="rel-titulo"><i class="ti ti-alert-triangle"></i> Estoque Critico</div>
+        <div id="rel-estoque-critico"></div>
+      </div>
+    </div>
+    <div class="rel-card">
+      <div class="rel-titulo"><i class="ti ti-shopping-bag"></i> Compras de Filamentos</div>
+      <div id="rel-compras-fil"></div>
+    </div>
+  </div>
+
+  <!-- SUBTAB FINANCEIRO -->
+  <div id="rel-sub-financeiro" class="subtab" style="display:none;">
+    <div id="rel-kpis-fin" style="margin-bottom:1.25rem;"></div>
+    <div class="rel-grid">
+      <div class="rel-card">
+        <div class="rel-titulo"><i class="ti ti-arrow-down-circle"></i> Receitas x Despesas</div>
+        <div id="rel-receitas-despesas"></div>
+      </div>
+      <div class="rel-card">
+        <div class="rel-titulo"><i class="ti ti-receipt"></i> Contas a Pagar</div>
+        <div id="rel-resumo-pagar"></div>
+      </div>
+    </div>
+    <div class="rel-card">
+      <div class="rel-titulo"><i class="ti ti-report"></i> DRE Resumido</div>
+      <div id="rel-dre-resumido"></div>
+    </div>
   </div>
 </div>
 
@@ -1565,6 +1717,7 @@ function showTab(t){
     showSubtab('compras', 'lancamento');
   }
   if(t==='financeiro')  { renderFinKPIs(); showFinSubtab('pagar'); }
+  if(t==='relatorios')  { setRelPeriodo('mes'); showRelSubtab('vendas'); }
   if(t==='parceiros')   { showParcSubtab('clientes'); }
 }
 
@@ -6168,6 +6321,451 @@ function confirmarSeletorPedidos() {
   }, 250);
 }
 /* ===== FIM VENDA MULTIPLOS ITENS ===== */
+
+
+/* =========================================
+   MODULO RELATORIOS
+   ========================================= */
+var _relPeriodo = 'mes';
+
+function setRelPeriodo(p) {
+  _relPeriodo = p;
+  document.querySelectorAll('.rel-periodo button').forEach(function(b){ b.classList.remove('active'); });
+  var btn = document.getElementById('rel-btn-'+p);
+  if(btn) btn.classList.add('active');
+  var custom = document.getElementById('rel-custom-datas');
+  if(custom) custom.style.display = p === 'custom' ? 'flex' : 'none';
+  renderRelatorios();
+}
+
+function getRelDatas() {
+  var hj = hoje();
+  var de, ate;
+  if(_relPeriodo === 'mes') {
+    de = hj.slice(0,7)+'-01'; ate = hj;
+  } else if(_relPeriodo === 'trimestre') {
+    var d = new Date(); d.setMonth(d.getMonth()-3);
+    de = d.toISOString().slice(0,10); ate = hj;
+  } else if(_relPeriodo === 'ano') {
+    de = hj.slice(0,4)+'-01-01'; ate = hj;
+  } else {
+    de  = (document.getElementById('rel-de')  || {}).value || hj.slice(0,7)+'-01';
+    ate = (document.getElementById('rel-ate') || {}).value || hj;
+  }
+  // Atualizar label
+  var label = document.getElementById('rel-label');
+  if(label) label.textContent = de + ' a ' + ate;
+  return {de: de, ate: ate};
+}
+
+function relFiltrarVendas(de, ate) {
+  return vendas.filter(function(v){
+    return v.data >= de && v.data <= ate;
+  });
+}
+
+function showRelSubtab(sub) {
+  document.querySelectorAll('#tab-relatorios .subtab-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelectorAll('#tab-relatorios .subtab').forEach(function(e){ e.style.display='none'; });
+  var el = document.getElementById('rel-sub-'+sub);
+  if(el) el.style.display = 'block';
+  document.querySelectorAll('#tab-relatorios .subtab-btn').forEach(function(b){
+    if((b.getAttribute('onclick')||'').includes("'"+sub+"'")) b.classList.add('active');
+  });
+  renderRelatorios();
+}
+
+function renderRelatorios() {
+  var datas = getRelDatas();
+  // Detectar subtab ativa
+  var subAtiva = 'vendas';
+  document.querySelectorAll('#tab-relatorios .subtab').forEach(function(e){
+    if(e.style.display !== 'none') subAtiva = e.id.replace('rel-sub-','');
+  });
+  if(subAtiva === 'vendas')     renderRelVendas(datas);
+  if(subAtiva === 'produtos')   renderRelProdutos(datas);
+  if(subAtiva === 'clientes')   renderRelClientes(datas);
+  if(subAtiva === 'filamentos') renderRelFilamentos(datas);
+  if(subAtiva === 'financeiro') renderRelFinanceiro(datas);
+}
+
+/* ===== RELATORIO VENDAS ===== */
+function renderRelVendas(datas) {
+  var lista = relFiltrarVendas(datas.de, datas.ate);
+  var total = lista.reduce(function(s,v){ return s+v.valor; }, 0);
+  var qtdVendas = lista.length;
+  var ticketMedio = qtdVendas ? total/qtdVendas : 0;
+  var pagas = lista.filter(function(v){ return v.statusPgto==='pago'; });
+  var totalPago = pagas.reduce(function(s,v){ return s+v.valor; }, 0);
+
+  // KPIs
+  var kpis = document.getElementById('rel-kpis-vendas');
+  if(kpis) kpis.innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1rem;">' +
+      kpiRel('Faturamento', fmt(total), 'var(--neon)', 'ti-trending-up') +
+      kpiRel('Qtd Vendas', qtdVendas, 'var(--blue-text)', 'ti-shopping-cart') +
+      kpiRel('Ticket Medio', fmt(ticketMedio), 'var(--text)', 'ti-receipt') +
+      kpiRel('Total Recebido', fmt(totalPago), 'var(--neon)', 'ti-coin') +
+      kpiRel('A Receber', fmt(total-totalPago), 'var(--amber-text)', 'ti-clock') +
+    '</div>';
+
+  // Evolucao de vendas por dia/semana
+  var evolEl = document.getElementById('rel-evolucao-vendas');
+  if(evolEl) {
+    if(!lista.length) { evolEl.innerHTML = '<div class="rel-empty">Nenhuma venda no periodo.</div>'; }
+    else {
+      // Agrupar por data
+      var porData = {};
+      lista.forEach(function(v){
+        if(!porData[v.data]) porData[v.data] = 0;
+        porData[v.data] += v.valor;
+      });
+      var datas2 = Object.keys(porData).sort();
+      var maxVal = Math.max.apply(null, datas2.map(function(d){ return porData[d]; }));
+      evolEl.innerHTML = '<div style="overflow-x:auto;">' +
+        '<table class="rel-tabela">' +
+        '<thead><tr><th>Data</th><th class="num">Vendas (R$)</th><th>Proporcao</th></tr></thead><tbody>' +
+        datas2.map(function(d){
+          var pct = maxVal > 0 ? (porData[d]/maxVal*100).toFixed(0) : 0;
+          return '<tr><td>'+fmtD(d)+'</td><td class="num" style="color:var(--neon);">'+fmt(porData[d])+'</td>' +
+            '<td style="width:120px;"><div class="rel-barra-wrap"><div class="rel-barra" style="width:'+pct+'%"></div></div></td></tr>';
+        }).join('') +
+        '</tbody></table></div>';
+    }
+  }
+
+  // Formas de pagamento
+  var pgtoEl = document.getElementById('rel-formas-pgto');
+  if(pgtoEl) {
+    var porPgto = {};
+    lista.forEach(function(v){
+      var f = v.formaPgto || v.pgto || 'Nao informado';
+      if(!porPgto[f]) porPgto[f] = {qtd:0, total:0};
+      porPgto[f].qtd++;
+      porPgto[f].total += v.valor;
+    });
+    var pgtoKeys = Object.keys(porPgto).sort(function(a,b){ return porPgto[b].total-porPgto[a].total; });
+    var maxPgto = pgtoKeys.length ? porPgto[pgtoKeys[0]].total : 1;
+    pgtoEl.innerHTML = pgtoKeys.length ? '<table class="rel-tabela">' +
+      '<thead><tr><th>Forma</th><th class="num">Qtd</th><th class="num">Total</th></tr></thead><tbody>' +
+      pgtoKeys.map(function(k){
+        return '<tr><td>'+k+'</td><td class="num">'+porPgto[k].qtd+'</td><td class="num" style="color:var(--neon);">'+fmt(porPgto[k].total)+'</td></tr>';
+      }).join('') + '</tbody></table>' : '<div class="rel-empty">Sem dados.</div>';
+  }
+
+  // Detalhamento
+  var detEl = document.getElementById('rel-detalhe-vendas');
+  if(detEl) {
+    if(!lista.length) { detEl.innerHTML='<div class="rel-empty">Nenhuma venda no periodo.</div>'; return; }
+    var listaOrd = lista.slice().sort(function(a,b){ return b.data>a.data?1:-1; });
+    detEl.innerHTML = '<div style="overflow-x:auto;"><table class="rel-tabela">' +
+      '<thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th class="num">Qtd</th><th class="num">Valor</th><th>Pagto</th></tr></thead><tbody>' +
+      listaOrd.map(function(v){
+        return '<tr><td>'+fmtD(v.data)+'</td><td>'+v.cliente+'</td><td>'+(v.prodNome||'--')+'</td>' +
+          '<td class="num">'+(v.qtd||1)+'</td>' +
+          '<td class="num" style="color:var(--neon);font-weight:700;">'+fmt(v.valor)+'</td>' +
+          '<td><span class="tag '+(v.statusPgto==='pago'?'tag-green':'tag-amber')+'" style="font-size:10px;">'+(v.statusPgto==='pago'?'Pago':'Pendente')+'</span></td>' +
+        '</tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+}
+
+/* ===== RELATORIO PRODUTOS ===== */
+function renderRelProdutos(datas) {
+  var lista = relFiltrarVendas(datas.de, datas.ate);
+
+  // Top produtos por quantidade
+  var porProd = {};
+  lista.forEach(function(v){
+    var nome = v.prodNome || 'AVULSO';
+    if(!porProd[nome]) porProd[nome] = {qtd:0, total:0};
+    porProd[nome].qtd  += (v.qtd||1);
+    porProd[nome].total += v.valor;
+  });
+  var topProd = Object.keys(porProd).sort(function(a,b){ return porProd[b].qtd-porProd[a].qtd; });
+  var maxQtd  = topProd.length ? porProd[topProd[0]].qtd : 1;
+
+  var topEl = document.getElementById('rel-top-produtos');
+  if(topEl) topEl.innerHTML = topProd.length ?
+    '<table class="rel-tabela"><thead><tr><th class="pos">#</th><th>Produto</th><th class="num">Qtd</th><th>Distribuicao</th></tr></thead><tbody>' +
+    topProd.slice(0,10).map(function(k,i){
+      var pct = (porProd[k].qtd/maxQtd*100).toFixed(0);
+      return '<tr><td class="pos">'+(i+1)+'</td><td>'+k+'</td><td class="num" style="color:var(--blue-text);">'+porProd[k].qtd+'</td>' +
+        '<td><div class="rel-barra-wrap"><div class="rel-barra" style="width:'+pct+'%;background:var(--blue-text);"></div></div></td></tr>';
+    }).join('') + '</tbody></table>' : '<div class="rel-empty">Nenhuma venda no periodo.</div>';
+
+  // Receita por produto
+  var topRec = Object.keys(porProd).sort(function(a,b){ return porProd[b].total-porProd[a].total; });
+  var maxRec = topRec.length ? porProd[topRec[0]].total : 1;
+  var recEl = document.getElementById('rel-receita-produto');
+  if(recEl) recEl.innerHTML = topRec.length ?
+    '<table class="rel-tabela"><thead><tr><th class="pos">#</th><th>Produto</th><th class="num">Receita</th><th>Proporcao</th></tr></thead><tbody>' +
+    topRec.slice(0,10).map(function(k,i){
+      var pct = (porProd[k].total/maxRec*100).toFixed(0);
+      return '<tr><td class="pos">'+(i+1)+'</td><td>'+k+'</td><td class="num" style="color:var(--neon);">'+fmt(porProd[k].total)+'</td>' +
+        '<td><div class="rel-barra-wrap"><div class="rel-barra" style="width:'+pct+'%"></div></div></td></tr>';
+    }).join('') + '</tbody></table>' : '<div class="rel-empty">Sem dados.</div>';
+
+  // Estoque vs Vendidos
+  var estEl = document.getElementById('rel-estoque-vendidos');
+  if(estEl) {
+    var disponiveis = produtos.filter(function(p){ return !p.vendido; }).length;
+    var vendidos    = produtos.filter(function(p){ return p.vendido; }).length;
+    estEl.innerHTML =
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:1rem;">' +
+        kpiRel('Total Produtos', produtos.length, 'var(--text)', 'ti-box') +
+        kpiRel('Disponiveis', disponiveis, 'var(--neon)', 'ti-check') +
+        kpiRel('Vendidos', vendidos, 'var(--blue-text)', 'ti-shopping-cart') +
+      '</div>' +
+      '<table class="rel-tabela"><thead><tr><th>Produto</th><th>Categoria</th><th class="num">Preco</th><th>Status</th></tr></thead><tbody>' +
+      produtos.slice(0,20).map(function(p){
+        return '<tr><td>'+p.nome+'</td><td>'+(p.cat||'--')+'</td>' +
+          '<td class="num" style="color:var(--neon);">'+p.preco+'</td>' +
+          '<td><span class="tag '+(p.vendido?'tag-green':'tag-blue')+'" style="font-size:10px;">'+(p.vendido?'Vendido':'Disponivel')+'</span></td></tr>';
+      }).join('') + '</tbody></table>';
+  }
+}
+
+/* ===== RELATORIO CLIENTES ===== */
+function renderRelClientes(datas) {
+  var lista = relFiltrarVendas(datas.de, datas.ate);
+
+  // Top clientes
+  var porCli = {};
+  lista.forEach(function(v){
+    var c = v.cliente || 'NAO INFORMADO';
+    if(!porCli[c]) porCli[c] = {qtd:0, total:0, prods:[]};
+    porCli[c].qtd++;
+    porCli[c].total += v.valor;
+    if(v.prodNome && porCli[c].prods.indexOf(v.prodNome)<0) porCli[c].prods.push(v.prodNome);
+  });
+  var topCli = Object.keys(porCli).sort(function(a,b){ return porCli[b].total-porCli[a].total; });
+  var maxCli = topCli.length ? porCli[topCli[0]].total : 1;
+
+  var topEl = document.getElementById('rel-top-clientes');
+  if(topEl) topEl.innerHTML = topCli.length ?
+    '<table class="rel-tabela"><thead><tr><th class="pos">#</th><th>Cliente</th><th class="num">Compras</th><th class="num">Total Gasto</th><th class="num">Ticket Medio</th></tr></thead><tbody>' +
+    topCli.map(function(k,i){
+      var ticket = porCli[k].qtd ? porCli[k].total/porCli[k].qtd : 0;
+      return '<tr>' +
+        '<td class="pos">'+(i+1)+'</td>' +
+        '<td><strong>'+k+'</strong><br><span style="font-size:11px;color:var(--text3);">'+porCli[k].prods.slice(0,2).join(', ')+(porCli[k].prods.length>2?'...':'')+'</span></td>' +
+        '<td class="num">'+porCli[k].qtd+'</td>' +
+        '<td class="num" style="color:var(--neon);font-weight:700;">'+fmt(porCli[k].total)+'</td>' +
+        '<td class="num" style="color:var(--text2);">'+fmt(ticket)+'</td>' +
+      '</tr>';
+    }).join('') + '</tbody></table>' : '<div class="rel-empty">Nenhuma venda no periodo.</div>';
+
+  // Frequencia de compra
+  var freqEl = document.getElementById('rel-freq-clientes');
+  if(freqEl) {
+    var freq1 = topCli.filter(function(k){ return porCli[k].qtd === 1; }).length;
+    var freq2  = topCli.filter(function(k){ return porCli[k].qtd >= 2 && porCli[k].qtd <= 3; }).length;
+    var freq3  = topCli.filter(function(k){ return porCli[k].qtd > 3; }).length;
+    freqEl.innerHTML =
+      '<table class="rel-tabela"><thead><tr><th>Perfil</th><th class="num">Clientes</th><th class="num">Percentual</th></tr></thead><tbody>' +
+      '<tr><td>Compra unica</td><td class="num">'+freq1+'</td><td class="num">'+(topCli.length?((freq1/topCli.length)*100).toFixed(0):0)+'%</td></tr>' +
+      '<tr><td>Recorrente (2-3x)</td><td class="num">'+freq2+'</td><td class="num">'+(topCli.length?((freq2/topCli.length)*100).toFixed(0):0)+'%</td></tr>' +
+      '<tr><td>Fiel (4x ou mais)</td><td class="num" style="color:var(--neon);">'+freq3+'</td><td class="num">'+(topCli.length?((freq3/topCli.length)*100).toFixed(0):0)+'%</td></tr>' +
+      '</tbody></table>';
+  }
+
+  // Perfil dos clientes
+  var perfEl = document.getElementById('rel-perfil-clientes');
+  if(perfEl) {
+    var tipoCli = {consumidor:0, lojista:0, empresa:0, sem:0};
+    clientes.forEach(function(c){ tipoCli[c.tipo] = (tipoCli[c.tipo]||0)+1; });
+    var totalCli = clientes.length || 1;
+    perfEl.innerHTML =
+      '<table class="rel-tabela"><thead><tr><th>Tipo</th><th class="num">Qtd</th><th class="num">%</th></tr></thead><tbody>' +
+      '<tr><td>Consumidor Final</td><td class="num">'+tipoCli.consumidor+'</td><td class="num">'+((tipoCli.consumidor/totalCli)*100).toFixed(0)+'%</td></tr>' +
+      '<tr><td>Lojista/Revendedor</td><td class="num">'+tipoCli.lojista+'</td><td class="num">'+((tipoCli.lojista/totalCli)*100).toFixed(0)+'%</td></tr>' +
+      '<tr><td>Empresa</td><td class="num">'+tipoCli.empresa+'</td><td class="num">'+((tipoCli.empresa/totalCli)*100).toFixed(0)+'%</td></tr>' +
+      '</tbody></table>' +
+      '<div style="margin-top:10px;font-size:12px;color:var(--text3);">Total de clientes cadastrados: <strong style="color:var(--text);">'+clientes.length+'</strong></div>';
+  }
+}
+
+/* ===== RELATORIO FILAMENTOS ===== */
+function renderRelFilamentos(datas) {
+  // Consumo a partir do historico de movimentacoes
+  var movPeriodo = movimentacoes.filter(function(m){
+    return m.tipo==='saida' && m.data>=datas.de && m.data<=datas.ate;
+  });
+
+  var porFil = {};
+  movPeriodo.forEach(function(m){
+    if(!porFil[m.filNome]) porFil[m.filNome] = {qtd:0, corHex:m.corHex, refs:[]};
+    porFil[m.filNome].qtd += parseFloat(m.qtd)||0;
+    if(m.referencia && porFil[m.filNome].refs.indexOf(m.referencia)<0)
+      porFil[m.filNome].refs.push(m.referencia);
+  });
+  var topFil = Object.keys(porFil).sort(function(a,b){ return porFil[b].qtd-porFil[a].qtd; });
+  var maxFil = topFil.length ? porFil[topFil[0]].qtd : 1;
+
+  var conEl = document.getElementById('rel-consumo-fil');
+  if(conEl) conEl.innerHTML = topFil.length ?
+    '<table class="rel-tabela"><thead><tr><th class="pos">#</th><th>Filamento</th><th class="num">Consumido</th><th>Proporcao</th></tr></thead><tbody>' +
+    topFil.map(function(k,i){
+      var pct = (porFil[k].qtd/maxFil*100).toFixed(0);
+      return '<tr>' +
+        '<td class="pos">'+(i+1)+'</td>' +
+        '<td><div style="display:flex;align-items:center;gap:6px;">' +
+          '<span class="cor-dot" style="background:'+(porFil[k].corHex||'#555')+'"></span>'+k+
+        '</div></td>' +
+        '<td class="num" style="color:var(--amber-text);font-weight:700;">'+porFil[k].qtd.toFixed(0)+'g</td>' +
+        '<td><div class="rel-barra-wrap"><div class="rel-barra" style="width:'+pct+'%;background:var(--amber-text);"></div></div></td>' +
+      '</tr>';
+    }).join('') + '</tbody></table>' :
+    '<div class="rel-empty"><i class="ti ti-package" style="font-size:28px;display:block;margin-bottom:8px;"></i>Sem movimentacoes no periodo.</div>';
+
+  // Estoque critico
+  var critEl = document.getElementById('rel-estoque-critico');
+  if(critEl) {
+    var criticos = filamentos.filter(function(f){ return (parseFloat(f.qtd)||0) < 100; })
+      .sort(function(a,b){ return (parseFloat(a.qtd)||0)-(parseFloat(b.qtd)||0); });
+    critEl.innerHTML = criticos.length ?
+      '<table class="rel-tabela"><thead><tr><th>Filamento</th><th class="num">Estoque</th><th>Status</th></tr></thead><tbody>' +
+      criticos.map(function(f){
+        var qtd = parseFloat(f.qtd)||0;
+        var cor = qtd < 50 ? 'var(--red-text)' : 'var(--amber-text)';
+        return '<tr><td><div style="display:flex;align-items:center;gap:6px;">' +
+          '<span class="cor-dot" style="background:'+(f.corHex||'#555')+'"></span>' +
+          f.marca+' '+f.modelo+' '+f.corNome+'</div></td>' +
+          '<td class="num" style="color:'+cor+';font-weight:700;">'+qtd.toFixed(0)+'g</td>' +
+          '<td><span class="tag '+(qtd<50?'tag-red':'tag-amber')+'" style="font-size:10px;">'+(qtd<50?'Critico':'Baixo')+'</span></td></tr>';
+      }).join('') + '</tbody></table>' :
+      '<div class="rel-empty" style="color:var(--neon);"><i class="ti ti-check" style="font-size:24px;display:block;"></i>Todos os filamentos com estoque adequado!</div>';
+  }
+
+  // Compras de filamentos no periodo
+  var cmpEl = document.getElementById('rel-compras-fil');
+  if(cmpEl) {
+    var comprasPer = compras.filter(function(c){ return c.data>=datas.de && c.data<=datas.ate; });
+    var totalCmp = comprasPer.reduce(function(s,c){ return s+(c.total||0); },0);
+    cmpEl.innerHTML = comprasPer.length ?
+      '<div style="margin-bottom:10px;font-size:13px;">Total investido em filamentos no periodo: <strong style="color:var(--neon);">'+fmt(totalCmp)+'</strong></div>' +
+      '<table class="rel-tabela"><thead><tr><th>Data</th><th>Descricao</th><th>Fornecedor</th><th class="num">Total</th></tr></thead><tbody>' +
+      comprasPer.map(function(c){
+        return '<tr><td>'+fmtD(c.data)+'</td><td>'+(c.desc||'--')+'</td><td>'+(c.fornNome||'--')+'</td><td class="num" style="color:var(--neon);">'+fmt(c.total||0)+'</td></tr>';
+      }).join('') + '</tbody></table>' :
+      '<div class="rel-empty">Nenhuma compra registrada no periodo.</div>';
+  }
+}
+
+/* ===== RELATORIO FINANCEIRO ===== */
+function renderRelFinanceiro(datas) {
+  var listaVendas = relFiltrarVendas(datas.de, datas.ate);
+  var totalReceitas = listaVendas.reduce(function(s,v){ return s+v.valor; },0);
+  var comprasPer  = compras.filter(function(c){ return c.data>=datas.de && c.data<=datas.ate; });
+  var totalCompras = comprasPer.reduce(function(s,c){ return s+(c.total||0); },0);
+  var despPagas   = contasPagar.filter(function(cp){ return cp.status==='paga' && (cp.dataPagamento||'')>=datas.de && (cp.dataPagamento||'')<=datas.ate; });
+  var totalDesp   = despPagas.reduce(function(s,cp){ return s+cp.valor; },0);
+  var lucroBruto  = totalReceitas - totalCompras;
+  var lucroLiq    = totalReceitas - totalCompras - totalDesp;
+  var margem      = totalReceitas > 0 ? (lucroLiq/totalReceitas*100).toFixed(1) : 0;
+
+  // KPIs
+  var kpiFin = document.getElementById('rel-kpis-fin');
+  if(kpiFin) kpiFin.innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1rem;">' +
+      kpiRel('Receita', fmt(totalReceitas), 'var(--neon)', 'ti-trending-up') +
+      kpiRel('Custo Filamentos', fmt(totalCompras), 'var(--amber-text)', 'ti-package') +
+      kpiRel('Lucro Bruto', fmt(lucroBruto), lucroBruto>=0?'var(--neon)':'var(--red-text)', 'ti-calculator') +
+      kpiRel('Despesas', fmt(totalDesp), 'var(--red-text)', 'ti-arrow-up-circle') +
+      kpiRel('Lucro Liquido', fmt(lucroLiq), lucroLiq>=0?'var(--neon)':'var(--red-text)', 'ti-chart-bar') +
+      kpiRel('Margem', margem+'%', lucroLiq>=0?'var(--neon)':'var(--red-text)', 'ti-percent') +
+    '</div>';
+
+  // Receitas x Despesas por mes
+  var recDesp = document.getElementById('rel-receitas-despesas');
+  if(recDesp) {
+    var porMes = {};
+    listaVendas.forEach(function(v){
+      var m = (v.data||'').slice(0,7);
+      if(!porMes[m]) porMes[m] = {rec:0, desp:0};
+      porMes[m].rec += v.valor;
+    });
+    despPagas.forEach(function(cp){
+      var m = (cp.dataPagamento||'').slice(0,7);
+      if(!porMes[m]) porMes[m] = {rec:0, desp:0};
+      porMes[m].desp += cp.valor;
+    });
+    var meses = Object.keys(porMes).sort();
+    var nomMes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    recDesp.innerHTML = meses.length ?
+      '<table class="rel-tabela"><thead><tr><th>Mes</th><th class="num">Receita</th><th class="num">Despesas</th><th class="num">Saldo</th></tr></thead><tbody>' +
+      meses.map(function(m){
+        var saldo = porMes[m].rec - porMes[m].desp;
+        var mn = parseInt(m.slice(5,7))-1;
+        return '<tr><td>'+(nomMes[mn]||m)+'/'+m.slice(0,4)+'</td>' +
+          '<td class="num" style="color:var(--neon);">'+fmt(porMes[m].rec)+'</td>' +
+          '<td class="num" style="color:var(--red-text);">'+fmt(porMes[m].desp)+'</td>' +
+          '<td class="num" style="color:'+(saldo>=0?'var(--neon)':'var(--red-text)')+';">'+fmt(saldo)+'</td>' +
+        '</tr>';
+      }).join('') + '</tbody></table>' : '<div class="rel-empty">Sem dados no periodo.</div>';
+  }
+
+  // Resumo contas a pagar
+  var cpEl = document.getElementById('rel-resumo-pagar');
+  if(cpEl) {
+    var cpPend = contasPagar.filter(function(cp){ return cp.status==='pendente'||cp.status==='vencida'; });
+    var cpTot  = cpPend.reduce(function(s,cp){ return s+cp.valor; },0);
+    var cpVenc = cpPend.filter(function(cp){ return cp.status==='vencida'; });
+    var cpVencTot = cpVenc.reduce(function(s,cp){ return s+cp.valor; },0);
+    cpEl.innerHTML =
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">' +
+        '<div style="background:var(--bg3);border-radius:var(--radius);padding:10px;text-align:center;">' +
+          '<div style="font-size:11px;color:var(--text3);">A Pagar</div>' +
+          '<div style="font-size:18px;font-weight:700;color:var(--amber-text);">'+fmt(cpTot)+'</div>' +
+          '<div style="font-size:11px;color:var(--text3);">'+cpPend.length+' conta(s)</div>' +
+        '</div>' +
+        '<div style="background:var(--bg3);border-radius:var(--radius);padding:10px;text-align:center;">' +
+          '<div style="font-size:11px;color:var(--text3);">Vencidas</div>' +
+          '<div style="font-size:18px;font-weight:700;color:var(--red-text);">'+fmt(cpVencTot)+'</div>' +
+          '<div style="font-size:11px;color:var(--text3);">'+cpVenc.length+' conta(s)</div>' +
+        '</div>' +
+      '</div>' +
+      (cpVenc.length ? '<table class="rel-tabela"><thead><tr><th>Conta</th><th class="num">Valor</th><th>Vencimento</th></tr></thead><tbody>' +
+        cpVenc.map(function(cp){
+          return '<tr><td>'+cp.desc+'</td><td class="num" style="color:var(--red-text);">'+fmt(cp.valor)+'</td><td>'+fmtD(cp.venc)+'</td></tr>';
+        }).join('') + '</tbody></table>' : '');
+  }
+
+  // DRE Resumido
+  var dreEl = document.getElementById('rel-dre-resumido');
+  if(dreEl) dreEl.innerHTML =
+    '<div style="max-width:480px;">' +
+      dreLinhaGrupo('RECEITAS BRUTAS', 'var(--neon)') +
+      dreLinha('Vendas do periodo', totalReceitas, 'var(--neon)') +
+      dreLinhaGrupo('(-) CMV', 'var(--amber-text)') +
+      dreLinha('Compras de filamentos/insumos', totalCompras, 'var(--amber-text)') +
+      dreLinhaTotal('LUCRO BRUTO', lucroBruto) +
+      dreLinhaGrupo('(-) DESPESAS OPERACIONAIS', 'var(--red-text)') +
+      dreLinha('Despesas pagas no periodo', totalDesp, 'var(--red-text)') +
+      dreLinhaTotal('LUCRO LIQUIDO', lucroLiq) +
+      '<div style="margin-top:8px;padding:8px 12px;background:var(--bg3);border-radius:var(--radius);display:flex;justify-content:space-between;">' +
+        '<span style="font-size:12px;color:var(--text2);">Margem Liquida</span>' +
+        '<span style="font-size:14px;font-weight:700;color:'+(lucroLiq>=0?'var(--neon)':'var(--red-text)')+';">'+margem+'%</span>' +
+      '</div>' +
+    '</div>';
+}
+
+/* ===== UTILITARIOS RELATORIOS ===== */
+function kpiRel(label, valor, cor, icon) {
+  return '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 14px;text-align:center;">' +
+    '<div style="font-size:18px;color:'+cor+';margin-bottom:4px;"><i class="ti '+icon+'"></i></div>' +
+    '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">'+label+'</div>' +
+    '<div style="font-size:18px;font-weight:700;color:'+cor+';margin-top:2px;">'+valor+'</div>' +
+  '</div>';
+}
+
+function exportarRelatorio() {
+  alert('Funcionalidade de exportacao em desenvolvimento.\nPor enquanto use Ctrl+P para imprimir/salvar como PDF.');
+}
+/* =========================================
+   FIM MODULO RELATORIOS
+   ========================================= */
 
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
