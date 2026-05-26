@@ -228,6 +228,22 @@
     text-transform: uppercase;
   }
 
+
+  /* ===== CLIENTES ===== */
+  .cli-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.1rem 1.25rem;margin-bottom:10px;transition:border-color 0.2s;}
+  .cli-card:hover{border-color:var(--border2);}
+  .cli-stat{background:var(--bg3);border-radius:var(--radius);padding:8px 12px;text-align:center;}
+  .cli-stat .lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;}
+  .cli-stat .val{font-size:16px;font-weight:700;margin-top:2px;}
+  /* ===== FINANCEIRO ===== */
+  .fin-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.1rem 1.25rem;margin-bottom:8px;transition:border-color 0.2s;}
+  .fin-card:hover{border-color:var(--border2);}
+  .fin-card.paga{border-left:3px solid var(--neon);}
+  .fin-card.pendente{border-left:3px solid var(--amber-text);}
+  .fin-card.vencida{border-left:3px solid var(--red-text);}
+  .fin-subtab-content{display:none;}
+  .fin-subtab-content.active{display:block;}
+
 </style>
 </head>
 <body>
@@ -300,6 +316,8 @@
   <button onclick="showTab('contas')" id="btn-contas"><i class="ti ti-coin"></i> Contas a Receber</button>
   <button onclick="showTab('estoque')" id="btn-estoque"><i class="ti ti-chart-bar"></i> Estoque</button>
   <button onclick="showTab('compras')" id="btn-compras"><i class="ti ti-shopping-bag"></i> Compras</button>
+  <button onclick="showTab('clientes')" id="btn-clientes"><i class="ti ti-users"></i> Clientes</button>
+  <button onclick="showTab('financeiro')" id="btn-financeiro"><i class="ti ti-chart-bar"></i> Financeiro</button>
   <button onclick="showTab('parceiros')" id="btn-parceiros"><i class="ti ti-users"></i> Parceiros</button>
   <button onclick="showTab('config')" id="btn-config"><i class="ti ti-settings"></i> Configuracões</button>
 </nav>
@@ -1057,6 +1075,173 @@
   </div>
 </div>
 
+
+<!-- CLIENTES -->
+<div id="tab-clientes" class="tab">
+  <!-- Header -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
+    <span class="stitle" style="margin:0;"><i class="ti ti-users"></i> Clientes</span>
+    <button class="btn-ok" onclick="showFormCliente(-1)"><i class="ti ti-plus"></i> Novo Cliente</button>
+  </div>
+
+  <!-- Formulário -->
+  <div id="form-cliente" style="display:none;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1.25rem;position:relative;">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--neon),transparent);opacity:0.5;border-radius:var(--radius-lg) var(--radius-lg) 0 0;pointer-events:none;"></div>
+    <div class="stitle" style="font-size:12px;margin-bottom:1rem;" id="form-cliente-titulo"><i class="ti ti-user-plus"></i> Novo Cliente</div>
+    <div class="grid2">
+      <div class="field"><label>Nome Completo *</label><input type="text" id="cli-nome" placeholder="Nome do cliente"></div>
+      <div class="field"><label>Apelido / Como chama</label><input type="text" id="cli-apelido" placeholder="Ex: Joao, Mae, Chefe..."></div>
+      <div class="field"><label>WhatsApp / Telefone</label><input type="text" id="cli-tel" placeholder="(45) 99999-9999"></div>
+      <div class="field"><label>E-mail</label><input type="text" id="cli-email" class="no-upper" placeholder="email@exemplo.com"></div>
+      <div class="field"><label>Cidade</label><input type="text" id="cli-cidade" placeholder="Cascavel"></div>
+      <div class="field"><label>Tipo de Cliente</label>
+        <select id="cli-tipo" style="border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);width:100%;">
+          <option value="consumidor">Consumidor Final</option>
+          <option value="lojista">Lojista / Revendedor</option>
+          <option value="empresa">Empresa</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Observacoes</label><input type="text" id="cli-obs" placeholder="Preferencias, informacoes importantes..."></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+      <button class="btn-ok" onclick="salvarCliente()"><i class="ti ti-device-floppy"></i> Salvar</button>
+      <button class="btn" onclick="document.getElementById('form-cliente').style.display='none'"><i class="ti ti-x"></i> Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Busca e filtros -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;">
+    <input type="text" id="cli-busca" placeholder="Buscar cliente..." oninput="renderClientes()"
+      style="flex:1;min-width:180px;border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);outline:none;">
+    <select id="cli-filtro-tipo" onchange="renderClientes()"
+      style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+      <option value="">Todos os tipos</option>
+      <option value="consumidor">Consumidor Final</option>
+      <option value="lojista">Lojista</option>
+      <option value="empresa">Empresa</option>
+    </select>
+  </div>
+
+  <!-- Resumo -->
+  <div id="resumo-clientes" style="margin-bottom:1rem;"></div>
+
+  <!-- Lista -->
+  <div id="lista-clientes"></div>
+
+  <!-- Historico do cliente -->
+  <div id="historico-cliente-wrap" style="display:none;margin-top:1rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <div class="stitle" style="margin:0;font-size:12px;" id="historico-cliente-titulo"><i class="ti ti-history"></i> Historico do Cliente</div>
+      <button class="btn" onclick="document.getElementById('historico-cliente-wrap').style.display='none'"><i class="ti ti-x"></i> Fechar</button>
+    </div>
+    <div id="historico-cliente-lista"></div>
+  </div>
+</div>
+
+
+<!-- FINANCEIRO -->
+<div id="tab-financeiro" class="tab">
+  <!-- Header -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
+    <span class="stitle" style="margin:0;"><i class="ti ti-chart-bar"></i> Financeiro</span>
+    <button class="btn-ok" onclick="showFormContaPagar()"><i class="ti ti-plus"></i> Nova Conta a Pagar</button>
+  </div>
+
+  <!-- KPIs financeiros -->
+  <div id="fin-kpis" style="margin-bottom:1.25rem;"></div>
+
+  <!-- Subtabs -->
+  <div class="subtab-nav">
+    <button class="subtab-btn active" onclick="showFinSubtab('pagar')"><i class="ti ti-arrow-up-circle"></i> Contas a Pagar</button>
+    <button class="subtab-btn" onclick="showFinSubtab('receber')"><i class="ti ti-arrow-down-circle"></i> Contas a Receber</button>
+    <button class="subtab-btn" onclick="showFinSubtab('dre')"><i class="ti ti-report-analytics"></i> DRE</button>
+    <button class="subtab-btn" onclick="showFinSubtab('fluxo')"><i class="ti ti-arrows-exchange"></i> Fluxo de Caixa</button>
+  </div>
+
+  <!-- Contas a Pagar -->
+  <div id="fin-subtab-pagar" class="fin-subtab-content active">
+    <!-- Form nova conta -->
+    <div id="form-conta-pagar" style="display:none;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1rem;position:relative;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--red-text),transparent);opacity:0.5;border-radius:var(--radius-lg) var(--radius-lg) 0 0;pointer-events:none;"></div>
+      <div class="stitle" style="font-size:12px;margin-bottom:1rem;"><i class="ti ti-arrow-up-circle"></i> Nova Conta a Pagar</div>
+      <div class="grid2">
+        <div class="field"><label>Descricao *</label><input type="text" id="cp-desc" placeholder="Ex: CONTA DE ENERGIA, ALUGUEL..."></div>
+        <div class="field"><label>Categoria</label>
+          <select id="cp-cat" style="border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);width:100%;">
+            <option value="fixo">Custo Fixo</option>
+            <option value="variavel">Custo Variavel</option>
+            <option value="investimento">Investimento</option>
+            <option value="imposto">Imposto / Taxa</option>
+            <option value="outros">Outros</option>
+          </select>
+        </div>
+        <div class="field"><label>Valor (R$) *</label><input type="number" id="cp-valor" placeholder="0.00" step="0.01" min="0"></div>
+        <div class="field"><label>Vencimento *</label><input type="date" id="cp-venc"></div>
+        <div class="field"><label>Fornecedor / Credor</label><input type="text" id="cp-forn" placeholder="Ex: COPEL, SANEPAR..."></div>
+        <div class="field"><label>Recorrencia</label>
+          <select id="cp-recorr" style="border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);width:100%;">
+            <option value="unica">Unica</option>
+            <option value="mensal">Mensal</option>
+            <option value="anual">Anual</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Observacao</label><input type="text" id="cp-obs" placeholder="Informacoes adicionais..."></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+        <button class="btn-ok" onclick="salvarContaPagar()"><i class="ti ti-device-floppy"></i> Salvar</button>
+        <button class="btn" onclick="document.getElementById('form-conta-pagar').style.display='none'"><i class="ti ti-x"></i> Cancelar</button>
+      </div>
+    </div>
+    <!-- Filtros -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;">
+      <select id="cp-filtro-status" onchange="renderContasPagar()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+        <option value="">Todos</option>
+        <option value="pendente">Pendentes</option>
+        <option value="paga">Pagas</option>
+        <option value="vencida">Vencidas</option>
+      </select>
+      <select id="cp-filtro-cat" onchange="renderContasPagar()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+        <option value="">Todas categorias</option>
+        <option value="fixo">Custo Fixo</option>
+        <option value="variavel">Custo Variavel</option>
+        <option value="investimento">Investimento</option>
+        <option value="imposto">Imposto / Taxa</option>
+      </select>
+    </div>
+    <div id="resumo-contas-pagar" style="margin-bottom:1rem;"></div>
+    <div id="lista-contas-pagar"></div>
+  </div>
+
+  <!-- Contas a Receber (espelho da aba contas) -->
+  <div id="fin-subtab-receber" class="fin-subtab-content">
+    <div id="fin-lista-receber"></div>
+  </div>
+
+  <!-- DRE -->
+  <div id="fin-subtab-dre" class="fin-subtab-content">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;align-items:center;">
+      <select id="dre-mes" onchange="renderDRE()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+      </select>
+      <select id="dre-ano" onchange="renderDRE()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+      </select>
+      <button class="btn" onclick="renderDRE()"><i class="ti ti-refresh"></i> Atualizar</button>
+    </div>
+    <div id="dre-conteudo"></div>
+  </div>
+
+  <!-- Fluxo de Caixa -->
+  <div id="fin-subtab-fluxo" class="fin-subtab-content">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;">
+      <select id="fluxo-periodo" onchange="renderFluxoCaixa()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+        <option value="mes">Este mes</option>
+        <option value="trimestre">Trimestre</option>
+        <option value="ano">Este ano</option>
+      </select>
+    </div>
+    <div id="fluxo-conteudo"></div>
+  </div>
+</div>
+
 <!-- PARCEIROS -->
 <div id="tab-parceiros" class="tab">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
@@ -1245,6 +1430,8 @@ let pedidos=S.get('pedidos')||[];
 let vendas=S.get('vendas')||[];
 let faturas=S.get('faturas')||[];
 let compras=S.get('compras')||[];
+var clientes=S.get('clientes')||[];
+var contasPagar=S.get('contas_pagar')||[];
 let parceiros=S.get('parceiros')||[];
 let cfg=S.get('cfg')||{};
 let editFilIdx=-1,editProdIdx=-1,editParceiroIdx=-1;
@@ -1315,7 +1502,9 @@ function showTab(t){
     // Ativar subtab lancamento por padrao
     showSubtab('compras', 'lancamento');
   }
-  if(t==='parceiros')  renderParceiros();
+  if(t==='clientes')   { sincronizarClientesDasVendas(); renderClientes(); }
+  if(t==='financeiro')  { renderFinKPIs(); showFinSubtab('pagar'); }
+  if(t==='parceiros')   renderParceiros();
 }
 
 /* ---- FILAMENTOS ---- */
@@ -4942,6 +5131,574 @@ function baixaRetroativaPedidosConcluidos() {
   }
 }
 /* ===== FIM BAIXA RETROATIVA ===== */
+
+
+/* =========================================
+   MODULO CLIENTES
+   ========================================= */
+var _clienteEditIdx = -1;
+
+var CLI_TIPO = {consumidor:'Consumidor Final', lojista:'Lojista', empresa:'Empresa'};
+var CLI_TAG  = {consumidor:'tag-blue', lojista:'tag-amber', empresa:'tag-green'};
+
+function showFormCliente(idx) {
+  _clienteEditIdx = idx;
+  var form = document.getElementById('form-cliente');
+  var titulo = document.getElementById('form-cliente-titulo');
+  form.style.display = 'block';
+  if(idx < 0) {
+    titulo.innerHTML = '<i class="ti ti-user-plus"></i> Novo Cliente';
+    ['cli-nome','cli-apelido','cli-tel','cli-email','cli-cidade','cli-obs'].forEach(function(id){
+      var el = document.getElementById(id); if(el) el.value = '';
+    });
+    document.getElementById('cli-tipo').value = 'consumidor';
+  } else {
+    var c = clientes[idx];
+    titulo.innerHTML = '<i class="ti ti-edit"></i> Editar Cliente';
+    document.getElementById('cli-nome').value    = c.nome || '';
+    document.getElementById('cli-apelido').value = c.apelido || '';
+    document.getElementById('cli-tel').value     = c.tel || '';
+    document.getElementById('cli-email').value   = c.email || '';
+    document.getElementById('cli-cidade').value  = c.cidade || '';
+    document.getElementById('cli-obs').value     = c.obs || '';
+    document.getElementById('cli-tipo').value    = c.tipo || 'consumidor';
+  }
+  form.scrollIntoView({behavior:'smooth'});
+}
+
+function salvarCliente() {
+  var nome = upper(document.getElementById('cli-nome').value);
+  if(!nome) { alert('Informe o nome do cliente.'); return; }
+  var cli = {
+    id:    _clienteEditIdx >= 0 ? clientes[_clienteEditIdx].id : Date.now(),
+    nome:  nome,
+    apelido: upper(document.getElementById('cli-apelido').value),
+    tel:   document.getElementById('cli-tel').value.trim(),
+    email: document.getElementById('cli-email').value.trim().toLowerCase(),
+    cidade: upper(document.getElementById('cli-cidade').value),
+    tipo:  document.getElementById('cli-tipo').value,
+    obs:   upper(document.getElementById('cli-obs').value),
+    dataCadastro: _clienteEditIdx >= 0 ? (clientes[_clienteEditIdx].dataCadastro || hoje()) : hoje()
+  };
+  if(_clienteEditIdx >= 0) {
+    clientes[_clienteEditIdx] = cli;
+  } else {
+    clientes.unshift(cli);
+  }
+  S.set('clientes', clientes);
+  document.getElementById('form-cliente').style.display = 'none';
+  renderClientes();
+}
+
+function delCliente(idx) {
+  if(!confirm('Remover cliente ' + clientes[idx].nome + '?')) return;
+  clientes.splice(idx, 1);
+  S.set('clientes', clientes);
+  renderClientes();
+}
+
+function renderClientes() {
+  var busca   = (document.getElementById('cli-busca') || {}).value || '';
+  var filtTipo = (document.getElementById('cli-filtro-tipo') || {}).value || '';
+  var el = document.getElementById('lista-clientes');
+  var resumoEl = document.getElementById('resumo-clientes');
+  if(!el) return;
+
+  // Sincronizar clientes a partir do historico de vendas
+  sincronizarClientesDasVendas();
+
+  var lista = clientes.filter(function(c) {
+    if(busca && !(c.nome||'').toUpperCase().includes(busca.toUpperCase()) &&
+       !(c.apelido||'').toUpperCase().includes(busca.toUpperCase()) &&
+       !(c.tel||'').includes(busca)) return false;
+    if(filtTipo && c.tipo !== filtTipo) return false;
+    return true;
+  });
+
+  // Calcular stats por cliente
+  var totalClientes = clientes.length;
+  var totalVendas = vendas.reduce(function(s,v){ return s+(v.valor||0); },0);
+
+  if(resumoEl) resumoEl.innerHTML = clientes.length ?
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:1rem;">' +
+      '<div class="cli-stat"><div class="lbl">Total</div><div class="val">'+totalClientes+'</div></div>' +
+      '<div class="cli-stat"><div class="lbl">Consumidores</div><div class="val" style="color:var(--blue-text);">'+clientes.filter(function(c){return c.tipo==='consumidor';}).length+'</div></div>' +
+      '<div class="cli-stat"><div class="lbl">Lojistas</div><div class="val" style="color:var(--amber-text);">'+clientes.filter(function(c){return c.tipo==='lojista';}).length+'</div></div>' +
+      '<div class="cli-stat"><div class="lbl">Empresas</div><div class="val" style="color:var(--neon);">'+clientes.filter(function(c){return c.tipo==='empresa';}).length+'</div></div>' +
+    '</div>' : '';
+
+  if(!lista.length) {
+    el.innerHTML = '<div class="empty"><i class="ti ti-users"></i>Nenhum cliente encontrado.</div>';
+    return;
+  }
+
+  el.innerHTML = lista.map(function(c) {
+    var idx = clientes.indexOf(c);
+    // Buscar historico de compras deste cliente
+    var vendasCli = vendas.filter(function(v){ return (v.cliente||'').toUpperCase() === (c.nome||'').toUpperCase(); });
+    var totalCli  = vendasCli.reduce(function(s,v){ return s+(v.valor||0); }, 0);
+    var qtdPedidos = vendasCli.length;
+    var ultimaCompra = vendasCli.length ? vendasCli.sort(function(a,b){ return b.data>a.data?1:-1; })[0].data : null;
+
+    return '<div class="cli-card">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+            '<strong style="font-size:15px;">' + c.nome + '</strong>' +
+            (c.apelido ? '<span style="font-size:12px;color:var(--text3);">('+c.apelido+')</span>' : '') +
+            '<span class="tag '+(CLI_TAG[c.tipo]||'tag-blue')+'" style="font-size:10px;">'+(CLI_TIPO[c.tipo]||c.tipo)+'</span>' +
+          '</div>' +
+          '<div style="font-size:12px;color:var(--text3);margin-top:4px;">' +
+            (c.tel?'<i class="ti ti-phone" style="font-size:11px;"></i> '+c.tel+'  ':'') +
+            (c.email?'<i class="ti ti-mail" style="font-size:11px;"></i> '+c.email+'  ':'') +
+            (c.cidade?'<i class="ti ti-map-pin" style="font-size:11px;"></i> '+c.cidade:'') +
+          '</div>' +
+          (c.obs ? '<div style="font-size:11px;color:var(--text3);margin-top:2px;font-style:italic;">'+c.obs+'</div>' : '') +
+        '</div>' +
+        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">' +
+          '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;min-width:200px;">' +
+            '<div class="cli-stat"><div class="lbl">Compras</div><div class="val" style="font-size:14px;">'+qtdPedidos+'</div></div>' +
+            '<div class="cli-stat"><div class="lbl">Total gasto</div><div class="val" style="font-size:14px;color:var(--neon);">'+fmt(totalCli)+'</div></div>' +
+            '<div class="cli-stat"><div class="lbl">Ultima compra</div><div class="val" style="font-size:11px;">'+(ultimaCompra?fmtD(ultimaCompra):'-')+'</div></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">' +
+        '<button class="btn-edit" onclick="showFormCliente('+idx+')" title="Editar"><i class="ti ti-edit"></i></button>' +
+        '<button class="btn" onclick="verHistoricoCliente('+idx+')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-history"></i> Ver Historico</button>' +
+        (c.tel ? '<a href="https://wa.me/55'+c.tel.replace(/\D/g,'')+'" target="_blank" class="btn" style="font-size:11px;padding:5px 10px;color:#25D366;border-color:#25D366;text-decoration:none;"><i class="ti ti-brand-whatsapp"></i> WhatsApp</a>' : '') +
+        '<button class="btn-del" onclick="delCliente('+idx+')" style="margin-left:auto;"><i class="ti ti-trash"></i></button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function verHistoricoCliente(idx) {
+  var c = clientes[idx];
+  var wrap = document.getElementById('historico-cliente-wrap');
+  var lista = document.getElementById('historico-cliente-lista');
+  var titulo = document.getElementById('historico-cliente-titulo');
+  if(!wrap || !lista) return;
+
+  var vendasCli = vendas.filter(function(v){ return (v.cliente||'').toUpperCase() === (c.nome||'').toUpperCase(); });
+  vendasCli.sort(function(a,b){ return b.data > a.data ? 1 : -1; });
+
+  var totalGasto = vendasCli.reduce(function(s,v){ return s+(v.valor||0); }, 0);
+  var ticketMedio = vendasCli.length ? totalGasto/vendasCli.length : 0;
+
+  titulo.innerHTML = '<i class="ti ti-history"></i> Historico de ' + c.nome +
+    ' <span style="font-size:11px;color:var(--text3);">-- '+vendasCli.length+' compra(s) | Total: '+fmt(totalGasto)+' | Ticket medio: '+fmt(ticketMedio)+'</span>';
+
+  if(!vendasCli.length) {
+    lista.innerHTML = '<div class="empty">Nenhuma compra registrada para este cliente.</div>';
+  } else {
+    lista.innerHTML = vendasCli.map(function(v) {
+      return '<div class="fin-card '+(v.statusPgto==='pago'?'paga':'pendente')+'" style="padding:.75rem 1rem;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">' +
+          '<div>' +
+            '<strong style="font-size:13px;">' + v.prodNome + '</strong>' +
+            '<br><span style="font-size:11px;color:var(--text3);">' + fmtD(v.data) + ' | ' + (v.formaPgto||'') + '</span>' +
+          '</div>' +
+          '<div style="text-align:right;">' +
+            '<div style="font-weight:700;color:var(--neon);font-size:15px;">' + fmt(v.valor) + '</div>' +
+            '<span class="tag '+(v.statusPgto==='pago'?'tag-green':'tag-amber')+'" style="font-size:10px;">'+(v.statusPgto==='pago'?'Pago':'Pendente')+'</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+  wrap.style.display = 'block';
+  wrap.scrollIntoView({behavior:'smooth'});
+}
+
+function sincronizarClientesDasVendas() {
+  // Criar cliente automaticamente a partir do historico de vendas
+  var alterou = false;
+  vendas.forEach(function(v) {
+    if(!v.cliente || v.cliente === 'PRODUTO AVULSO') return;
+    var nomeUp = v.cliente.toUpperCase().trim();
+    var existe = clientes.some(function(c){ return (c.nome||'').toUpperCase() === nomeUp; });
+    if(!existe) {
+      clientes.push({
+        id: Date.now() + Math.floor(Math.random()*9999),
+        nome: nomeUp, apelido: '', tel: '', email: '',
+        cidade: '', tipo: 'consumidor', obs: 'Importado automaticamente do historico de vendas',
+        dataCadastro: v.data || hoje()
+      });
+      alterou = true;
+    }
+  });
+  if(alterou) S.set('clientes', clientes);
+}
+
+/* =========================================
+   MODULO FINANCEIRO - CONTAS A PAGAR
+   ========================================= */
+var _cpEditIdx = -1;
+
+var CP_CAT   = {fixo:'Custo Fixo', variavel:'Custo Variavel', investimento:'Investimento', imposto:'Imposto/Taxa', outros:'Outros'};
+var CP_CAT_TAG = {fixo:'tag-red', variavel:'tag-amber', investimento:'tag-blue', imposto:'tag-red', outros:'tag-blue'};
+
+function showFormContaPagar(idx) {
+  _cpEditIdx = (idx !== undefined) ? idx : -1;
+  var form = document.getElementById('form-conta-pagar');
+  form.style.display = 'block';
+  if(_cpEditIdx < 0) {
+    ['cp-desc','cp-valor','cp-forn','cp-obs'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+    document.getElementById('cp-cat').value = 'fixo';
+    document.getElementById('cp-recorr').value = 'unica';
+    document.getElementById('cp-venc').value = '';
+  } else {
+    var cp = contasPagar[_cpEditIdx];
+    document.getElementById('cp-desc').value  = cp.desc || '';
+    document.getElementById('cp-valor').value = cp.valor || '';
+    document.getElementById('cp-venc').value  = cp.venc || '';
+    document.getElementById('cp-forn').value  = cp.forn || '';
+    document.getElementById('cp-cat').value   = cp.cat || 'fixo';
+    document.getElementById('cp-recorr').value = cp.recorr || 'unica';
+    document.getElementById('cp-obs').value   = cp.obs || '';
+  }
+  form.scrollIntoView({behavior:'smooth'});
+}
+
+function salvarContaPagar() {
+  var desc  = upper(document.getElementById('cp-desc').value);
+  var valor = parseFloat(document.getElementById('cp-valor').value) || 0;
+  var venc  = document.getElementById('cp-venc').value;
+  if(!desc)  { alert('Informe a descricao.'); return; }
+  if(!valor) { alert('Informe o valor.'); return; }
+  if(!venc)  { alert('Informe o vencimento.'); return; }
+
+  var cp = {
+    id:    _cpEditIdx >= 0 ? contasPagar[_cpEditIdx].id : Date.now(),
+    desc:  desc,
+    valor: valor,
+    venc:  venc,
+    forn:  upper(document.getElementById('cp-forn').value),
+    cat:   document.getElementById('cp-cat').value,
+    recorr: document.getElementById('cp-recorr').value,
+    obs:   upper(document.getElementById('cp-obs').value),
+    status: _cpEditIdx >= 0 ? (contasPagar[_cpEditIdx].status || 'pendente') : 'pendente',
+    data:  hoje()
+  };
+
+  if(_cpEditIdx >= 0) {
+    contasPagar[_cpEditIdx] = cp;
+  } else {
+    contasPagar.unshift(cp);
+    // Se recorrente, criar proximas parcelas
+    if(cp.recorr === 'mensal') {
+      for(var m=1; m<=11; m++) {
+        var novaData = new Date(cp.venc + 'T00:00:00');
+        novaData.setMonth(novaData.getMonth() + m);
+        contasPagar.unshift(Object.assign({}, cp, {
+          id: Date.now()+m, status:'pendente',
+          venc: novaData.toISOString().slice(0,10)
+        }));
+      }
+      alert('12 parcelas mensais criadas!');
+    }
+  }
+  S.set('contas_pagar', contasPagar);
+  document.getElementById('form-conta-pagar').style.display = 'none';
+  renderContasPagar();
+  renderFinKPIs();
+}
+
+function pagarConta(idx) {
+  contasPagar[idx].status = 'paga';
+  contasPagar[idx].dataPagamento = hoje();
+  S.set('contas_pagar', contasPagar);
+  renderContasPagar();
+  renderFinKPIs();
+}
+
+function delContaPagar(idx) {
+  if(!confirm('Remover esta conta?')) return;
+  contasPagar.splice(idx,1);
+  S.set('contas_pagar', contasPagar);
+  renderContasPagar();
+  renderFinKPIs();
+}
+
+function renderContasPagar() {
+  var filtStatus = (document.getElementById('cp-filtro-status')||{}).value || '';
+  var filtCat    = (document.getElementById('cp-filtro-cat')||{}).value || '';
+  var el = document.getElementById('lista-contas-pagar');
+  var resumoEl = document.getElementById('resumo-contas-pagar');
+  if(!el) return;
+
+  var hj = hoje();
+  // Atualizar status de vencidas
+  contasPagar.forEach(function(cp) {
+    if(cp.status === 'pendente' && cp.venc && cp.venc < hj) cp.status = 'vencida';
+  });
+
+  var lista = contasPagar.filter(function(cp) {
+    if(filtStatus && cp.status !== filtStatus) return false;
+    if(filtCat && cp.cat !== filtCat) return false;
+    return true;
+  });
+
+  var totPend = contasPagar.filter(function(cp){return cp.status==='pendente';}).reduce(function(s,cp){return s+cp.valor;},0);
+  var totVenc = contasPagar.filter(function(cp){return cp.status==='vencida';}).reduce(function(s,cp){return s+cp.valor;},0);
+  var totPago = contasPagar.filter(function(cp){return cp.status==='paga';}).reduce(function(s,cp){return s+cp.valor;},0);
+
+  if(resumoEl) resumoEl.innerHTML = contasPagar.length ?
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:1rem;">' +
+      '<div class="metric"><div class="lbl">A Pagar</div><div class="val" style="color:var(--amber-text);">'+fmt(totPend)+'</div></div>' +
+      '<div class="metric"><div class="lbl">Vencidas</div><div class="val" style="color:var(--red-text);">'+fmt(totVenc)+'</div></div>' +
+      '<div class="metric"><div class="lbl">Pagas</div><div class="val" style="color:var(--neon);">'+fmt(totPago)+'</div></div>' +
+    '</div>' : '';
+
+  if(!lista.length) {
+    el.innerHTML = '<div class="empty"><i class="ti ti-circle-check"></i>Nenhuma conta encontrada.</div>';
+    return;
+  }
+
+  lista.sort(function(a,b){ return (a.venc||'') > (b.venc||'') ? 1 : -1; });
+
+  el.innerHTML = lista.map(function(cp) {
+    var idx = contasPagar.indexOf(cp);
+    var statusCls = cp.status === 'paga' ? 'paga' : cp.status === 'vencida' ? 'vencida' : 'pendente';
+    var diasVenc = '';
+    if(cp.venc && cp.status !== 'paga') {
+      var diff = Math.ceil((new Date(cp.venc+'T00:00:00') - new Date()) / (1000*60*60*24));
+      diasVenc = diff < 0 ? '<span style="color:var(--red-text);font-size:11px;">'+Math.abs(diff)+' dias em atraso</span>' :
+                 diff === 0 ? '<span style="color:var(--amber-text);font-size:11px;">Vence hoje!</span>' :
+                 '<span style="color:var(--text3);font-size:11px;">Vence em '+diff+' dias</span>';
+    }
+    return '<div class="fin-card '+statusCls+'" style="padding:.85rem 1rem;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+            '<strong style="font-size:14px;">' + cp.desc + '</strong>' +
+            '<span class="tag '+(CP_CAT_TAG[cp.cat]||'tag-blue')+'" style="font-size:10px;">'+(CP_CAT[cp.cat]||cp.cat)+'</span>' +
+            (cp.recorr!=='unica'?'<span class="tag tag-blue" style="font-size:10px;">'+cp.recorr+'</span>':'') +
+          '</div>' +
+          '<div style="font-size:12px;color:var(--text3);margin-top:3px;">' +
+            (cp.forn?cp.forn+' | ':'') + 'Venc: '+fmtD(cp.venc) + ' ' + diasVenc +
+          '</div>' +
+          (cp.obs?'<div style="font-size:11px;color:var(--text3);">'+cp.obs+'</div>':'') +
+        '</div>' +
+        '<div style="text-align:right;">' +
+          '<div style="font-size:18px;font-weight:700;color:'+(cp.status==='paga'?'var(--neon)':cp.status==='vencida'?'var(--red-text)':'var(--amber-text)')+';">'+fmt(cp.valor)+'</div>' +
+          '<span class="tag '+(cp.status==='paga'?'tag-green':cp.status==='vencida'?'tag-red':'tag-amber')+'" style="font-size:10px;">'+(cp.status==='paga'?'Paga':cp.status==='vencida'?'Vencida':'Pendente')+'</span>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">' +
+        (cp.status!=='paga' ? '<button class="btn-ok" onclick="pagarConta('+idx+')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-check"></i> Marcar como Paga</button>' : '<span style="font-size:11px;color:var(--neon);"><i class="ti ti-check"></i> Paga em '+fmtD(cp.dataPagamento||cp.venc)+'</span>') +
+        '<button class="btn-edit" onclick="showFormContaPagar('+idx+')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-edit"></i></button>' +
+        '<button class="btn-del" onclick="delContaPagar('+idx+')" style="margin-left:auto;font-size:11px;padding:5px 10px;"><i class="ti ti-trash"></i></button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+/* ===== FINANCEIRO - KPIs ===== */
+function renderFinKPIs() {
+  var el = document.getElementById('fin-kpis');
+  if(!el) return;
+  var hj = hoje();
+  var mesAtual = hj.slice(0,7);
+
+  var receitaMes  = vendas.filter(function(v){return (v.data||'').slice(0,7)===mesAtual;}).reduce(function(s,v){return s+v.valor;},0);
+  var despesaMes  = contasPagar.filter(function(cp){return (cp.status==='paga')&&(cp.dataPagamento||'').slice(0,7)===mesAtual;}).reduce(function(s,cp){return s+cp.valor;},0);
+  var aReceber    = faturas.filter(function(f){return f.status==='pendente';}).reduce(function(s,f){return s+f.valor;},0);
+  var aPagar      = contasPagar.filter(function(cp){return cp.status==='pendente'||cp.status==='vencida';}).reduce(function(s,cp){return s+cp.valor;},0);
+  var lucroMes    = receitaMes - despesaMes;
+
+  el.innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1rem;">' +
+      '<div class="kpi verde"><div class="kpi-icon" style="color:var(--neon)"><i class="ti ti-trending-up"></i></div><div class="kpi-label">Receita do Mes</div><div class="kpi-valor">'+fmt(receitaMes)+'</div><div class="kpi-sub">Vendas no mes atual</div></div>' +
+      '<div class="kpi vermelho"><div class="kpi-icon" style="color:var(--red-text)"><i class="ti ti-trending-down"></i></div><div class="kpi-label">Despesas do Mes</div><div class="kpi-valor" style="color:var(--red-text)">'+fmt(despesaMes)+'</div><div class="kpi-sub">Contas pagas no mes</div></div>' +
+      '<div class="kpi '+(lucroMes>=0?'verde':'vermelho')+'"><div class="kpi-icon" style="color:'+(lucroMes>=0?'var(--neon)':'var(--red-text)')+'"><i class="ti ti-calculator"></i></div><div class="kpi-label">Lucro Liquido</div><div class="kpi-valor" style="color:'+(lucroMes>=0?'var(--neon)':'var(--red-text)')+'">'+fmt(lucroMes)+'</div><div class="kpi-sub">Receita - Despesas</div></div>' +
+      '<div class="kpi azul"><div class="kpi-icon" style="color:var(--blue-text)"><i class="ti ti-coin"></i></div><div class="kpi-label">A Receber</div><div class="kpi-valor" style="color:var(--blue-text)">'+fmt(aReceber)+'</div><div class="kpi-sub">Faturas pendentes</div></div>' +
+      '<div class="kpi amber"><div class="kpi-icon" style="color:var(--amber-text)"><i class="ti ti-arrow-up-circle"></i></div><div class="kpi-label">A Pagar</div><div class="kpi-valor" style="color:var(--amber-text)">'+fmt(aPagar)+'</div><div class="kpi-sub">Contas pendentes</div></div>' +
+    '</div>';
+}
+
+/* ===== FINANCEIRO - DRE ===== */
+function renderDRE() {
+  var el = document.getElementById('dre-conteudo');
+  if(!el) return;
+  var mesEl = document.getElementById('dre-mes');
+  var anoEl = document.getElementById('dre-ano');
+  if(!mesEl || !anoEl) return;
+  var mes = mesEl.value;
+  var ano = anoEl.value;
+  var periodo = ano + '-' + mes;
+
+  var receitas = vendas.filter(function(v){ return (v.data||'').slice(0,7) === periodo; });
+  var despesas = contasPagar.filter(function(cp){ return cp.status==='paga' && (cp.dataPagamento||'').slice(0,7) === periodo; });
+  var comprasPer = compras.filter(function(c){ return (c.data||'').slice(0,7) === periodo; });
+
+  var totalReceitas = receitas.reduce(function(s,v){ return s+v.valor; }, 0);
+  var totalDespesas = despesas.reduce(function(s,cp){ return s+cp.valor; }, 0);
+  var totalCompras  = comprasPer.reduce(function(s,c){ return s+(c.total||0); }, 0);
+  var lucroBruto    = totalReceitas - totalCompras;
+  var lucroLiquido  = totalReceitas - totalCompras - totalDespesas;
+  var margem        = totalReceitas > 0 ? (lucroLiquido/totalReceitas*100).toFixed(1) : 0;
+
+  // Agrupar despesas por categoria
+  var despPorCat = {};
+  despesas.forEach(function(cp) {
+    var cat = CP_CAT[cp.cat] || cp.cat;
+    if(!despPorCat[cat]) despPorCat[cat] = 0;
+    despPorCat[cat] += cp.valor;
+  });
+
+  var nomeMes = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  el.innerHTML =
+    '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem;max-width:600px;">' +
+      '<div style="text-align:center;margin-bottom:1.5rem;">' +
+        '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;">Demonstrativo de Resultado</div>' +
+        '<div style="font-size:18px;font-weight:700;margin-top:4px;">'+nomeMes[parseInt(mes)-1]+' / '+ano+'</div>' +
+      '</div>' +
+      dreLinhaGrupo('RECEITAS', 'var(--neon)') +
+      dreLinha('Vendas do periodo', totalReceitas, 'var(--neon)') +
+      dreLinhaGrupo('(-) CMV - CUSTO MERCADORIA', 'var(--amber-text)') +
+      dreLinha('Compras de filamentos e insumos', totalCompras, 'var(--amber-text)') +
+      dreLinhaTotal('LUCRO BRUTO', lucroBruto) +
+      dreLinhaGrupo('(-) DESPESAS OPERACIONAIS', 'var(--red-text)') +
+      Object.keys(despPorCat).map(function(cat){ return dreLinha(cat, despPorCat[cat], 'var(--red-text)'); }).join('') +
+      dreLinha('Total Despesas', totalDespesas, 'var(--red-text)') +
+      dreLinhaTotal('LUCRO LIQUIDO', lucroLiquido) +
+      '<div style="margin-top:1rem;padding:10px 12px;background:var(--bg3);border-radius:var(--radius);display:flex;justify-content:space-between;">' +
+        '<span style="font-size:12px;color:var(--text2);">Margem Liquida</span>' +
+        '<span style="font-size:14px;font-weight:700;color:'+(lucroLiquido>=0?'var(--neon)':'var(--red-text)')+';">'+margem+'%</span>' +
+      '</div>' +
+    '</div>';
+}
+
+function dreLinhaGrupo(texto, cor) {
+  return '<div style="background:var(--bg3);padding:6px 10px;margin:10px 0 4px;border-radius:var(--radius);font-size:11px;font-weight:700;color:'+cor+';text-transform:uppercase;letter-spacing:1px;">'+texto+'</div>';
+}
+
+function dreLinha(texto, valor, cor) {
+  return '<div style="display:flex;justify-content:space-between;padding:5px 10px;font-size:13px;">' +
+    '<span style="color:var(--text2);">'+texto+'</span>' +
+    '<span style="font-weight:700;color:'+cor+';">'+fmt(valor)+'</span>' +
+  '</div>';
+}
+
+function dreLinhaTotal(texto, valor) {
+  var cor = valor >= 0 ? 'var(--neon)' : 'var(--red-text)';
+  return '<div style="display:flex;justify-content:space-between;padding:8px 10px;margin:8px 0;border-top:1px solid var(--border2);border-bottom:1px solid var(--border2);">' +
+    '<span style="font-weight:700;font-size:14px;">'+texto+'</span>' +
+    '<span style="font-weight:700;font-size:16px;color:'+cor+';">'+fmt(valor)+'</span>' +
+  '</div>';
+}
+
+/* ===== FINANCEIRO - FLUXO DE CAIXA ===== */
+function renderFluxoCaixa() {
+  var el = document.getElementById('fluxo-conteudo');
+  if(!el) return;
+  var periodo = (document.getElementById('fluxo-periodo')||{}).value || 'mes';
+  var hj = hoje();
+  var de, ate;
+  if(periodo === 'mes') {
+    de = hj.slice(0,7)+'-01'; ate = hj;
+  } else if(periodo === 'trimestre') {
+    var d = new Date(); d.setMonth(d.getMonth()-3);
+    de = d.toISOString().slice(0,10); ate = hj;
+  } else {
+    de = hj.slice(0,4)+'-01-01'; ate = hj;
+  }
+
+  var entradasV = vendas.filter(function(v){ return v.data>=de && v.data<=ate && v.statusPgto==='pago'; });
+  var saidasCP  = contasPagar.filter(function(cp){ return cp.dataPagamento>=de && cp.dataPagamento<=ate && cp.status==='paga'; });
+  var saidasCMP = compras.filter(function(c){ return c.data>=de && c.data<=ate; });
+
+  var totalEnt = entradasV.reduce(function(s,v){ return s+v.valor; }, 0);
+  var totalSaiCP  = saidasCP.reduce(function(s,cp){ return s+cp.valor; }, 0);
+  var totalSaiCMP = saidasCMP.reduce(function(s,c){ return s+(c.total||0); }, 0);
+  var totalSai = totalSaiCP + totalSaiCMP;
+  var saldo = totalEnt - totalSai;
+  var corSaldo = saldo >= 0 ? 'var(--neon)' : 'var(--red-text)';
+
+  el.innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem;">' +
+      '<div style="background:rgba(57,255,20,0.06);border:1px solid var(--green-border);border-radius:var(--radius-lg);padding:1.25rem;">' +
+        '<div style="font-size:11px;color:var(--neon);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem;"><i class="ti ti-arrow-down-circle"></i> ENTRADAS</div>' +
+        '<div style="font-size:28px;font-weight:700;color:var(--neon);">'+fmt(totalEnt)+'</div>' +
+        '<div style="font-size:12px;color:var(--text3);margin-top:6px;">'+entradasV.length+' venda(s) paga(s)</div>' +
+      '</div>' +
+      '<div style="background:rgba(255,50,50,0.06);border:1px solid var(--red-border);border-radius:var(--radius-lg);padding:1.25rem;">' +
+        '<div style="font-size:11px;color:var(--red-text);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem;"><i class="ti ti-arrow-up-circle"></i> SAIDAS</div>' +
+        '<div style="font-size:28px;font-weight:700;color:var(--red-text);">'+fmt(totalSai)+'</div>' +
+        '<div style="font-size:12px;color:var(--text3);margin-top:6px;">Compras: '+fmt(totalSaiCMP)+' | Despesas: '+fmt(totalSaiCP)+'</div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="background:var(--bg2);border:2px solid '+(saldo>=0?'var(--green-border)':'var(--red-border)')+';border-radius:var(--radius-lg);padding:1.25rem;text-align:center;margin-bottom:1rem;">' +
+      '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">Saldo do Periodo</div>' +
+      '<div style="font-size:36px;font-weight:700;color:'+corSaldo+';margin-top:6px;">'+fmt(saldo)+'</div>' +
+    '</div>';
+}
+
+/* ===== FINANCEIRO - RECEBER (espelho) ===== */
+function renderFinReceber() {
+  var el = document.getElementById('fin-lista-receber');
+  if(!el) return;
+  var hj = hoje();
+  var pendentes = faturas.filter(function(f){ return f.status==='pendente'; })
+    .sort(function(a,b){ return (a.venc||'9999') > (b.venc||'9999') ? 1 : -1; });
+
+  if(!pendentes.length) {
+    el.innerHTML = '<div class="empty"><i class="ti ti-check"></i>Nenhuma fatura pendente!</div>';
+    return;
+  }
+  el.innerHTML = pendentes.map(function(f) {
+    var vencida = f.venc && f.venc < hj;
+    return '<div class="fin-card '+(vencida?'vencida':'pendente')+'" style="padding:.85rem 1rem;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">' +
+        '<div>' +
+          '<strong style="font-size:14px;">'+f.cliente+'</strong>' +
+          '<br><span style="font-size:12px;color:var(--text3);">'+f.descricao+(f.venc?' | Venc: '+fmtD(f.venc):'')+'</span>' +
+        '</div>' +
+        '<div style="text-align:right;">' +
+          '<div style="font-size:17px;font-weight:700;color:'+(vencida?'var(--red-text)':'var(--amber-text)')+';">'+fmt(f.valor)+'</div>' +
+          '<span class="tag '+(vencida?'tag-red':'tag-amber')+'" style="font-size:10px;">'+(vencida?'Vencida':'Pendente')+'</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+/* ===== SUBTABS DO FINANCEIRO ===== */
+function showFinSubtab(sub) {
+  document.querySelectorAll('#tab-financeiro .subtab-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelectorAll('.fin-subtab-content').forEach(function(e){ e.classList.remove('active'); });
+  var el = document.getElementById('fin-subtab-'+sub);
+  if(el) el.classList.add('active');
+  document.querySelectorAll('#tab-financeiro .subtab-btn').forEach(function(b){
+    var oc = b.getAttribute('onclick')||'';
+    if(oc.includes("'"+sub+"'")) b.classList.add('active');
+  });
+  if(sub==='pagar')   renderContasPagar();
+  if(sub==='receber') renderFinReceber();
+  if(sub==='dre')     { initDRESelects(); renderDRE(); }
+  if(sub==='fluxo')   renderFluxoCaixa();
+}
+
+function initDRESelects() {
+  var mesEl = document.getElementById('dre-mes');
+  var anoEl = document.getElementById('dre-ano');
+  if(!mesEl || mesEl.options.length > 0) return;
+  var meses = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+  var nomMes = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  meses.forEach(function(m,i){ mesEl.innerHTML += '<option value="'+m+'">'+nomMes[i]+'</option>'; });
+  mesEl.value = hoje().slice(5,7);
+  var anoAtual = parseInt(hoje().slice(0,4));
+  for(var a=anoAtual; a>=anoAtual-3; a--) {
+    anoEl.innerHTML += '<option value="'+a+'">'+a+'</option>';
+  }
+  anoEl.value = String(anoAtual);
+}
+/* =========================================
+   FIM MODULOS CLIENTES E FINANCEIRO
+   ========================================= */
 
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
