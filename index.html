@@ -316,7 +316,6 @@
   <button onclick="showTab('contas')" id="btn-contas"><i class="ti ti-coin"></i> Contas a Receber</button>
   <button onclick="showTab('estoque')" id="btn-estoque"><i class="ti ti-chart-bar"></i> Estoque</button>
   <button onclick="showTab('compras')" id="btn-compras"><i class="ti ti-shopping-bag"></i> Compras</button>
-  <button onclick="showTab('clientes')" id="btn-clientes"><i class="ti ti-users"></i> Clientes</button>
   <button onclick="showTab('financeiro')" id="btn-financeiro"><i class="ti ti-chart-bar"></i> Financeiro</button>
   <button onclick="showTab('parceiros')" id="btn-parceiros"><i class="ti ti-users"></i> Parceiros</button>
   <button onclick="showTab('config')" id="btn-config"><i class="ti ti-settings"></i> Configuracões</button>
@@ -1248,119 +1247,140 @@
 
 <!-- PARCEIROS -->
 <div id="tab-parceiros" class="tab">
+  <!-- Header -->
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
-    <span class="stitle" style="margin:0;">Parceiros -- Clientes e Fornecedores</span>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <select id="filtro-parceiro-tipo" onchange="renderParceiros()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);">
-        <option value="">Todos</option><option value="cliente">Clientes</option><option value="fornecedor">Fornecedores</option><option value="ambos">Clientes e Fornecedores</option>
-      </select>
-      <button class="btn" onclick="showFormParceiro(-1)"><i class="ti ti-plus"></i> Novo Parceiro</button>
+    <span class="stitle" style="margin:0;"><i class="ti ti-users-group"></i> Parceiros</span>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-ok" id="btn-novo-parceiro" onclick="showFormParceiro(-1)"><i class="ti ti-plus"></i> Novo Parceiro</button>
+      <button class="btn" id="btn-novo-cliente" onclick="showFormCliente(-1)" style="display:none;"><i class="ti ti-plus"></i> Novo Cliente</button>
     </div>
   </div>
 
-  <div id="form-parceiro" style="display:none;" class="card">
-    <div class="stitle" id="form-parceiro-titulo" style="margin-bottom:1rem;">Cadastrar Parceiro</div>
+  <!-- Subtabs -->
+  <div class="subtab-nav">
+    <button class="subtab-btn active" onclick="showParcSubtab('clientes')"><i class="ti ti-users"></i> Clientes</button>
+    <button class="subtab-btn" onclick="showParcSubtab('fornecedores')"><i class="ti ti-building-store"></i> Fornecedores</button>
+    <button class="subtab-btn" onclick="showParcSubtab('todos')"><i class="ti ti-users-group"></i> Todos os Parceiros</button>
+  </div>
 
-    <!-- Tipo -->
-    <div class="field">
-      <label>Tipo de Parceiro</label>
-      <div class="parceiro-tipo" id="parceiro-tipos">
-        <div class="tipo-btn sel" onclick="toggleTipoParceiro('cliente',this)"><i class="ti ti-user"></i> Cliente</div>
-        <div class="tipo-btn" onclick="toggleTipoParceiro('fornecedor',this)"><i class="ti ti-truck"></i> Fornecedor</div>
-        <div class="tipo-btn" onclick="toggleTipoParceiro('ambos',this)"><i class="ti ti-users"></i> Ambos</div>
-      </div>
-      <input type="hidden" id="par-tipo" value="cliente">
-    </div>
-
-    <!-- Dados principais -->
-    <div class="stitle" style="font-size:11px;margin-bottom:.75rem;">Dados Principais</div>
-    <div class="grid2">
-      <div class="field"><label>Tipo de Pessoa</label>
-        <select id="par-pessoa" onchange="togglePessoa()">
-          <option value="PF">Pessoa Fisica</option>
-          <option value="PJ">Pessoa Juridica</option>
-        </select>
-      </div>
-      <div class="field" id="par-campo-razao"><label id="par-label-razao">Nome Completo *</label><input type="text" id="par-razao" placeholder="Nome completo ou Razao Social"></div>
-      <div class="field" id="par-campo-fantasia"><label>Nome Fantasia</label><input type="text" id="par-fantasia" placeholder="Nome fantasia da empresa"></div>
-      <div class="field"><label id="par-label-doc">CPF *</label>
-        <input type="text" id="par-doc" placeholder="000.000.000-00" oninput="mascaraDoc(this)">
-      </div>
-      <div class="field" id="par-campo-ie"><label>Inscricao Estadual</label><input type="text" id="par-ie" placeholder="Isento ou numero"></div>
-      <div class="field" id="par-campo-im"><label>Inscricao Municipal</label><input type="text" id="par-im" placeholder="Numero"></div>
-      <div class="field" id="par-campo-cnae"><label>CNAE Principal</label><input type="text" id="par-cnae" placeholder="Ex: 3299-0/99"></div>
-      <div class="field"><label>Regime Tributario</label>
-        <select id="par-regime">
-          <option value="">Nao informado</option>
-          <option value="1">Simples Nacional</option>
-          <option value="2">Simples Nacional -- excesso</option>
-          <option value="3">Regime Normal</option>
-          <option value="4">MEI</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Contato -->
-    <div class="sep"></div>
-    <div class="stitle" style="font-size:11px;margin-bottom:.75rem;">Contato</div>
-    <div class="grid2">
-      <div class="field"><label>E-mail</label><input type="email" id="par-email" placeholder="contato@email.com"></div>
-      <div class="field"><label>Telefone / WhatsApp</label><input type="text" id="par-tel" placeholder="(44) 99999-9999" oninput="mascaraTel(this)"></div>
-      <div class="field"><label>Site / Instagram</label><input type="text" id="par-site" placeholder="www.site.com.br ou @usuario"></div>
-      <div class="field"><label>Contato responsavel</label><input type="text" id="par-contato" placeholder="Nome do responsavel"></div>
-    </div>
-
-    <!-- Endereco -->
-    <div class="sep"></div>
-    <div class="stitle" style="font-size:11px;margin-bottom:.75rem;">Endereco</div>
-    <div class="grid2">
-      <div class="field"><label>CEP</label>
-        <div style="display:flex;gap:8px;">
-          <input type="text" id="par-cep" placeholder="00000-000" oninput="mascaraCEP(this)" style="flex:1;">
-          <button class="btn" onclick="buscarCEP()" style="white-space:nowrap;"><i class="ti ti-search"></i> Buscar</button>
+  <!-- SUBTAB CLIENTES -->
+  <div id="parc-subtab-clientes" class="subtab active">
+    <!-- Formulario cliente -->
+    <div id="form-cliente" style="display:none;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1.25rem;position:relative;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--neon),transparent);opacity:0.5;border-radius:var(--radius-lg) var(--radius-lg) 0 0;pointer-events:none;"></div>
+      <div class="stitle" style="font-size:12px;margin-bottom:1rem;" id="form-cliente-titulo"><i class="ti ti-user-plus"></i> Novo Cliente</div>
+      <div class="grid2">
+        <div class="field"><label>Nome Completo *</label><input type="text" id="cli-nome" placeholder="Nome do cliente"></div>
+        <div class="field"><label>Apelido / Como chama</label><input type="text" id="cli-apelido" placeholder="Ex: Joao, Mae..."></div>
+        <div class="field"><label>WhatsApp / Telefone</label><input type="text" id="cli-tel" placeholder="(45) 99999-9999"></div>
+        <div class="field"><label>E-mail</label><input type="text" id="cli-email" class="no-upper" placeholder="email@exemplo.com"></div>
+        <div class="field"><label>Cidade</label><input type="text" id="cli-cidade" placeholder="Cascavel"></div>
+        <div class="field"><label>Tipo de Cliente</label>
+          <select id="cli-tipo" style="border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);width:100%;">
+            <option value="consumidor">Consumidor Final</option>
+            <option value="lojista">Lojista / Revendedor</option>
+            <option value="empresa">Empresa</option>
+          </select>
         </div>
       </div>
-      <div class="field"><label>Logradouro</label><input type="text" id="par-end" placeholder="Rua, Avenida..."></div>
-      <div class="field"><label>Numero</label><input type="text" id="par-num" placeholder="123"></div>
-      <div class="field"><label>Complemento</label><input type="text" id="par-comp" placeholder="Apto, Sala..."></div>
-      <div class="field"><label>Bairro</label><input type="text" id="par-bairro" placeholder="Bairro"></div>
-      <div class="field"><label>Cidade</label><input type="text" id="par-cidade" placeholder="Cidade"></div>
-      <div class="field"><label>Estado (UF)</label>
-        <select id="par-uf"><option value="">UF</option>
-          <option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option>
-          <option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option>
-          <option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option>
-          <option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option>
-          <option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option>
-          <option>SE</option><option>TO</option>
-        </select>
+      <div class="field"><label>Observacoes</label><input type="text" id="cli-obs" placeholder="Preferencias, informacoes importantes..."></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+        <button class="btn-ok" onclick="salvarCliente()"><i class="ti ti-device-floppy"></i> Salvar</button>
+        <button class="btn" onclick="document.getElementById('form-cliente').style.display='none'"><i class="ti ti-x"></i> Cancelar</button>
       </div>
-      <div class="field"><label>Codigo IBGE do Municipio</label><input type="text" id="par-ibge" placeholder="Ex: 4104808"></div>
     </div>
-
-    <!-- Dados bancarios -->
-    <div class="sep"></div>
-    <div class="stitle" style="font-size:11px;margin-bottom:.75rem;">Dados Bancarios (opcional)</div>
-    <div class="grid2">
-      <div class="field"><label>Banco</label><input type="text" id="par-banco" placeholder="Ex: 001 - Banco do Brasil"></div>
-      <div class="field"><label>Agencia</label><input type="text" id="par-agencia" placeholder="0000-0"></div>
-      <div class="field"><label>Conta</label><input type="text" id="par-conta" placeholder="00000-0"></div>
-      <div class="field"><label>Tipo de Conta</label>
-        <select id="par-tipo-conta"><option>Corrente</option><option>Poupanca</option><option>Pagamento</option></select>
+    <!-- Busca e filtros clientes -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;">
+      <input type="text" id="cli-busca" placeholder="Buscar cliente..." oninput="renderClientes()"
+        style="flex:1;min-width:180px;border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);outline:none;">
+      <select id="cli-filtro-tipo" onchange="renderClientes()"
+        style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+        <option value="">Todos os tipos</option>
+        <option value="consumidor">Consumidor Final</option>
+        <option value="lojista">Lojista</option>
+        <option value="empresa">Empresa</option>
+      </select>
+    </div>
+    <div id="resumo-clientes" style="margin-bottom:1rem;"></div>
+    <div id="lista-clientes"></div>
+    <!-- Historico do cliente -->
+    <div id="historico-cliente-wrap" style="display:none;margin-top:1rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <div class="stitle" style="margin:0;font-size:12px;" id="historico-cliente-titulo"><i class="ti ti-history"></i> Historico do Cliente</div>
+        <button class="btn" onclick="document.getElementById('historico-cliente-wrap').style.display='none'"><i class="ti ti-x"></i> Fechar</button>
       </div>
-      <div class="field"><label>Chave Pix</label><input type="text" id="par-pix" placeholder="CPF, CNPJ, e-mail, tel ou chave aleatoria"></div>
-    </div>
-    <div class="field"><label>Observacoes</label>
-      <textarea id="par-obs" rows="2" style="border:1px solid var(--border2);border-radius:var(--radius);padding:8px;font-size:13px;background:var(--bg3);color:var(--text);width:100%;resize:vertical;outline:none;" placeholder="Informacoes adicionais..."></textarea>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">
-      <button class="btn-ok" onclick="salvarParceiro()"><i class="ti ti-device-floppy"></i> Salvar</button>
-      <button class="btn" onclick="document.getElementById('form-parceiro').style.display='none'">Cancelar</button>
+      <div id="historico-cliente-lista"></div>
     </div>
   </div>
-  <div id="resumo-parceiros" style="margin-bottom:1rem;"></div>
-  <div id="lista-parceiros"></div>
-</div><!-- fim tab-parceiros -->
+
+  <!-- SUBTAB FORNECEDORES -->
+  <div id="parc-subtab-fornecedores" class="subtab">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;">
+      <select id="filtro-parceiro-tipo" onchange="renderParceiros()"
+        style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+        <option value="fornecedor">Fornecedores</option>
+        <option value="ambos">Fornecedor e Cliente</option>
+      </select>
+    </div>
+    <div id="resumo-parceiros" style="margin-bottom:1rem;"></div>
+    <div id="lista-parceiros"></div>
+  </div>
+
+  <!-- SUBTAB TODOS -->
+  <div id="parc-subtab-todos" class="subtab">
+    <!-- Formulario parceiro (existente) -->
+    <div id="form-parceiro" style="display:none;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1.25rem;position:relative;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--neon),transparent);opacity:0.5;border-radius:var(--radius-lg) var(--radius-lg) 0 0;pointer-events:none;"></div>
+      <div class="stitle" style="font-size:12px;margin-bottom:1rem;" id="form-parc-titulo">Novo Parceiro</div>
+      <div class="grid2">
+        <div class="field"><label>Tipo</label>
+          <select id="par-tipo" style="border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);width:100%;">
+            <option value="cliente">Cliente</option><option value="fornecedor">Fornecedor</option><option value="ambos">Ambos</option>
+          </select>
+        </div>
+        <div class="field"><label>Pessoa</label>
+          <select id="par-pessoa" style="border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);width:100%;">
+            <option value="PF">Pessoa Fisica</option><option value="PJ">Pessoa Juridica</option>
+          </select>
+        </div>
+        <div class="field"><label>Razao Social / Nome *</label><input type="text" id="par-razao" placeholder="Nome ou Razao Social"></div>
+        <div class="field"><label>Nome Fantasia</label><input type="text" id="par-fantasia" placeholder="Nome Fantasia"></div>
+        <div class="field"><label>CPF / CNPJ</label><input type="text" id="par-doc" placeholder="000.000.000-00"></div>
+        <div class="field"><label>Telefone</label><input type="text" id="par-tel" placeholder="(45) 99999-9999"></div>
+        <div class="field"><label>E-mail</label><input type="text" id="par-email" class="no-upper" placeholder="email@empresa.com"></div>
+        <div class="field"><label>CEP</label><input type="text" id="par-cep" placeholder="00000-000" onblur="buscarCEP()"></div>
+        <div class="field"><label>Cidade</label><input type="text" id="par-cidade" placeholder="Cascavel"></div>
+        <div class="field"><label>Estado (UF)</label><input type="text" id="par-uf" placeholder="PR" maxlength="2"></div>
+        <div class="field"><label>Endereco</label><input type="text" id="par-end" placeholder="Rua, numero, bairro"></div>
+        <div class="field"><label>Banco</label><input type="text" id="par-banco" placeholder="Ex: BRADESCO"></div>
+        <div class="field"><label>Agencia</label><input type="text" id="par-agencia" placeholder="0000"></div>
+        <div class="field"><label>Conta</label><input type="text" id="par-conta" placeholder="00000-0"></div>
+        <div class="field"><label>Tipo de Conta</label>
+          <select id="par-tipo-conta"><option>Corrente</option><option>Poupanca</option><option>Pagamento</option></select>
+        </div>
+        <div class="field"><label>Chave Pix</label><input type="text" id="par-pix" placeholder="CPF, CNPJ, e-mail, tel ou chave aleatoria"></div>
+      </div>
+      <div class="field"><label>Observacoes</label>
+        <textarea id="par-obs" rows="2" style="border:1px solid var(--border2);border-radius:var(--radius);padding:8px;font-size:13px;background:var(--bg3);color:var(--text);width:100%;resize:vertical;outline:none;" placeholder="Informacoes adicionais, condicoes comerciais..."></textarea>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">
+        <button class="btn-ok" onclick="salvarParceiro()"><i class="ti ti-device-floppy"></i> Salvar</button>
+        <button class="btn" onclick="document.getElementById('form-parceiro').style.display='none'">Cancelar</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;">
+      <select id="filtro-parceiro-todos" onchange="renderTodosParceiros()"
+        style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+        <option value="">Todos</option>
+        <option value="cliente">Clientes</option>
+        <option value="fornecedor">Fornecedores</option>
+        <option value="ambos">Ambos</option>
+      </select>
+    </div>
+    <div id="resumo-todos-parceiros" style="margin-bottom:1rem;"></div>
+    <div id="lista-todos-parceiros"></div>
+  </div>
+</div>>
 </div><!-- /container -->
 </div><!-- /app-content -->
 
@@ -1506,9 +1526,8 @@ function showTab(t){
     // Ativar subtab lancamento por padrao
     showSubtab('compras', 'lancamento');
   }
-  if(t==='clientes')   { sincronizarClientesDasVendas(); renderClientes(); }
   if(t==='financeiro')  { renderFinKPIs(); showFinSubtab('pagar'); }
-  if(t==='parceiros')   renderParceiros();
+  if(t==='parceiros')   { showParcSubtab('clientes'); }
 }
 
 /* ---- FILAMENTOS ---- */
@@ -4233,8 +4252,12 @@ function salvarParceiro() {
 }
 
 function renderParceiros() {
-  var filtro = document.getElementById('filtro-parceiro-tipo').value;
-  var lista = filtro ? parceiros.filter(function(p){ return p.tipo === filtro; }) : parceiros;
+  var selEl = document.getElementById('filtro-parceiro-tipo');
+  var filtro = selEl ? selEl.value : 'fornecedor';
+  // Na subtab fornecedores, mostrar apenas fornecedores e ambos
+  var lista = filtro
+    ? parceiros.filter(function(p){ return p.tipo === filtro; })
+    : parceiros.filter(function(p){ return p.tipo==='fornecedor'||p.tipo==='ambos'; });
   var nCli = parceiros.filter(function(p){ return p.tipo==='cliente'||p.tipo==='ambos'; }).length;
   var nFor = parceiros.filter(function(p){ return p.tipo==='fornecedor'||p.tipo==='ambos'; }).length;
   var resumoEl = document.getElementById('resumo-parceiros');
@@ -5723,6 +5746,91 @@ function initDRESelects() {
 /* =========================================
    FIM MODULOS CLIENTES E FINANCEIRO
    ========================================= */
+
+
+/* ===== SUBTABS PARCEIROS UNIFICADO ===== */
+function showParcSubtab(sub) {
+  // Ocultar todas as subtabs
+  document.querySelectorAll('#tab-parceiros .subtab').forEach(function(e){
+    e.style.display = 'none'; e.classList.remove('active');
+  });
+  document.querySelectorAll('#tab-parceiros .subtab-btn').forEach(function(b){ b.classList.remove('active'); });
+
+  // Mostrar subtab escolhida
+  var alvo = document.getElementById('parc-subtab-'+sub);
+  if(alvo) { alvo.style.display = 'block'; alvo.classList.add('active'); }
+
+  // Ativar botao
+  document.querySelectorAll('#tab-parceiros .subtab-btn').forEach(function(b){
+    if((b.getAttribute('onclick')||'').includes("'"+sub+"'")) b.classList.add('active');
+  });
+
+  // Atualizar botoes de novo
+  var btnParceiro = document.getElementById('btn-novo-parceiro');
+  var btnCliente  = document.getElementById('btn-novo-cliente');
+  if(sub === 'clientes') {
+    if(btnParceiro) btnParceiro.style.display = 'none';
+    if(btnCliente)  btnCliente.style.display  = 'inline-flex';
+    sincronizarClientesDasVendas();
+    renderClientes();
+  } else if(sub === 'fornecedores') {
+    if(btnParceiro) btnParceiro.style.display = 'none';
+    if(btnCliente)  btnCliente.style.display  = 'none';
+    // Filtrar apenas fornecedores
+    var selFiltro = document.getElementById('filtro-parceiro-tipo');
+    if(selFiltro) selFiltro.value = 'fornecedor';
+    renderParceiros();
+  } else {
+    if(btnParceiro) btnParceiro.style.display = 'inline-flex';
+    if(btnCliente)  btnCliente.style.display  = 'none';
+    renderTodosParceiros();
+  }
+}
+
+function renderTodosParceiros() {
+  var filtro = (document.getElementById('filtro-parceiro-todos')||{}).value || '';
+  var lista  = filtro ? parceiros.filter(function(p){ return p.tipo === filtro; }) : parceiros;
+  var el     = document.getElementById('lista-todos-parceiros');
+  var resumoEl = document.getElementById('resumo-todos-parceiros');
+  if(!el) return;
+
+  var nCli  = parceiros.filter(function(p){ return p.tipo==='cliente'||p.tipo==='ambos'; }).length;
+  var nFor  = parceiros.filter(function(p){ return p.tipo==='fornecedor'||p.tipo==='ambos'; }).length;
+  if(resumoEl) resumoEl.innerHTML = parceiros.length ?
+    '<div class="grid3" style="margin-bottom:1rem;">' +
+      '<div class="metric"><div class="lbl">Total</div><div class="val">'+parceiros.length+'</div></div>' +
+      '<div class="metric"><div class="lbl">Clientes</div><div class="val" style="color:var(--blue-text);">'+nCli+'</div></div>' +
+      '<div class="metric"><div class="lbl">Fornecedores</div><div class="val" style="color:var(--amber-text);">'+nFor+'</div></div>' +
+    '</div>' : '';
+
+  if(!lista.length) { el.innerHTML = '<div class="empty"><i class="ti ti-users"></i>Nenhum parceiro encontrado.</div>'; return; }
+
+  var TCOR  = {cliente:'tag-blue', fornecedor:'tag-amber', ambos:'tag-green'};
+  var TNOME = {cliente:'Cliente', fornecedor:'Fornecedor', ambos:'Cliente e Fornecedor'};
+  el.innerHTML = lista.map(function(p) {
+    var idx = parceiros.indexOf(p);
+    return '<div class="item-card">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
+        '<div>' +
+          '<strong style="font-size:15px;">'+(p.razao||'Sem nome')+'</strong>' +
+          (p.fantasia?'<span style="font-size:12px;color:var(--text2);margin-left:8px;">('+p.fantasia+')</span>':'') +
+          '<span class="tag '+(TCOR[p.tipo]||'tag-blue')+'" style="margin-left:8px;">'+(TNOME[p.tipo]||p.tipo)+'</span>' +
+          '<span class="tag tag-blue" style="margin-left:4px;">'+(p.pessoa==='PJ'?'PJ':'PF')+'</span>' +
+          '<br><span style="font-size:12px;color:var(--text2);">' +
+            (p.doc?p.doc:'')+(p.email?' - '+p.email:'')+(p.tel?' - '+p.tel:'')+(p.cidade?' - '+p.cidade+(p.uf?'/'+p.uf:''):'') +
+          '</span>' +
+          (p.pix?'<br><span style="font-size:11px;color:var(--text3);"><i class="ti ti-qrcode" style="font-size:11px;"></i> Pix: '+p.pix+'</span>':'') +
+        '</div>' +
+        '<div class="row-actions">' +
+          '<button class="btn-edit" onclick="showFormParceiro('+idx+')"><i class="ti ti-edit"></i></button>' +
+          '<button class="btn-del" onclick="delParceiro('+idx+')"><i class="ti ti-trash"></i></button>' +
+        '</div>' +
+      '</div>' +
+      (p.obs?'<div style="font-size:11px;color:var(--text3);">'+p.obs+'</div>':'') +
+    '</div>';
+  }).join('');
+}
+/* ===== FIM SUBTABS PARCEIROS ===== */
 
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
