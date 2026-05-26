@@ -2927,7 +2927,7 @@ function delMovimentacao(id) {
 }
 
 function renderMovimentacoes() {
-  var filtroFil = document.getElementById('filtro-mov-fil').value;
+  var filtroFil  = document.getElementById('filtro-mov-fil').value;
   var filtroTipo = document.getElementById('filtro-mov-tipo').value;
   var lista = movimentacoes.slice();
   if(filtroFil !== '') lista = lista.filter(function(m){ return m.filIdx === parseInt(filtroFil); });
@@ -2935,44 +2935,97 @@ function renderMovimentacoes() {
 
   var el = document.getElementById('lista-movimentacoes');
   if(!lista.length) {
-    el.innerHTML = '<div class="empty" style="padding:1.5rem;"><i class="ti ti-history"></i>Nenhuma movimentacao registrada ainda.<br><span style="font-size:12px;">As movimentacoes sao criadas automaticamente ao produzir pecas ou fazer ajustes manuais.</span></div>';
+    el.innerHTML = '<div class="empty" style="padding:1.5rem;"><i class="ti ti-history"></i>Nenhuma movimentacao registrada ainda.</div>';
     return;
   }
-  var iconeTipo = {entrada:'ti-arrow-down-circle', saida:'ti-arrow-up-circle', ajuste:'ti-adjustments'};
-  var corTipo = {entrada:'var(--neon)', saida:'var(--red-text)', ajuste:'var(--amber-text)'};
-  var labelTipo = {entrada:'Entrada', saida:'Saida', ajuste:'Ajuste'};
-  el.innerHTML = lista.slice(0,100).map(function(m) {
-    return '<div class="item-card mov-' + m.tipo + '" style="padding:.75rem 1rem;margin-bottom:6px;">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">' +
-        '<div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">' +
-          '<i class="ti ' + (iconeTipo[m.tipo]||'ti-circle') + '" style="font-size:20px;color:' + (corTipo[m.tipo]||'var(--text2)') + ';flex-shrink:0;"></i>' +
-          '<div style="min-width:0;">' +
-            '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
-              '<span class="cor-dot" style="background:' + (m.corHex||'#555') + ';"></span>' +
-              '<strong style="font-size:13px;">' + m.filNome + '</strong>' +
-              '<span class="tag ' + (m.tipo==='entrada'?'tag-green':m.tipo==='saida'?'tag-red':'tag-amber') + '" style="font-size:10px;">' + (labelTipo[m.tipo]||m.tipo) + '</span>' +
-            '</div>' +
-            '<div style="font-size:12px;color:var(--text2);margin-top:2px;">' +
-              m.data + ' ' + m.hora +
-              (m.motivo ? ' - ' + m.motivo : '') +
-              (m.referencia && m.referencia !== m.motivo ? ' - Ref: ' + m.referencia : '') +
-            '</div>' +
+
+  // Agrupar por referencia (pedido/produto) para saidas de producao
+  // Entradas e ajustes ficam individuais
+  var grupos = {};
+  var semGrupo = [];
+
+  lista.slice(0,200).forEach(function(m) {
+    if(m.tipo === 'saida' && m.referencia && m.referencia !== '') {
+      if(!grupos[m.referencia]) grupos[m.referencia] = {ref:m.referencia, data:m.data, hora:m.hora||'', itens:[]};
+      grupos[m.referencia].itens.push(m);
+      // Manter data/hora mais recente do grupo
+      if((m.data+m.hora) > (grupos[m.referencia].data+grupos[m.referencia].hora)) {
+        grupos[m.referencia].data = m.data;
+        grupos[m.referencia].hora = m.hora||'';
+      }
+    } else {
+      semGrupo.push(m);
+    }
+  });
+
+  var html2 = '';
+
+  // Renderizar grupos (saidas de producao agrupadas por pedido)
+  Object.keys(grupos).sort(function(a,b){
+    var ga = grupos[a], gb = grupos[b];
+    return (gb.data+gb.hora).localeCompare(ga.data+ga.hora);
+  }).forEach(function(ref) {
+    var g = grupos[ref];
+    var totalGramas = g.itens.reduce(function(s,i){ return s+(parseFloat(i.qtd)||0); }, 0);
+    html2 += '<div class="item-card" style="padding:1rem;margin-bottom:8px;border-left:3px solid var(--red-text);">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
+        '<div>' +
+          '<div style="display:flex;align-items:center;gap:8px;">' +
+            '<i class="ti ti-arrow-up-circle" style="font-size:18px;color:var(--red-text);"></i>' +
+            '<strong style="font-size:14px;">' + ref + '</strong>' +
+          '</div>' +
+          '<div style="font-size:11px;color:var(--text3);margin-top:2px;">' +
+            fmtD(g.data) + (g.hora ? ' ' + g.hora : '') + ' | Total: ' + totalGramas.toFixed(0) + 'g consumidos' +
           '</div>' +
         '</div>' +
-        '<div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">' +
-          '<div style="text-align:right;">' +
-            '<div style="font-size:16px;font-weight:700;color:' + (corTipo[m.tipo]||'var(--text2)') + ';">' +
-              (m.tipo==='entrada'?'+':m.tipo==='saida'?'-':'') + m.qtd + 'g' +
+        '<span class="tag tag-red" style="font-size:10px;">Saida Producao</span>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:6px;">' +
+        g.itens.map(function(m) {
+          return '<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--bg3);border-radius:var(--radius);">' +
+            '<span class="cor-dot" style="background:'+(m.corHex||'#555')+';flex-shrink:0;"></span>' +
+            '<span style="flex:1;font-size:13px;">' + m.filNome + '</span>' +
+            '<span style="font-size:13px;font-weight:700;color:var(--red-text);">-' + (parseFloat(m.qtd)||0).toFixed(0) + 'g</span>' +
+            '<span style="font-size:11px;color:var(--text3);">' + m.antes + 'g  ' + m.depois + 'g</span>' +
+          '</div>';
+        }).join('') +
+      '</div>' +
+    '</div>';
+  });
+
+  // Renderizar movimentacoes individuais (entradas e ajustes)
+  var iconeTipo = {entrada:'ti-arrow-down-circle', saida:'ti-arrow-up-circle', ajuste:'ti-adjustments'};
+  var corTipo   = {entrada:'var(--neon)', saida:'var(--red-text)', ajuste:'var(--amber-text)'};
+  var labelTipo = {entrada:'Entrada', saida:'Saida', ajuste:'Ajuste'};
+  var tagTipo   = {entrada:'tag-green', saida:'tag-red', ajuste:'tag-amber'};
+
+  semGrupo.forEach(function(m) {
+    html2 += '<div class="item-card mov-'+m.tipo+'" style="padding:.75rem 1rem;margin-bottom:6px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">' +
+        '<div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">' +
+          '<i class="ti '+(iconeTipo[m.tipo]||'ti-circle')+'" style="font-size:20px;color:'+(corTipo[m.tipo]||'var(--text2)')+';flex-shrink:0;"></i>' +
+          '<div style="min-width:0;">' +
+            '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+              '<span class="cor-dot" style="background:'+(m.corHex||'#555')+'"></span>' +
+              '<strong style="font-size:13px;">' + m.filNome + '</strong>' +
+              '<span class="tag '+(tagTipo[m.tipo]||'tag-blue')+'" style="font-size:10px;">'+(labelTipo[m.tipo]||m.tipo)+'</span>' +
             '</div>' +
-            '<div style="font-size:11px;color:var(--text3);">' + m.antes + 'g -> ' + m.depois + 'g</div>' +
+            (m.motivo ? '<div style="font-size:11px;color:var(--text3);margin-top:2px;">' + m.motivo + (m.referencia?' | '+m.referencia:'') + '</div>' : '') +
           '</div>' +
-          '<button class="btn-del" onclick="delMovimentacao(' + m.id + ')" title="Excluir do historico" style="padding:4px 8px;"><i class="ti ti-trash"></i></button>' +
+        '</div>' +
+        '<div style="text-align:right;flex-shrink:0;">' +
+          '<div style="font-size:16px;font-weight:700;color:'+(corTipo[m.tipo]||'var(--text)')+';">' +
+            (m.tipo==='entrada'?'+':m.tipo==='saida'?'-':'') + (parseFloat(m.qtd)||0).toFixed(0) + 'g' +
+          '</div>' +
+          '<div style="font-size:11px;color:var(--text3);">' + m.antes + 'g  ' + m.depois + 'g</div>' +
+          '<div style="font-size:10px;color:var(--text3);">' + fmtD(m.data) + (m.hora?' '+m.hora:'') + '</div>' +
         '</div>' +
       '</div>' +
     '</div>';
-  }).join('');
-}
+  });
 
+  el.innerHTML = html2;
+}
 function showSubtab(tab, sub) {
   // Ocultar todas as subtabs desta tab usando display direto (nao depende de CSS class)
   var allSubtabs = document.querySelectorAll('#tab-'+tab+' .subtab');
