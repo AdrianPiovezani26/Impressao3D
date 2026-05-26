@@ -2086,10 +2086,24 @@ function renderPedidos(){
         (qtd > 1 ? '' : '') +
       '</div>';
 
-    var btnEditar = editavel
-      ? '<button class="btn-edit" onclick="abrirEdicaoPedido('+idx+')" title="Editar pedido"><i class="ti ti-edit"></i> Editar</button>' +
-        '<button class="btn" onclick="abrirEdicaoPedido('+idx+')" style="color:var(--blue-text);border-color:var(--blue-border);font-size:11px;padding:5px 10px;"><i class="ti ti-shopping-cart"></i> Vender</button>'
-      : '<span style="font-size:11px;color:var(--text3);padding:5px 8px;display:inline-flex;align-items:center;gap:4px;"><i class="ti ti-lock"></i> Concluido</span>';
+    // Pendente: Editar + Vender
+    // Imprimindo: Editar (sem Vender -- ainda nao esta pronto)
+    // Concluido: Vender (sem Editar -- ja concluido)
+    var btnEditar;
+    if(p.status === 'pendente') {
+      btnEditar =
+        '<button class="btn-edit" onclick="abrirEdicaoPedido('+idx+')" title="Editar pedido"><i class="ti ti-edit"></i> Editar</button>' +
+        '<button class="btn" onclick="abrirEdicaoPedido('+idx+')" style="color:var(--blue-text);border-color:var(--blue-border);font-size:11px;padding:5px 10px;"><i class="ti ti-shopping-cart"></i> Vender</button>';
+    } else if(p.status === 'imprimindo') {
+      btnEditar =
+        '<button class="btn-edit" onclick="abrirEdicaoPedido('+idx+')" title="Editar pedido"><i class="ti ti-edit"></i> Editar</button>' +
+        '<span style="font-size:11px;color:var(--text3);padding:5px 8px;display:inline-flex;align-items:center;gap:4px;"><i class="ti ti-printer"></i> Imprimindo...</span>';
+    } else {
+      // Concluido: pode vender, nao pode editar
+      btnEditar =
+        '<button class="btn-ok" onclick="abrirEdicaoPedido('+idx+')" style="font-size:11px;padding:5px 12px;"><i class="ti ti-shopping-cart"></i> Vender</button>' +
+        '<span style="font-size:11px;color:var(--text3);padding:5px 8px;display:inline-flex;align-items:center;gap:4px;"><i class="ti ti-lock"></i> Concluido</span>';
+    }
 
     return '<div class="item-card">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">' +
@@ -4317,6 +4331,19 @@ var _pedidoEditIdx = -1;
 function abrirEdicaoPedido(idx) {
   var p = pedidos[idx];
   if(!p) return;
+  // Concluido: ir direto para venda sem abrir modal de edicao
+  if(p.status === 'concluido') {
+    _pedidoEditIdx = idx;
+    // Preencher modal temporariamente para usar importarPedidoVenda
+    document.getElementById('mp-nome').value = p.nome || '';
+    var qtd = parseInt(p.qtd) || 1;
+    document.getElementById('mp-qtd').value = qtd;
+    var precoTotal = parseFloat((p.preco||'').toString().replace('R$ ','').replace(/\./g,'').replace(',','.')) || 0;
+    var precoUnit = parseFloat(p.precoUnit) || (qtd > 0 ? precoTotal / qtd : precoTotal);
+    document.getElementById('mp-preco-unit').value = precoUnit.toFixed(2);
+    importarPedidoVenda();
+    return;
+  }
   _pedidoEditIdx = idx;
 
   // Preencher campos
@@ -4432,6 +4459,19 @@ var _pedidoEditIdx = -1;
 function abrirEdicaoPedido(idx) {
   var p = pedidos[idx];
   if(!p) return;
+  // Concluido: ir direto para venda sem abrir modal de edicao
+  if(p.status === 'concluido') {
+    _pedidoEditIdx = idx;
+    // Preencher modal temporariamente para usar importarPedidoVenda
+    document.getElementById('mp-nome').value = p.nome || '';
+    var qtd = parseInt(p.qtd) || 1;
+    document.getElementById('mp-qtd').value = qtd;
+    var precoTotal = parseFloat((p.preco||'').toString().replace('R$ ','').replace(/\./g,'').replace(',','.')) || 0;
+    var precoUnit = parseFloat(p.precoUnit) || (qtd > 0 ? precoTotal / qtd : precoTotal);
+    document.getElementById('mp-preco-unit').value = precoUnit.toFixed(2);
+    importarPedidoVenda();
+    return;
+  }
   _pedidoEditIdx = idx;
   document.getElementById('mp-nome').value = p.nome || '';
   var qtd = parseInt(p.qtd) || 1;
