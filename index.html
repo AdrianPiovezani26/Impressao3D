@@ -1587,6 +1587,17 @@ function salvarFilamento(){
   const qtd=parseFloat(document.getElementById('f-qtd').value);
   if(!marca){alert('Informe a marca/fabricante');return;}
   if(isNaN(qtd)||qtd<0){alert('Informe a quantidade em estoque');return;}
+  // Verificar filamento duplicado
+  if(editFilIdx < 0) {
+    var modeloV = (document.getElementById('f-modelo').value||'').toUpperCase().trim();
+    var corV    = (document.getElementById('f-cor-nome').value||'').toUpperCase().trim();
+    var filDup  = filamentos.some(function(f){
+      return (f.marca||'').toUpperCase()===marca.toUpperCase() &&
+             (f.modelo||'').toUpperCase()===modeloV &&
+             (f.corNome||'').toUpperCase()===corV;
+    });
+    if(filDup && !confirm('ATENCAO: Ja existe o filamento "'+marca+' '+modeloV+' '+corV+'"\nDeseja salvar mesmo assim?')) return;
+  }
   var unidQtd = (document.getElementById('f-qtd-unid')||{}).value || 'g';
   var unidRolo = (document.getElementById('f-rolo-unid')||{}).value || 'g';
   var qtdEmG = paraGramas(qtd, unidQtd);
@@ -1702,6 +1713,11 @@ function addFilProdInline(i, filIdx, pesoVal) {
 function salvarProdInline(i) {
   var nome = upper(document.getElementById('pe-nome-'+i).value);
   if(!nome){ alert('Informe o nome do produto'); return; }
+  // Verificar duplicata (ignorar o proprio produto)
+  var prodAtualId = produtos[i] ? produtos[i].id : null;
+  if(verificarDuplicata(produtos, 'nome', nome, prodAtualId)) {
+    if(!confirmarDuplicata('produto', nome)) return;
+  }
   var precoNum = parseFloat(document.getElementById('pe-preco-'+i).value)||0;
   var horas = document.getElementById('pe-horas-'+i).value || '--';
   var obs   = document.getElementById('pe-obs-'+i).value || '';
@@ -2201,6 +2217,11 @@ function calcular(){
 }
 function salvarComoPedido(){
   var nome = upper(document.getElementById('c-nome-peca').value)||'PECA SEM NOME';
+  // Verificar pedido duplicado (mesmo nome e status pendente/imprimindo)
+  var pedDup = pedidos.some(function(p){
+    return (p.nome||'').toUpperCase() === nome && p.status !== 'concluido';
+  });
+  if(pedDup && !confirm('ATENCAO: Ja existe um pedido em aberto com o nome:\n\n"'+nome+'"\n\nDeseja criar outro mesmo assim?')) return;
   var filsCalc = getFilsCalc();
   var filNome = filsCalc.detalhes.map(function(d){ return d.nome; }).join(', ') || '';
   var pesoTotal2 = filsCalc.detalhes.reduce(function(s,d){ return s+d.peso; }, 0);
@@ -2254,6 +2275,10 @@ function salvarComoPedido(){
 }
 function salvarComoProduto(){
   var nome = upper(document.getElementById('c-nome-peca').value) || 'PECA SEM NOME';
+  // Verificar duplicata de produto
+  if(verificarDuplicata(produtos, 'nome', nome, null)) {
+    if(!confirmarDuplicata('produto', nome)) return;
+  }
   var precoStr = document.getElementById('r-preco').textContent;
   var precoNum = parseFloat(precoStr.replace('R$ ','').replace(',','.')) || 0;
   var hH = parseInt(document.getElementById('c-horas-h').value)||0;
@@ -2354,6 +2379,11 @@ function calcTotalPedidoManual() {
 function salvarPedidoManual() {
   var nome = upper(document.getElementById('npm-nome').value);
   if(!nome) { alert('Informe o nome da peca ou produto.'); return; }
+  // Verificar pedido duplicado
+  var pedManDup = pedidos.some(function(p){
+    return (p.nome||'').toUpperCase() === nome && p.status !== 'concluido';
+  });
+  if(pedManDup && !confirm('ATENCAO: Ja existe pedido em aberto "'+nome+'"\nDeseja criar outro?')) return;
   var qtd       = Math.max(1, parseInt(document.getElementById('npm-qtd').value) || 1);
   var precoUnit = parseFloat(document.getElementById('npm-preco-unit').value) || 0;
   var total     = qtd * precoUnit;
@@ -2539,6 +2569,18 @@ function salvarVenda(){
   const total=parseFloat(document.getElementById('v-total').value)||0;
   if(!cliente){alert('Informe o nome do cliente');return;}
   if(!total){alert('Informe o valor da venda');return;}
+  // Verificar venda duplicada (mesmo cliente + mesmo produto + mesmo dia)
+  var dataVenda = document.getElementById('v-data').value || hoje();
+  var pIdxV = parseInt(document.getElementById('v-produto').value);
+  var prodNomeV = (!isNaN(pIdxV)&&produtos[pIdxV]) ? produtos[pIdxV].nome : '';
+  if(prodNomeV) {
+    var vendaDup = vendas.some(function(v){
+      return (v.cliente||'').toUpperCase() === cliente &&
+             (v.prodNome||'').toUpperCase() === prodNomeV.toUpperCase() &&
+             v.data === dataVenda;
+    });
+    if(vendaDup && !confirm('ATENCAO: Ja existe uma venda registrada hoje\nCliente: '+cliente+'\nProduto: '+prodNomeV+'\n\nDeseja registrar outra mesmo assim?')) return;
+  }
   const pIdx=parseInt(document.getElementById('v-produto').value);
   const prodNome=(!isNaN(pIdx)&&produtos[pIdx])?produtos[pIdx].nome:'Produto avulso';
   const statusPgto=document.getElementById('v-status-pgto').value;
@@ -4224,8 +4266,12 @@ function showFormParceiro(idx) {
 }
 
 function salvarParceiro() {
-  const razao = document.getElementById('par-razao').value.trim();
+  const razao = document.getElementById('par-razao').value.trim().toUpperCase();
   if(!razao) { alert('Informe o nome / razao social'); return; }
+  var parcAtualId = editParceiroIdx >= 0 ? parceiros[editParceiroIdx].id : null;
+  if(verificarDuplicata(parceiros, 'razao', razao, parcAtualId)) {
+    if(!confirmarDuplicata('parceiro', razao)) return;
+  }
   const p = {
     id: editParceiroIdx >= 0 ? parceiros[editParceiroIdx].id : Date.now(),
     tipo: document.getElementById('par-tipo').value,
@@ -5216,6 +5262,10 @@ function showFormCliente(idx) {
 function salvarCliente() {
   var nome = upper(document.getElementById('cli-nome').value);
   if(!nome) { alert('Informe o nome do cliente.'); return; }
+  var cliAtualId = _clienteEditIdx >= 0 ? clientes[_clienteEditIdx].id : null;
+  if(verificarDuplicata(clientes, 'nome', nome, cliAtualId)) {
+    if(!confirmarDuplicata('cliente', nome)) return;
+  }
   var cli = {
     id:    _clienteEditIdx >= 0 ? clientes[_clienteEditIdx].id : Date.now(),
     nome:  nome,
@@ -5415,6 +5465,14 @@ function salvarContaPagar() {
   if(!desc)  { alert('Informe a descricao.'); return; }
   if(!valor) { alert('Informe o valor.'); return; }
   if(!venc)  { alert('Informe o vencimento.'); return; }
+  // Verificar conta duplicada (mesmo descricao + mesmo mes)
+  if(_cpEditIdx < 0) {
+    var mesConta = venc.slice(0,7);
+    var cpDup = contasPagar.some(function(cp){
+      return (cp.desc||'').toUpperCase() === desc && (cp.venc||'').slice(0,7) === mesConta;
+    });
+    if(cpDup && !confirm('ATENCAO: Ja existe uma conta a pagar\n"'+desc+'"\npara o mes '+mesConta+'.\n\nDeseja lancar outra mesmo assim?')) return;
+  }
 
   var cp = {
     id:    _cpEditIdx >= 0 ? contasPagar[_cpEditIdx].id : Date.now(),
@@ -5831,6 +5889,28 @@ function renderTodosParceiros() {
   }).join('');
 }
 /* ===== FIM SUBTABS PARCEIROS ===== */
+
+
+/* ===== VERIFICACAO DE DUPLICATAS ===== */
+function verificarDuplicata(lista, nomeCampo, nomeNovo, idAtual) {
+  // Normaliza para comparacao
+  var nomeUp = (nomeNovo || '').toUpperCase().trim();
+  if(!nomeUp) return false;
+  return lista.some(function(item) {
+    // Pular o proprio item em caso de edicao
+    if(idAtual && item.id === idAtual) return false;
+    var nomeItem = (item[nomeCampo] || '').toUpperCase().trim();
+    return nomeItem === nomeUp;
+  });
+}
+
+function confirmarDuplicata(tipo, nome) {
+  return confirm(
+    'ATENCAO: Ja existe um(a) ' + tipo + ' com o nome:\n\n"' + nome + '"\n\n' +
+    'Deseja salvar mesmo assim?'
+  );
+}
+/* ===== FIM VERIFICACAO DE DUPLICATAS ===== */
 
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
