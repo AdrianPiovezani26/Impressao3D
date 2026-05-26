@@ -2333,6 +2333,7 @@ function salvarVenda(){
   document.getElementById('v-valor').value='';document.getElementById('v-total').value='';document.getElementById('v-qtd').value='1';
   converterDadosParaMaiusculas();
   sincronizarStatusProdutos();
+  baixaRetroativaPedidosConcluidos();
   renderVendas();
 }
 function renderVendas(){
@@ -4836,6 +4837,58 @@ function converterDadosParaMaiusculas() {
     console.log('Dados convertidos para maiusculas');
   }
 }
+
+
+/* ===== BAIXA RETROATIVA PEDIDOS CONCLUIDOS ===== */
+function baixaRetroativaPedidosConcluidos() {
+  // Verificar se ja foi executada para nao duplicar
+  var jaExecutou = localStorage.getItem('akp3d_baixa_retroativa_v1');
+  if(jaExecutou) return;
+
+  var hoje2 = new Date().toISOString().slice(0,10);
+  var hora2 = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  var baixas = [
+    // Suporte de jogos PS3 (concluido)
+    {filIdx:3,  peso:120, ref:'Pedido CONCLUIDO: SUPORTE DE JOGOS PS3 (retroativo)'},
+    {filIdx:24, peso:2,   ref:'Pedido CONCLUIDO: SUPORTE DE JOGOS PS3 (retroativo)'},
+    // Suporte jogos PS2 Mod 1 (concluido)
+    {filIdx:24, peso:128, ref:'Pedido CONCLUIDO: SUPORTE JOGOS PS2 MOD 1 (retroativo)'},
+    {filIdx:3,  peso:1,   ref:'Pedido CONCLUIDO: SUPORTE JOGOS PS2 MOD 1 (retroativo)'},
+  ];
+
+  var executadas = 0;
+  baixas.forEach(function(b) {
+    var f = filamentos[b.filIdx];
+    if(!f) return;
+    var antes = parseFloat(f.qtd)||0;
+    var depois = Math.max(0, antes - b.peso);
+    filamentos[b.filIdx].qtd = depois;
+    movimentacoes.unshift({
+      id: Date.now()+Math.floor(Math.random()*9999),
+      filIdx:b.filIdx,
+      filNome:f.marca+' '+f.modelo+' '+f.corNome,
+      corHex:f.corHex,
+      tipo:'saida',
+      qtd:b.peso,
+      antes:antes.toFixed(0),
+      depois:depois.toFixed(0),
+      motivo:'Producao de peca',
+      referencia:b.ref,
+      data:hoje2,
+      hora:hora2
+    });
+    executadas++;
+  });
+
+  if(executadas > 0) {
+    S.set('filamentos', filamentos);
+    S.set('movimentacoes', movimentacoes);
+    // Marcar como executada para nao rodar novamente
+    localStorage.setItem('akp3d_baixa_retroativa_v1', '1');
+    console.log('Baixa retroativa executada: '+executadas+' movimentacoes registradas');
+  }
+}
+/* ===== FIM BAIXA RETROATIVA ===== */
 
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
