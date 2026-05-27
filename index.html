@@ -2409,11 +2409,11 @@ function calcular(){
 }
 function salvarComoPedido(){
   var nome = upper(document.getElementById('c-nome-peca').value)||'PECA SEM NOME';
-  // Verificar pedido duplicado (mesmo nome e status pendente/imprimindo)
   var pedDup = pedidos.some(function(p){
     return (p.nome||'').toUpperCase() === nome && p.status !== 'concluido';
   });
-  if(pedDup && !confirm('ATENCAO: Ja existe um pedido em aberto com o nome:\n\n"'+nome+'"\n\nDeseja criar outro mesmo assim?')) return;
+  if(pedDup && !confirm('ATENCAO: Ja existe um pedido em aberto:\n"'+nome+'"\nDeseja criar outro?')) return;
+
   var filsCalc = getFilsCalc();
   var filNome = filsCalc.detalhes.map(function(d){ return d.nome; }).join(', ') || '';
   var pesoTotal2 = filsCalc.detalhes.reduce(function(s,d){ return s+d.peso; }, 0);
@@ -2427,41 +2427,26 @@ function salvarComoPedido(){
   var precoTotalNum = precoUnitNum * qtd;
   var precoTotalStr = fmt(precoTotalNum);
 
-  // Coletar filamentos ANTES de qualquer limpeza de tela
+  // Coletar filamentos para salvar no pedido  SEM baixar estoque agora
   var filsComIdx = [];
   document.getElementById('c-fils-lista').querySelectorAll('.fil-multi-item').forEach(function(item){
     var sel = item.querySelector('select');
-    var idx = sel ? parseInt(sel.value) : -1;
+    var idxF = sel ? parseInt(sel.value) : -1;
     var pesoFil = parseFloat(item.querySelectorAll('input')[0].value)||0;
-    if(!isNaN(idx) && idx >= 0 && filamentos[idx] && pesoFil > 0)
-      filsComIdx.push({filIdx:idx, peso:pesoFil});
+    if(!isNaN(idxF) && idxF >= 0 && filamentos[idxF] && pesoFil > 0)
+      filsComIdx.push({filIdx:idxF, filNome:filamentos[idxF].marca+' '+filamentos[idxF].modelo+' '+filamentos[idxF].corNome, peso:pesoFil});
   });
 
-  // Confirmar baixa ANTES de limpar a tela
-  var fazerBaixa = false;
-  if(filsComIdx.length > 0) {
-    var resumo = filsComIdx.map(function(f){
-      return '* '+filamentos[f.filIdx].marca+' '+filamentos[f.filIdx].modelo+' '+filamentos[f.filIdx].corNome+': '+f.peso+'g';
-    }).join('\n');
-    fazerBaixa = confirm('Deseja dar baixa no estoque?\n\nTotal do lote ('+qtd+' un):\n'+resumo+'\n\nOK para confirmar.');
-  }
-
-  // Salvar pedido
+  // Salvar pedido  baixa so ocorre ao mudar status para CONCLUIDO
   pedidos.unshift({
     id:Date.now(), nome:nome, qtd:qtd, precoUnit:precoUnitNum,
     preco:precoTotalStr, data:new Date().toLocaleDateString('pt-BR'),
-    status:'pendente', horas:tempoStr, filNome:filNome, peso:pesoTotal2||'--'
+    status:'pendente', horas:tempoStr, filNome:filNome, peso:pesoTotal2||'--',
+    filsEstoque: filsComIdx,
+    estoquesBaixados: false
   });
   S.set('pedidos', pedidos);
-
-  // Executar baixa se confirmado
-  if(fazerBaixa) {
-    baixarEstoqueProduto(filsComIdx, 'Pedido: '+nome+' ('+qtd+' un)');
-    buildFilSelect();
-    renderFils();
-  }
-
-  alert('Pedido salvo!\n\n'+nome+'\n'+qtd+' un | Unit: '+fmt(precoUnitNum)+' | Total: '+precoTotalStr+(fazerBaixa?'\n\nEstoque atualizado!':''));
+  alert('Pedido salvo!\n\n'+nome+'\n'+qtd+' un | '+fmt(precoUnitNum)+'/un | Total: '+precoTotalStr+'\n\nEstoque sera baixado ao CONCLUIR o pedido.');
   salvarNoHistoricoSilencioso();
   limparCalc();
 }
@@ -2727,7 +2712,26 @@ function renderPedidos(){
   }).join('');
 }
 
-function updPedSt(i,v){pedidos[i].status=v;S.set('pedidos',pedidos);renderPedidos();}
+function updPedSt(i,v){
+  var stAnterior = pedidos[i].status;
+  pedidos[i].status = v;
+  // Baixar estoque APENAS ao concluir, uma unica vez
+  if(v === 'concluido' && stAnterior !== 'concluido') {
+    var p = pedidos[i];
+    var fils = p.filsEstoque || [];
+    if(fils.length > 0 && !p.estoquesBaixados) {
+      var resumo = fils.map(function(f){ return '* '+f.filNome+': '+f.peso+'g'; }).join('\n');
+      if(confirm('Pedido CONCLUIDO!\nDeseja baixar o estoque?\n\n'+resumo)) {
+        baixarEstoqueProduto(fils, 'Pedido CONCLUIDO: '+p.nome+(p.qtd>1?' ('+p.qtd+' un)':''));
+        pedidos[i].estoquesBaixados = true;
+        buildFilSelect(); renderFils();
+      }
+    }
+  }
+  S.set('pedidos',pedidos);
+  renderPedidos();
+  renderDashboard();
+}
 function delPed(i){if(confirm('Remover pedido?')){pedidos.splice(i,1);S.set('pedidos',pedidos);renderPedidos();}}
 
 /* ---- VENDAS ---- */
