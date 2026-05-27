@@ -2815,6 +2815,7 @@ function salvarVenda(){
   converterDadosParaMaiusculas();
   sincronizarStatusProdutos();
   baixaRetroativaPedidosConcluidos();
+  estornoChaveiroHercules();
   renderVendas();
 }
 function renderVendas(){
@@ -6795,6 +6796,47 @@ function exportarRelatorio() {
 /* =========================================
    FIM MODULO RELATORIOS
    ========================================= */
+
+
+/* ===== ESTORNO CHAVEIRO HERCULES ===== */
+function estornoChaveiroHercules() {
+  if(localStorage.getItem('akp3d_estorno_hercules_v1')) return;
+  var hj = new Date().toISOString().slice(0,10);
+  var hr = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  var estornos = [
+    {filIdx:14, qtd:11,  filNome:'ELEGOO PLA+ BRANCO',               corHex:'#f5f5f5'},
+    {filIdx:17, qtd:4,   filNome:'CASA ARTE DECOR LTDA PLA VERMELHO', corHex:'#e53935'},
+    {filIdx:21, qtd:137, filNome:'VOLT 3D PLA PRETO',                 corHex:'#1a1a1a'},
+  ];
+  var executou = false;
+  estornos.forEach(function(e) {
+    var f = filamentos[e.filIdx];
+    if(!f) return;
+    var antes = parseFloat(f.qtd)||0;
+    var depois = antes + e.qtd;
+    filamentos[e.filIdx].qtd = depois;
+    movimentacoes.unshift({
+      id: Date.now()+Math.floor(Math.random()*9999),
+      filIdx:e.filIdx, filNome:e.filNome, corHex:e.corHex,
+      tipo:'entrada', qtd:e.qtd,
+      antes:antes.toFixed(0), depois:depois.toFixed(0),
+      motivo:'ESTORNO - Pedido pendente nao impresso',
+      referencia:'Estorno: CHAVEIRO HERCULES',
+      data:hj, hora:hr
+    });
+    movimentacoes = movimentacoes.filter(function(m){
+      return !((m.referencia||'').includes('CHAVEIRO HERCULES') && m.tipo==='saida' && m.filIdx===e.filIdx);
+    });
+    executou = true;
+  });
+  if(executou) {
+    S.set('filamentos', filamentos);
+    S.set('movimentacoes', movimentacoes);
+    localStorage.setItem('akp3d_estorno_hercules_v1', '1');
+    console.log('Estorno CHAVEIRO HERCULES executado: VOLT 3D +137g | ELEGOO +11g | CASA ARTE DECOR +4g');
+  }
+}
+/* ===== FIM ESTORNO ===== */
 
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
