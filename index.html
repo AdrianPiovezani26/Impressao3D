@@ -3288,78 +3288,106 @@ function salvarAjuste() {
 }
 
 function renderEstoque() {
-  // Alertas
-  const criticos = filamentos.filter(f => {
-    const pct = f.pesoRolo > 0 ? (f.qtd / f.pesoRolo * 100) : 0;
-    return pct <= 15 && f.qtd >= 0;
+  // Alertas de estoque critico
+  var criticos = filamentos.filter(function(f){
+    var pct = f.pesoRolo > 0 ? (parseFloat(f.qtd||0)/parseFloat(f.pesoRolo||1000)*100) : 0;
+    return pct <= 15;
   });
-  const alertasEl = document.getElementById('estoque-alertas');
-  if(criticos.length) {
-    alertasEl.innerHTML = criticos.map(f =>
-      `<div class="alerta-box"><i class="ti ti-alert-triangle"></i><span><strong>${f.marca} ${f.modelo} ${f.corNome}</strong> -- estoque critico: <strong>${f.qtd}g</strong> restantes (${f.pesoRolo>0?((f.qtd/f.pesoRolo)*100).toFixed(0):0}% do rolo)</span></div>`
-    ).join('');
-  } else {
-    alertasEl.innerHTML = '';
-  }
+  var alertasEl = document.getElementById('estoque-alertas');
+  if(alertasEl) alertasEl.innerHTML = criticos.length
+    ? criticos.map(function(f){
+        var pct = f.pesoRolo>0?((parseFloat(f.qtd||0)/parseFloat(f.pesoRolo||1000))*100).toFixed(0):0;
+        return '<div class="alerta-box"><i class="ti ti-alert-triangle"></i><span>' +
+          '<strong>'+f.marca+' '+f.modelo+' '+f.corNome+'</strong> -- estoque critico: ' +
+          '<strong>'+f.qtd+'g</strong> restantes ('+pct+'% do rolo)</span></div>';
+      }).join('') : '';
 
-  // Resumo
-  const totalG = filamentos.reduce((s,f) => s + parseFloat(f.qtd||0), 0);
-  const totalV = filamentos.reduce((s,f) => s + (parseFloat(f.qtd||0)/parseFloat(f.pesoRolo||1000))*parseFloat(f.preco||0), 0);
-  const totalMov = movimentacoes.length;
-  const totalSaida = movimentacoes.filter(m=>m.tipo==='saida').reduce((s,m)=>s+m.qtd,0);
-  document.getElementById('estoque-resumo').innerHTML = `
-    <div class="grid4" style="margin-bottom:1rem;">
-      <div class="metric"><div class="lbl">Filamentos em estoque</div><div class="val">${filamentos.length}</div></div>
-      <div class="metric"><div class="lbl">Total disponivel</div><div class="val">${totalG.toFixed(0)}g</div></div>
-      <div class="metric"><div class="lbl">Valor em estoque</div><div class="val">${fmt(totalV)}</div></div>
-      <div class="metric"><div class="lbl">Total consumido</div><div class="val" style="color:var(--amber-text);">${totalSaida.toFixed(0)}g</div></div>
-    </div>`;
+  // Resumo geral
+  var totalG   = filamentos.reduce(function(s,f){ return s+parseFloat(f.qtd||0); },0);
+  var totalV   = filamentos.reduce(function(s,f){ return s+(parseFloat(f.qtd||0)/parseFloat(f.pesoRolo||1000))*parseFloat(f.preco||0); },0);
+  var totalSaida = movimentacoes.filter(function(m){return m.tipo==='saida';}).reduce(function(s,m){return s+parseFloat(m.qtd||0);},0);
+  var resumoEl = document.getElementById('estoque-resumo');
+  if(resumoEl) resumoEl.innerHTML =
+    '<div class="grid4" style="margin-bottom:1rem;">' +
+      '<div class="metric"><div class="lbl">Filamentos em estoque</div><div class="val">'+filamentos.length+'</div></div>' +
+      '<div class="metric"><div class="lbl">Total disponivel</div><div class="val">'+totalG.toFixed(0)+'g</div></div>' +
+      '<div class="metric"><div class="lbl">Valor em estoque</div><div class="val">'+fmt(totalV)+'</div></div>' +
+      '<div class="metric"><div class="lbl">Total consumido</div><div class="val" style="color:var(--amber-text);">'+totalSaida.toFixed(0)+'g</div></div>' +
+    '</div>';
 
-  // Cards por filamento
-  const cardsEl = document.getElementById('estoque-cards');
+  var cardsEl = document.getElementById('estoque-cards');
+  if(!cardsEl) return;
   if(!filamentos.length) {
     cardsEl.innerHTML = '<div class="empty"><i class="ti ti-package"></i>Nenhum filamento cadastrado.</div>';
-    return;
-  }
-  cardsEl.innerHTML = filamentos.map((f, idx) => {
-    const pct = f.pesoRolo > 0 ? Math.min(100, (f.qtd / f.pesoRolo * 100)) : 0;
-    const cor = pct > 50 ? '#39ff14' : pct > 15 ? '#ffaa00' : '#ff4444';
-    const stLabel = pct > 50 ? 'Ok' : pct > 15 ? 'Baixo' : 'Critico';
-    const stClass = pct > 50 ? 'tag-green' : pct > 15 ? 'tag-amber' : 'tag-red';
-    const custoG = f.preco > 0 && f.pesoRolo > 0 ? (f.preco / f.pesoRolo).toFixed(3) : '--';
-    const movsFil = movimentacoes.filter(m => m.filIdx === idx);
-    const totalEntradas = movsFil.filter(m=>m.tipo==='entrada').reduce((s,m)=>s+m.qtd,0);
-    const totalSaidas = movsFil.filter(m=>m.tipo==='saida').reduce((s,m)=>s+m.qtd,0);
-    return `<div class="card" style="margin-bottom:10px;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span class="cor-dot" style="background:${f.corHex};width:18px;height:18px;"></span>
-          <div>
-            <strong style="font-size:14px;">${f.marca} ${f.modelo}</strong>
-            <span class="tag ${stClass}" style="margin-left:8px;">${stLabel}</span>
-            <br><span style="font-size:12px;color:var(--text2);">${f.corNome} - ${f.diam}mm - R$ ${custoG}/g</span>
-          </div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:22px;font-weight:700;color:${cor};text-shadow:0 0 8px ${cor};">${f.qtd}g</div>
-          <div style="font-size:11px;color:var(--text3);">${pct.toFixed(0)}% do rolo (${f.pesoRolo}g)</div>
-        </div>
-      </div>
-      <div class="estoque-bar-wrap"><div class="estoque-bar" style="width:${pct}%;background:${cor};"></div></div>
-      <div class="grid3" style="margin-top:10px;">
-        <div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--neon);font-weight:700;">+${totalEntradas.toFixed(0)}g</span><br>entradas</div>
-        <div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--red-text);font-weight:700;">-${totalSaidas.toFixed(0)}g</span><br>consumido</div>
-        <div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--amber-text);font-weight:700;">${movsFil.length}</span><br>movimentacoes</div>
-      </div>
-    </div>`;
-  }).join('');
+  } else {
+    // MESMA ORDENACAO DO TELA DE FILAMENTOS: agrupar por modelo, ordenar por modelo e cor
+    var ag = {};
+    filamentos.forEach(function(f){
+      var k = f.modelo || 'Outro';
+      if(!ag[k]) ag[k] = [];
+      ag[k].push(f);
+    });
+    var modOrdenados = Object.keys(ag).sort(function(a,b){ return a.localeCompare(b,'pt-BR'); });
+    modOrdenados.forEach(function(k){
+      ag[k].sort(function(a,b){ return (a.marca||'').localeCompare(b.marca||'','pt-BR') || (a.corNome||'').localeCompare(b.corNome||'','pt-BR'); });
+    });
 
-  // Filtros do historico
-  const selFil = document.getElementById('filtro-mov-fil');
-  const valAtual = selFil.value;
-  selFil.innerHTML = '<option value="">Todos os filamentos</option>' +
-    filamentos.map((f,i) => `<option value="${i}">${f.marca} ${f.modelo} ${f.corNome}</option>`).join('');
-  selFil.value = valAtual;
+    var h = '';
+    modOrdenados.forEach(function(modelo){
+      h += '<div class="section-group"><div class="section-group-title">'+modelo+'</div>';
+      ag[modelo].forEach(function(f){
+        var idx = filamentos.indexOf(f);
+        var pct = f.pesoRolo > 0 ? Math.min(100, (parseFloat(f.qtd||0)/parseFloat(f.pesoRolo||1000)*100)) : 0;
+        var cor = pct > 50 ? '#39ff14' : pct > 15 ? '#ffaa00' : '#ff4444';
+        var stLabel = pct > 50 ? 'Ok' : pct > 15 ? 'Baixo' : 'Critico';
+        var stClass = pct > 50 ? 'tag-green' : pct > 15 ? 'tag-amber' : 'tag-red';
+        var custoG = f.preco > 0 && f.pesoRolo > 0 ? (parseFloat(f.preco)/parseFloat(f.pesoRolo)).toFixed(3) : '--';
+        var movsFil = movimentacoes.filter(function(m){ return m.filIdx === idx; });
+        var totalEnt = movsFil.filter(function(m){return m.tipo==='entrada';}).reduce(function(s,m){return s+parseFloat(m.qtd||0);},0);
+        var totalSai = movsFil.filter(function(m){return m.tipo==='saida';}).reduce(function(s,m){return s+parseFloat(m.qtd||0);},0);
+        h += '<div class="card" style="margin-bottom:10px;">' +
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px;">' +
+            '<div style="display:flex;align-items:center;gap:10px;">' +
+              '<span class="cor-dot" style="background:'+f.corHex+';width:18px;height:18px;"></span>' +
+              '<div>' +
+                '<strong style="font-size:14px;">'+f.marca+'</strong>' +
+                '<span class="tag '+stClass+'" style="margin-left:8px;">'+stLabel+'</span>' +
+                '<br><span style="font-size:12px;color:var(--text2);">'+f.corNome+' - '+f.diam+'mm - R$ '+custoG+'/g</span>' +
+              '</div>' +
+            '</div>' +
+            '<div style="text-align:right;">' +
+              '<div style="font-size:22px;font-weight:700;color:'+cor+';text-shadow:0 0 8px '+cor+';">'+f.qtd+'g</div>' +
+              '<div style="font-size:11px;color:var(--text3);">'+pct.toFixed(0)+'% do rolo ('+f.pesoRolo+'g)</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="estoque-bar-wrap"><div class="estoque-bar" style="width:'+pct+'%;background:'+cor+';"></div></div>' +
+          '<div class="grid3" style="margin-top:10px;">' +
+            '<div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--neon);font-weight:700;">+'+totalEnt.toFixed(0)+'g</span><br>entradas</div>' +
+            '<div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--red-text);font-weight:700;">-'+totalSai.toFixed(0)+'g</span><br>consumido</div>' +
+            '<div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--amber-text);font-weight:700;">'+movsFil.length+'</span><br>movimentacoes</div>' +
+          '</div>' +
+        '</div>';
+      });
+      h += '</div>'; // fecha section-group
+    });
+    cardsEl.innerHTML = h;
+  }
+
+  // Atualizar select de filtro do historico mantendo selecao
+  var selFil = document.getElementById('filtro-mov-fil');
+  if(selFil) {
+    var valAtual = selFil.value;
+    // Mesmo order da tela: por modelo e cor
+    var filOrdenados = filamentos.slice().sort(function(a,b){
+      return (a.modelo||'').localeCompare(b.modelo||'','pt-BR') || (a.marca||'').localeCompare(b.marca||'','pt-BR') || (a.corNome||'').localeCompare(b.corNome||'','pt-BR');
+    });
+    selFil.innerHTML = '<option value="">Todos os filamentos</option>' +
+      filOrdenados.map(function(f){
+        var idx = filamentos.indexOf(f);
+        return '<option value="'+idx+'">'+f.marca+' '+f.modelo+' '+f.corNome+'</option>';
+      }).join('');
+    selFil.value = valAtual;
+  }
 
   renderMovimentacoes();
 }
