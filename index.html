@@ -2000,34 +2000,23 @@ function venderProduto(i) {
   setTimeout(function(){
     var formVenda = document.getElementById('form-venda');
     if(formVenda) formVenda.style.display = 'block';
-    buildProdOpts();
-    // Selecionar produto no select
-    var selProd = document.getElementById('v-produto');
-    if(selProd) {
-      var nomeProd = p.nome.toLowerCase().trim();
-      var achou = false;
-      // 1. Busca exata pelo nome completo
-      for(var j=0; j<selProd.options.length; j++){
-        if(selProd.options[j].text.toLowerCase().trim() === nomeProd){
-          selProd.selectedIndex = j; achou = true; break;
-        }
-      }
-      // 2. Se nao achou exato, busca por nome completo contido
-      if(!achou) {
-        for(var j=0; j<selProd.options.length; j++){
-          if(selProd.options[j].text.toLowerCase().includes(nomeProd)){
-            selProd.selectedIndex = j; break;
-          }
-        }
-      }
+    if(document.getElementById('v-data')) document.getElementById('v-data').value = hoje();
+
+    var precoUnit = p.precoNum || 0;
+    var qtd = 1;
+
+    // Verificar se ja tem itens preenchidos
+    var listaItens = document.getElementById('v-itens-lista');
+    var jaTemItem = false;
+    if(listaItens) {
+      listaItens.querySelectorAll('.fil-multi-item input[type=number]').forEach(function(inp){
+        if(parseFloat(inp.value) > 0) jaTemItem = true;
+      });
     }
-    // Preencher preco e data
-    var vValor = document.getElementById('v-valor');
-    var vData  = document.getElementById('v-data');
-    var vQtd   = document.getElementById('v-qtd');
-    if(vValor) vValor.value = p.precoNum ? p.precoNum.toFixed(2) : '';
-    if(vData)  vData.value  = hoje();
-    if(vQtd)   vQtd.value   = '1';
+    if(!jaTemItem) limparItensVenda();
+
+    // Adicionar produto como item
+    addItemVenda(i, qtd, precoUnit, p.nome);
     calcTotalVenda();
   }, 250);
 }
@@ -5240,55 +5229,61 @@ function salvarEdicaoPedido() {
 function importarPedidoVenda() {
   if(_pedidoEditIdx < 0) return;
   var p = pedidos[_pedidoEditIdx];
-  var qtd = parseInt(document.getElementById('mp-qtd').value) || 1;
+  var qtd       = parseInt(document.getElementById('mp-qtd').value) || 1;
   var precoUnit = parseFloat(document.getElementById('mp-preco-unit').value) || 0;
-  var total = qtd * precoUnit;
-  var nome = document.getElementById('mp-nome').value.trim() || p.nome;
+  var nome      = (document.getElementById('mp-nome').value || p.nome || '').trim();
 
-  // Pre-preencher a tela de vendas
   showTab('vendas');
   fecharModalPedido();
 
-  // Aguardar o DOM renderizar e preencher os campos
   setTimeout(function() {
-    var campoCliente = document.getElementById('v-cliente');
-    var campoValor   = document.getElementById('v-valor');
-    var campoQtd     = document.getElementById('v-qtd');
-    var campoTotal   = document.getElementById('v-total');
-    var campoObs     = document.getElementById('v-obs');
-    var formVenda    = document.getElementById('form-venda');
-
+    var formVenda = document.getElementById('form-venda');
     if(formVenda) formVenda.style.display = 'block';
-    if(campoValor) { campoValor.value = precoUnit.toFixed(2); }
-    if(campoQtd) { campoQtd.value = qtd; }
-    if(campoTotal) { campoTotal.value = total.toFixed(2); }
-    if(campoObs) { campoObs.value = 'Pedido: ' + nome; }
     if(document.getElementById('v-data')) document.getElementById('v-data').value = hoje();
 
-    // Selecionar produto correspondente se existir
-    buildProdOpts();
-    var selProd = document.getElementById('v-produto');
-    if(selProd) {
-      // Busca exata primeiro
-      var nomeUp = nome.toLowerCase().trim();
-      var achouExato = false;
-      for(var i=0; i<selProd.options.length; i++) {
-        if(selProd.options[i].text.toLowerCase().trim() === nomeUp) {
-          selProd.selectedIndex = i; achouExato = true; break;
-        }
-      }
-      // Fallback: contem
-      if(!achouExato) {
-        for(var i=0; i<selProd.options.length; i++) {
-          if(selProd.options[i].text.toLowerCase().includes(nomeUp)) {
-            selProd.selectedIndex = i; break;
-          }
-        }
-      }
-      if(selProd.value) preencherPrecoVenda();
+    // Buscar produto correspondente
+    var prodIdx = -1;
+    var nomeUp = nome.toLowerCase().trim();
+    for(var j=0; j<produtos.length; j++) {
+      if((produtos[j].nome||'').toLowerCase().trim() === nomeUp) { prodIdx=j; break; }
     }
-  }, 200);
+    if(prodIdx < 0) {
+      for(var j=0; j<produtos.length; j++) {
+        if((produtos[j].nome||'').toLowerCase().includes(nomeUp)) { prodIdx=j; break; }
+      }
+    }
+    // Se produto encontrado e tem preco, usar preco do produto
+    if(prodIdx >= 0 && produtos[prodIdx].precoNum && !precoUnit) {
+      precoUnit = produtos[prodIdx].precoNum;
+    }
+
+    // Verificar se ja tem itens preenchidos na lista
+    var listaItens = document.getElementById('v-itens-lista');
+    var jaTemItem = false;
+    if(listaItens) {
+      listaItens.querySelectorAll('.fil-multi-item input[type=number]').forEach(function(inp){
+        if(parseFloat(inp.value) > 0) jaTemItem = true;
+      });
+    }
+
+    if(!jaTemItem) {
+      // Primeira importacao  limpar e adicionar
+      limparItensVenda();
+    }
+    // Adicionar item do pedido
+    addItemVenda(prodIdx >= 0 ? prodIdx : undefined, qtd, precoUnit, nome);
+
+    // Obs com nome do pedido
+    var obsEl = document.getElementById('v-obs');
+    if(obsEl) {
+      var obsAtual = obsEl.value;
+      obsEl.value = obsAtual ? obsAtual + ' + ' + nome : 'Pedido: ' + nome;
+    }
+
+    calcTotalVenda();
+  }, 250);
 }
+
 /* ===== FIM EDICAO PEDIDOS ===== */
 
 
