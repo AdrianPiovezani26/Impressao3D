@@ -1727,8 +1727,6 @@ function preencherTempFil(){
 }
 function fmt(v){return 'R$ '+parseFloat(v||0).toFixed(2).replace('.',',');}
 function fmtD(d){if(!d)return'--';const p=d.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:d;}
-function hoje(){return new Date().toISOString().slice(0,10);}
-
 function showTab(t){
   // Ocultar todas as tabs com display direto
   document.querySelectorAll('.tab').forEach(function(e){
@@ -2783,11 +2781,6 @@ function preencherPrecoVenda(){
   const pr=parseFloat(opt.dataset.preco)||0;
   if(pr){document.getElementById('v-valor').value=pr.toFixed(2);}
   calcTotalVenda();
-}
-function calcTotalVenda(){
-  const val=parseFloat(document.getElementById('v-valor').value)||0;
-  const qtd=parseFloat(document.getElementById('v-qtd').value)||1;
-  document.getElementById('v-total').value=(val*qtd).toFixed(2);
 }
 // listener adicionado em showFormVenda()
 function showFormVenda(){
@@ -5188,151 +5181,6 @@ function limparHistoricoCalc() {
   S.set('hist_calc', _histCalc);
   renderHistoricoCalc();
 }
-/* ===== FIM HISTORICO PRECIFICACAO ===== */
-
-
-/* ===== EDICAO DE PEDIDOS ===== */
-var _pedidoEditIdx = -1;
-
-function abrirEdicaoPedido(idx) {
-  var p = pedidos[idx];
-  if(!p) return;
-  // Concluido: ir direto para venda sem abrir modal de edicao
-  if(p.status === 'concluido') {
-    _pedidoEditIdx = idx;
-    // Preencher modal temporariamente para usar importarPedidoVenda
-    document.getElementById('mp-nome').value = p.nome || '';
-    var qtd = parseInt(p.qtd) || 1;
-    document.getElementById('mp-qtd').value = qtd;
-    var precoTotal = parseFloat((p.preco||'').toString().replace('R$ ','').replace(/\./g,'').replace(',','.')) || 0;
-    var precoUnit = parseFloat(p.precoUnit) || (qtd > 0 ? precoTotal / qtd : precoTotal);
-    document.getElementById('mp-preco-unit').value = precoUnit.toFixed(2);
-    importarPedidoVenda();
-    return;
-  }
-  _pedidoEditIdx = idx;
-
-  // Preencher campos
-  document.getElementById('mp-nome').value = p.nome || '';
-  document.getElementById('mp-qtd').value = p.qtd || 1;
-  document.getElementById('mp-filnome').value = p.filNome || '';
-  document.getElementById('mp-peso').value = p.peso && p.peso !== '--' ? p.peso : '';
-  document.getElementById('mp-horas').value = p.horas && p.horas !== '--' ? p.horas : '';
-  document.getElementById('mp-obs').value = p.obs || '';
-
-  // Preco unitario
-  var precoStr = (p.preco || 'R$ 0,00').replace('R$ ','').replace(',','.');
-  var precoNum = parseFloat(precoStr) || 0;
-  var qtd = parseInt(p.qtd) || 1;
-  var precoUnit = qtd > 1 ? precoNum / qtd : precoNum;
-  document.getElementById('mp-preco-unit').value = precoUnit.toFixed(2);
-  atualizarTotalPedido();
-
-  // Botao importar venda -- so disponivel se nao for ja venda
-  document.getElementById('mp-btn-venda').style.display = 'inline-flex';
-
-  document.getElementById('mp-erro').style.display = 'none';
-  document.getElementById('modal-pedido').style.display = 'flex';
-}
-
-function atualizarTotalPedido() {
-  var qtd = parseInt(document.getElementById('mp-qtd').value) || 1;
-  var preco = parseFloat(document.getElementById('mp-preco-unit').value) || 0;
-  var total = qtd * preco;
-  var el = document.getElementById('mp-preco-total');
-  if(el) el.textContent = fmt(total) + (qtd > 1 ? ' (' + qtd + ' x ' + fmt(preco) + ')' : '');
-}
-
-function fecharModalPedido() {
-  document.getElementById('modal-pedido').style.display = 'none';
-  _pedidoEditIdx = -1;
-}
-
-function salvarEdicaoPedido() {
-  if(_pedidoEditIdx < 0) return;
-  var nome = document.getElementById('mp-nome').value.trim();
-  if(!nome) {
-    document.getElementById('mp-erro').textContent = 'Informe o nome da peca.';
-    document.getElementById('mp-erro').style.display = 'block';
-    return;
-  }
-  var qtd = parseInt(document.getElementById('mp-qtd').value) || 1;
-  var precoUnit = parseFloat(document.getElementById('mp-preco-unit').value) || 0;
-  var total = qtd * precoUnit;
-
-  pedidos[_pedidoEditIdx] = Object.assign({}, pedidos[_pedidoEditIdx], {
-    nome: nome,
-    qtd: qtd,
-    preco: fmt(total),
-    precoUnit: precoUnit,
-    filNome: document.getElementById('mp-filnome').value,
-    peso: document.getElementById('mp-peso').value || '--',
-    horas: document.getElementById('mp-horas').value || '--',
-    obs: document.getElementById('mp-obs').value,
-  });
-  S.set('pedidos', pedidos);
-  fecharModalPedido();
-  renderPedidos();
-}
-
-function importarPedidoVenda() {
-  if(_pedidoEditIdx < 0) return;
-  var p = pedidos[_pedidoEditIdx];
-  var qtd       = parseInt(document.getElementById('mp-qtd').value) || 1;
-  var precoUnit = parseFloat(document.getElementById('mp-preco-unit').value) || 0;
-  var nome      = (document.getElementById('mp-nome').value || p.nome || '').trim();
-
-  showTab('vendas');
-  fecharModalPedido();
-
-  setTimeout(function() {
-    var formVenda = document.getElementById('form-venda');
-    if(formVenda) formVenda.style.display = 'block';
-    if(document.getElementById('v-data')) document.getElementById('v-data').value = hoje();
-
-    // Buscar produto correspondente
-    var prodIdx = -1;
-    var nomeUp = nome.toLowerCase().trim();
-    for(var j=0; j<produtos.length; j++) {
-      if((produtos[j].nome||'').toLowerCase().trim() === nomeUp) { prodIdx=j; break; }
-    }
-    if(prodIdx < 0) {
-      for(var j=0; j<produtos.length; j++) {
-        if((produtos[j].nome||'').toLowerCase().includes(nomeUp)) { prodIdx=j; break; }
-      }
-    }
-    // Se produto encontrado e tem preco, usar preco do produto
-    if(prodIdx >= 0 && produtos[prodIdx].precoNum && !precoUnit) {
-      precoUnit = produtos[prodIdx].precoNum;
-    }
-
-    // Verificar se ja tem itens preenchidos na lista
-    var listaItens = document.getElementById('v-itens-lista');
-    var jaTemItem = false;
-    if(listaItens) {
-      listaItens.querySelectorAll('.fil-multi-item input[type=number]').forEach(function(inp){
-        if(parseFloat(inp.value) > 0) jaTemItem = true;
-      });
-    }
-
-    if(!jaTemItem) {
-      // Primeira importacao  limpar e adicionar
-      limparItensVenda();
-    }
-    // Adicionar item do pedido
-    addItemVenda(prodIdx >= 0 ? prodIdx : undefined, qtd, precoUnit, nome);
-
-    // Obs com nome do pedido
-    var obsEl = document.getElementById('v-obs');
-    if(obsEl) {
-      var obsAtual = obsEl.value;
-      obsEl.value = obsAtual ? obsAtual + ' + ' + nome : 'Pedido: ' + nome;
-    }
-
-    calcTotalVenda();
-  }, 250);
-}
-
 /* ===== FIM EDICAO PEDIDOS ===== */
 
 
@@ -5598,31 +5446,6 @@ var _clienteEditIdx = -1;
 
 var CLI_TIPO = {consumidor:'Consumidor Final', lojista:'Lojista', empresa:'Empresa'};
 var CLI_TAG  = {consumidor:'tag-blue', lojista:'tag-amber', empresa:'tag-green'};
-
-function showFormCliente(idx) {
-  _clienteEditIdx = idx;
-  var form = document.getElementById('form-cliente');
-  var titulo = document.getElementById('form-cliente-titulo');
-  form.style.display = 'block';
-  if(idx < 0) {
-    titulo.innerHTML = '<i class="ti ti-user-plus"></i> Novo Cliente';
-    ['cli-nome','cli-apelido','cli-tel','cli-email','cli-cidade','cli-obs'].forEach(function(id){
-      var el = document.getElementById(id); if(el) el.value = '';
-    });
-    document.getElementById('cli-tipo').value = 'consumidor';
-  } else {
-    var c = clientes[idx];
-    titulo.innerHTML = '<i class="ti ti-edit"></i> Editar Cliente';
-    document.getElementById('cli-nome').value    = c.nome || '';
-    document.getElementById('cli-apelido').value = c.apelido || '';
-    document.getElementById('cli-tel').value     = c.tel || '';
-    document.getElementById('cli-email').value   = c.email || '';
-    document.getElementById('cli-cidade').value  = c.cidade || '';
-    document.getElementById('cli-obs').value     = c.obs || '';
-    document.getElementById('cli-tipo').value    = c.tipo || 'consumidor';
-  }
-  form.scrollIntoView({behavior:'smooth'});
-}
 
 function salvarCliente() {
   var nome = upper(document.getElementById('cli-nome').value);
@@ -7213,6 +7036,13 @@ document.addEventListener('DOMContentLoaded', function() {
   // Preparar subtab lancamento como padrao para compras
   var lancEl = document.getElementById('subtab-compras-lancamento');
   if(lancEl) { lancEl.style.cssText += ';display:block'; lancEl.classList.add('active'); }
+  // Rotinas de inicializacao de dados
+  converterDadosParaMaiusculas();
+  sincronizarStatusProdutos();
+  limparFaturasOrfas();
+  baixaRetroativaPedidosConcluidos();
+  estornoChaveiroHercules();
+  renderHistoricoCalc();
 });
 
 
