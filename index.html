@@ -800,18 +800,45 @@
     <input type="hidden" id="v-qtd" value="1">
     <div class="grid2">
       <div class="field"><label>Forma de Pagamento</label>
-        <select id="v-pgto">
-          <option value="Pix">Pix</option><option value="Dinheiro">Dinheiro</option>
-          <option value="Cartao de Credito">Cartao de Credito</option><option value="Cartao de Debito">Cartao de Debito</option>
-          <option value="Boleto">Boleto</option><option value="Transferencia">Transferencia</option><option value="A prazo">A prazo</option>
+        <select id="v-pgto" onchange="toggleParcelas()">
+          <option value="Pix">Pix</option>
+          <option value="Dinheiro">Dinheiro</option>
+          <option value="Cartao de Credito">Cartao de Credito</option>
+          <option value="Cartao de Debito">Cartao de Debito</option>
+          <option value="Boleto">Boleto</option>
+          <option value="Transferencia">Transferencia</option>
+          <option value="A prazo">A prazo</option>
         </select>
       </div>
-      <div class="field"><label>Vencimento (para pagamento a prazo)</label><input type="date" id="v-venc"></div>
       <div class="field"><label>Status do Pagamento</label>
         <select id="v-status-pgto">
-          <option value="pago">Pago -- pagamento ja recebido</option>
-          <option value="pendente">Pendente -- gera fatura em Contas a Receber</option>
+          <option value="pago">Pago — pagamento ja recebido</option>
+          <option value="pendente">Pendente — gera fatura em Contas a Receber</option>
         </select>
+      </div>
+      <!-- Parcelas — aparece para A prazo e Cartao de Credito -->
+      <div id="v-parcelas-wrap" style="display:none;grid-column:1/-1;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:1rem;margin-top:4px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+          <label style="font-size:11px;font-weight:700;color:var(--amber-text);text-transform:uppercase;letter-spacing:1px;"><i class="ti ti-calendar-due"></i> Parcelamento</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;color:var(--text3);">Numero de parcelas:</span>
+            <select id="v-num-parcelas" onchange="gerarParcelas()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:5px 8px;font-size:13px;background:var(--bg2);color:var(--text);">
+              <option value="1">1x (a vista)</option>
+              <option value="2">2x</option>
+              <option value="3">3x</option>
+              <option value="4">4x</option>
+              <option value="5">5x</option>
+              <option value="6">6x</option>
+              <option value="8">8x</option>
+              <option value="10">10x</option>
+              <option value="12">12x</option>
+            </select>
+            <span style="font-size:12px;color:var(--text3);">1º venc.:</span>
+            <input type="date" id="v-venc-1a" onchange="gerarParcelas()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:5px 8px;font-size:12px;background:var(--bg2);color:var(--text);">
+          </div>
+        </div>
+        <div id="v-parcelas-lista" style="display:flex;flex-direction:column;gap:6px;"></div>
+        <div id="v-parcelas-resumo" style="margin-top:8px;font-size:12px;color:var(--text3);"></div>
       </div>
       <div class="field"><label>Observacao</label><input type="text" id="v-obs" placeholder="Ex: entregue pessoalmente, envio Correios..."></div>
     </div>
@@ -2830,10 +2857,32 @@ function salvarVenda(){
     if(novaQtd <= 0) produtos[pIdx].estoqueZerado = true;
     S.set('produtos', produtos);
   }
-  if(statusPgto==='pendente'){
-    faturas.unshift({id:Date.now()+1,vendaId:venda.id,cliente,descricao:prodNome+' (x'+venda.qtd+')',valor:total,venc:venda.venc||'',data:venda.data,status:'pendente'});
-    S.set('faturas',faturas);alert('Venda salva! Fatura criada automaticamente em Contas a Receber.');
-  }else{alert('Venda salva com pagamento registrado!');}
+  // Coletar parcelas se houver
+  var parcelas = coletarParcelas();
+  if(statusPgto==='pendente' || parcelas.length > 0){
+    if(parcelas.length > 1) {
+      // Criar uma fatura por parcela
+      parcelas.forEach(function(p){
+        faturas.unshift({
+          id: Date.now()+Math.floor(Math.random()*9999),
+          vendaId: venda.id,
+          cliente: cliente,
+          descricao: prodNome + ' - Parcela ' + p.num + '/' + parcelas.length,
+          valor: p.valor,
+          venc: p.venc,
+          data: venda.data,
+          status: 'pendente'
+        });
+      });
+      S.set('faturas',faturas);
+      alert('Venda salva!\n\n' + parcelas.length + ' parcelas criadas em Contas a Receber.\n' +
+            parcelas.map(function(p){ return p.num+'x '+fmt(p.valor)+' - Venc: '+fmtD(p.venc); }).join('\n'));
+    } else {
+      faturas.unshift({id:Date.now()+1,vendaId:venda.id,cliente,descricao:prodNome+' (x'+venda.qtd+')',valor:total,venc:parcelas.length?parcelas[0].venc:venda.venc||'',data:venda.data,status:'pendente'});
+      S.set('faturas',faturas);
+      alert('Venda salva! Fatura criada em Contas a Receber.');
+    }
+  } else { alert('Venda salva com pagamento registrado!'); }
   document.getElementById('form-venda').style.display='none';
   ['v-cliente','v-obs'].forEach(id=>{document.getElementById(id).value='';});
   document.getElementById('v-valor').value='';document.getElementById('v-total').value='';document.getElementById('v-qtd').value='1';
@@ -6319,6 +6368,9 @@ function calcTotalVenda() {
   var totalDisp = document.getElementById('v-total-display');
   if(totalEl) totalEl.value = total.toFixed(2);
   if(totalDisp) totalDisp.textContent = fmt(total);
+  // Atualizar parcelas se visivel
+  var parcWrapC = document.getElementById('v-parcelas-wrap');
+  if(parcWrapC && parcWrapC.style.display !== 'none') gerarParcelas();
   // Atualizar campos ocultos para compatibilidade
   var primeiroItem = itens.querySelector('.fil-multi-item');
   if(primeiroItem) {
@@ -6924,6 +6976,89 @@ function estornoChaveiroHercules() {
   }
 }
 /* ===== FIM ESTORNO ===== */
+
+
+/* ===== PARCELAMENTO NA VENDA ===== */
+function toggleParcelas() {
+  var pgto = (document.getElementById('v-pgto')||{}).value || '';
+  var wrap = document.getElementById('v-parcelas-wrap');
+  var statusSel = document.getElementById('v-status-pgto');
+  if(!wrap) return;
+  var exibir = pgto === 'A prazo' || pgto === 'Cartao de Credito' || pgto === 'Boleto';
+  wrap.style.display = exibir ? 'block' : 'none';
+  if(exibir) {
+    // Sugerir status pendente para pagamento a prazo
+    if(pgto === 'A prazo' || pgto === 'Boleto') {
+      if(statusSel) statusSel.value = 'pendente';
+    }
+    // Definir primeira data de vencimento (30 dias a partir de hoje)
+    var venc1 = document.getElementById('v-venc-1a');
+    if(venc1 && !venc1.value) {
+      var d = new Date();
+      d.setDate(d.getDate() + 30);
+      venc1.value = d.toISOString().slice(0,10);
+    }
+    gerarParcelas();
+  } else {
+    document.getElementById('v-parcelas-lista').innerHTML = '';
+    document.getElementById('v-parcelas-resumo').textContent = '';
+  }
+}
+
+function gerarParcelas() {
+  var total = parseFloat(document.getElementById('v-total').value) || 0;
+  var numParc = parseInt((document.getElementById('v-num-parcelas')||{}).value) || 1;
+  var venc1Str = (document.getElementById('v-venc-1a')||{}).value || '';
+  var lista = document.getElementById('v-parcelas-lista');
+  var resumo = document.getElementById('v-parcelas-resumo');
+  if(!lista || total <= 0) return;
+
+  var valorParc = total / numParc;
+  var html2 = '';
+
+  for(var i = 0; i < numParc; i++) {
+    // Calcular vencimento de cada parcela
+    var dataParc = '';
+    if(venc1Str) {
+      var d = new Date(venc1Str + 'T00:00:00');
+      d.setMonth(d.getMonth() + i);
+      dataParc = d.toISOString().slice(0,10);
+    }
+    html2 += '<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--bg2);border-radius:var(--radius);">' +
+      '<span style="font-size:11px;font-weight:700;color:var(--amber-text);min-width:28px;">' + (i+1) + 'x</span>' +
+      '<span style="font-size:13px;font-weight:700;color:var(--text);flex:1;">' + fmt(valorParc) + '</span>' +
+      '<div style="display:flex;align-items:center;gap:6px;">' +
+        '<span style="font-size:11px;color:var(--text3);">Venc.:</span>' +
+        '<input type="date" id="v-parc-venc-'+i+'" value="'+dataParc+'" ' +
+          'style="border:1px solid var(--border2);border-radius:var(--radius);padding:4px 8px;font-size:12px;background:var(--bg3);color:var(--text);">' +
+      '</div>' +
+    '</div>';
+  }
+
+  lista.innerHTML = html2;
+  if(resumo) resumo.textContent = numParc + 'x de ' + fmt(valorParc) + ' | Total: ' + fmt(total);
+}
+
+function coletarParcelas() {
+  var pgto = (document.getElementById('v-pgto')||{}).value || '';
+  var exibir = pgto === 'A prazo' || pgto === 'Cartao de Credito' || pgto === 'Boleto';
+  if(!exibir) return [];
+  var numParc = parseInt((document.getElementById('v-num-parcelas')||{}).value) || 1;
+  var total = parseFloat(document.getElementById('v-total').value) || 0;
+  var valorParc = total / numParc;
+  var parcelas = [];
+  for(var i = 0; i < numParc; i++) {
+    var vencEl = document.getElementById('v-parc-venc-'+i);
+    parcelas.push({
+      num: i+1,
+      valor: parseFloat(valorParc.toFixed(2)),
+      venc: vencEl ? vencEl.value : '',
+      status: 'pendente'
+    });
+  }
+  return parcelas;
+}
+/* ===== FIM PARCELAMENTO ===== */
 
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
