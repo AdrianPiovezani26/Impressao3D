@@ -7035,23 +7035,28 @@ function gerarParcelas() {
 }
 
 function coletarParcelas() {
-  var pgto = (document.getElementById('v-pgto')||{}).value || '';
-  var exibir = pgto === 'A prazo' || pgto === 'Cartao de Credito' || pgto === 'Boleto';
-  if(!exibir) return [];
-  var numParc = parseInt((document.getElementById('v-num-parcelas')||{}).value) || 1;
-  var total = parseFloat(document.getElementById('v-total').value) || 0;
-  var valorParc = total / numParc;
-  var parcelas = [];
-  for(var i = 0; i < numParc; i++) {
-    var vencEl = document.getElementById('v-parc-venc-'+i);
-    parcelas.push({
-      num: i+1,
-      valor: parseFloat(valorParc.toFixed(2)),
-      venc: vencEl ? vencEl.value : '',
-      status: 'pendente'
-    });
+  try {
+    var pgto = (document.getElementById('v-pgto')||{}).value || '';
+    var exibir = pgto === 'A prazo' || pgto === 'Cartao de Credito' || pgto === 'Boleto';
+    if(!exibir) return [];
+    var numParc = parseInt((document.getElementById('v-num-parcelas')||{}).value) || 1;
+    var total = parseFloat((document.getElementById('v-total')||{}).value) || 0;
+    var valorParc = total / numParc;
+    var parcelas = [];
+    for(var i = 0; i < numParc; i++) {
+      var vencEl = document.getElementById('v-parc-venc-'+i);
+      parcelas.push({
+        num: i+1,
+        valor: parseFloat(valorParc.toFixed(2)),
+        venc: vencEl ? vencEl.value : '',
+        status: 'pendente'
+      });
+    }
+    return parcelas;
+  } catch(e) {
+    console.warn('coletarParcelas erro:', e);
+    return [];
   }
-  return parcelas;
 }
 /* ===== FIM PARCELAMENTO ===== */
 
