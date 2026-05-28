@@ -740,9 +740,23 @@
       <div class="field"><label>Quantidade de Unidades</label><input type="number" id="npm-qtd" placeholder="1" value="1" min="1" step="1" oninput="calcTotalPedidoManual()"></div>
       <div class="field"><label>Preco por Unidade (R$)</label><input type="number" id="npm-preco-unit" placeholder="0.00" step="0.01" min="0" oninput="calcTotalPedidoManual()"></div>
     </div>
-    <div class="grid2">
-      <div class="field"><label>Filamento(s) utilizado(s)</label><input type="text" id="npm-filnome" placeholder="Ex: PLA PRETO, PETG CINZA"></div>
-      <div class="field"><label>Tempo de Impressao</label><input type="text" id="npm-horas" placeholder="Ex: 2H 30MIN"></div>
+    <!-- Tempo de impressao separado em horas e minutos -->
+    <div class="field">
+      <label>Tempo de Impressao</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="number" id="npm-horas-h" placeholder="0" min="0" step="1" style="width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+        <span style="font-size:13px;color:var(--text2);">h</span>
+        <input type="number" id="npm-horas-m" placeholder="0" min="0" max="59" step="1" style="width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+        <span style="font-size:13px;color:var(--text2);">min</span>
+      </div>
+    </div>
+    <!-- Filamentos dinamicos -->
+    <div class="field">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <label style="margin:0;">Filamentos Utilizados</label>
+        <button class="btn" onclick="addFilPedidoManual()" style="font-size:11px;padding:4px 10px;"><i class="ti ti-plus"></i> Add Filamento</button>
+      </div>
+      <div id="npm-fils-lista" style="display:flex;flex-direction:column;gap:6px;"></div>
     </div>
     <div class="grid2">
       <div class="field"><label>Peso total do filamento (g)</label><input type="number" id="npm-peso" placeholder="Ex: 150" step="0.1" min="0"></div>
@@ -2576,6 +2590,39 @@ function toggleFormPedido() {
   }
 }
 
+
+function addFilPedidoManual(filIdx, pesoVal) {
+  var container = document.getElementById('npm-fils-lista');
+  if(!container) return;
+  var d = document.createElement('div');
+  d.style.cssText = 'display:flex;gap:6px;align-items:center;';
+
+  var sel = document.createElement('select');
+  sel.style.cssText = 'flex:2;min-width:160px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:12px;background:var(--bg2);color:var(--text);';
+  sel.innerHTML = '<option value="">-- Sem filamento --</option>' +
+    filamentos.map(function(f,i){ return '<option value="'+i+'">'+f.marca+' '+f.modelo+' -- '+f.corNome+'</option>'; }).join('');
+  if(filIdx !== undefined && filIdx >= 0) sel.value = filIdx;
+
+  var inpPeso = document.createElement('input');
+  inpPeso.type='number'; inpPeso.placeholder='Peso (g)'; inpPeso.min='0'; inpPeso.step='1';
+  inpPeso.style.cssText='width:90px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:12px;background:var(--bg2);color:var(--text);';
+  if(pesoVal) inpPeso.value = pesoVal;
+
+  var lbl = document.createElement('span');
+  lbl.textContent = 'g';
+  lbl.style.cssText = 'font-size:12px;color:var(--text2);flex-shrink:0;';
+
+  var btn = document.createElement('button');
+  btn.className = 'rm'; btn.innerHTML = '<i class="ti ti-x"></i>';
+  btn.addEventListener('click', function(){ d.remove(); });
+
+  d.appendChild(sel);
+  d.appendChild(inpPeso);
+  d.appendChild(lbl);
+  d.appendChild(btn);
+  container.appendChild(d);
+}
+
 function calcTotalPedidoManual() {
   var qtd   = parseInt(document.getElementById('npm-qtd').value) || 1;
   var preco = parseFloat(document.getElementById('npm-preco-unit').value) || 0;
@@ -2591,48 +2638,63 @@ function calcTotalPedidoManual() {
 function salvarPedidoManual() {
   var nome = upper(document.getElementById('npm-nome').value);
   if(!nome) { alert('Informe o nome da peca ou produto.'); return; }
-  // Verificar pedido duplicado
   var pedManDup = pedidos.some(function(p){
     return (p.nome||'').toUpperCase() === nome && p.status !== 'concluido';
   });
-  if(pedManDup && !confirm('ATENCAO: Ja existe pedido em aberto "'+nome+'"\nDeseja criar outro?')) return;
-  var qtd       = Math.max(1, parseInt(document.getElementById('npm-qtd').value) || 1);
-  var precoUnit = parseFloat(document.getElementById('npm-preco-unit').value) || 0;
+  if(pedManDup && !confirm('ATENCAO: Ja existe pedido em aberto "'+nome+'" - Deseja criar outro?')) return;
+
+  var qtd       = Math.max(1, parseInt(document.getElementById('npm-qtd').value)||1);
+  var precoUnit = parseFloat(document.getElementById('npm-preco-unit').value)||0;
   var total     = qtd * precoUnit;
   var status    = document.getElementById('npm-status').value;
-  var filNome   = upper(document.getElementById('npm-filnome').value) || '--';
-  var horas     = upper(document.getElementById('npm-horas').value) || '--';
-  var peso      = parseFloat(document.getElementById('npm-peso').value) || '--';
-  var data      = document.getElementById('npm-data').value;
+  var dataVal   = document.getElementById('npm-data').value;
+  var dataFmt   = dataVal ? new Date(dataVal+'T00:00:00').toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
   var obs       = upper(document.getElementById('npm-obs').value);
 
-  // Formatar data para pt-BR
-  var dataFormatada = data
-    ? new Date(data + 'T00:00:00').toLocaleDateString('pt-BR')
-    : new Date().toLocaleDateString('pt-BR');
+  // Horas e minutos separados
+  var hH = parseInt(document.getElementById('npm-horas-h').value)||0;
+  var hM = parseInt(document.getElementById('npm-horas-m').value)||0;
+  var tempoStr = (hH>0||hM>0) ? ((hH>0?hH+'h':'')+( hM>0?' '+hM+'min':'')).trim() : '--';
+
+  // Coletar filamentos dinamicos
+  var filsEstoque = [];
+  var pesoTotal = 0;
+  var container = document.getElementById('npm-fils-lista');
+  if(container) {
+    container.querySelectorAll('div').forEach(function(row){
+      var sel  = row.querySelector('select');
+      var inp  = row.querySelector('input[type=number]');
+      var idxF = sel ? parseInt(sel.value) : -1;
+      var peso = parseFloat(inp ? inp.value : 0)||0;
+      if(!isNaN(idxF) && idxF >= 0 && filamentos[idxF] && peso > 0) {
+        filsEstoque.push({filIdx:idxF, filNome:filamentos[idxF].marca+' '+filamentos[idxF].modelo+' '+filamentos[idxF].corNome, peso:peso});
+        pesoTotal += peso;
+      }
+    });
+  }
+  var filNomeStr = filsEstoque.length ? filsEstoque.map(function(f){ return f.filNome+' ('+f.peso+'g)'; }).join(', ') : '--';
 
   pedidos.unshift({
-    id:        Date.now(),
-    nome:      nome,
-    qtd:       qtd,
+    id: Date.now(),
+    nome: nome,
+    qtd: qtd,
     precoUnit: precoUnit,
-    preco:     precoUnit > 0 ? fmt(total) : '--',
-    data:      dataFormatada,
-    status:    status,
-    horas:     horas,
-    filNome:   filNome,
-    peso:      peso,
-    obs:       obs
+    preco: precoUnit > 0 ? fmt(total) : '--',
+    data: dataFmt,
+    status: status,
+    horas: tempoStr,
+    filNome: filNomeStr,
+    filsEstoque: filsEstoque,
+    estoquesBaixados: false,
+    peso: pesoTotal || '--',
+    obs: obs
   });
   S.set('pedidos', pedidos);
   toggleFormPedido();
   renderPedidos();
   renderDashboard();
-  alert('Pedido salvo!\n\n' + nome + '\n' + qtd + ' un' + (precoUnit > 0 ? ' | ' + fmt(precoUnit) + '/un | Total: ' + fmt(total) : ''));
+  alert('Pedido salvo: ' + nome + (precoUnit > 0 ? ' | Total: ' + fmt(total) : '') + (filsEstoque.length ? '\n' + filsEstoque.length + ' filamento(s) registrado(s).' : ''));
 }
-/* ===== FIM PEDIDO MANUAL ===== */
-
-/* ---- PEDIDOS ---- */
 function renderPedidos(){
   var filtro = document.getElementById('filtro-ped').value;
   var lista = filtro ? pedidos.filter(function(p){ return p.status===filtro; }) : pedidos;
