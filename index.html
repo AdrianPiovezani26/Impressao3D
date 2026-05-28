@@ -2877,6 +2877,7 @@ function salvarVenda(){
   document.getElementById('v-valor').value='';document.getElementById('v-total').value='';document.getElementById('v-qtd').value='1';
   converterDadosParaMaiusculas();
   sincronizarStatusProdutos();
+  limparFaturasOrfas();
   baixaRetroativaPedidosConcluidos();
   estornoChaveiroHercules();
   renderVendas();
@@ -2903,7 +2904,49 @@ function renderVendas(){
     <button class="btn-del" onclick="delVenda(${i})"><i class="ti ti-trash"></i> Remover</button>
   </div>`).join('');
 }
-function delVenda(i){if(confirm('Remover venda?')){vendas.splice(i,1);S.set('vendas',vendas);renderVendas();}}
+function delVenda(i) {
+  var v = vendas[i];
+  if(!v) return;
+  var numFaturas = faturas.filter(function(f){ return f.vendaId === v.id; }).length;
+  var msg = 'Remover esta venda?\n\nCliente: ' + v.cliente +
+    '\nValor: ' + fmt(v.valor) +
+    '\nData: ' + fmtD(v.data) +
+    (numFaturas > 0 ? '\n\n ' + numFaturas + ' fatura(s) em Contas a Receber tambem serao removidas.' : '');
+  if(!confirm(msg)) return;
+
+  // Remover faturas associadas a esta venda
+  var antes = faturas.length;
+  faturas = faturas.filter(function(f){ return f.vendaId !== v.id; });
+  S.set('faturas', faturas);
+
+  // Remover a venda
+  vendas.splice(i, 1);
+  S.set('vendas', vendas);
+
+  // Reverter status do produto se foi marcado como vendido por esta venda
+  produtos.forEach(function(p) {
+    if(p.clienteVenda && p.clienteVenda.toUpperCase() === (v.cliente||'').toUpperCase() &&
+       p.dataVenda === v.data) {
+      // Verificar se ainda existe outra venda para este cliente/produto
+      var outraVenda = vendas.some(function(vv){
+        return (vv.cliente||'').toUpperCase() === (v.cliente||'').toUpperCase() &&
+               (vv.prodNome||'').toUpperCase() === (p.nome||'').toUpperCase();
+      });
+      if(!outraVenda) {
+        p.vendido = false;
+        p.dataVenda = '';
+        p.clienteVenda = '';
+      }
+    }
+  });
+  S.set('produtos', produtos);
+
+  renderVendas();
+  renderDashboard();
+
+  var removidas = antes - faturas.length;
+  alert('Venda removida!' + (removidas > 0 ? '\n' + removidas + ' fatura(s) tambem removida(s) de Contas a Receber.' : ''));
+}
 
 /* ---- CONTAS A RECEBER ---- */
 function renderContas(){
@@ -7059,6 +7102,21 @@ function coletarParcelas() {
   }
 }
 /* ===== FIM PARCELAMENTO ===== */
+
+
+function limparFaturasOrfas() {
+  // Remover faturas cujas vendas nao existem mais
+  var idsVendas = vendas.map(function(v){ return v.id; });
+  var antes = faturas.length;
+  // Manter faturas sem vendaId (lancadas manualmente) e faturas com vendaId valido
+  faturas = faturas.filter(function(f){
+    return !f.vendaId || idsVendas.indexOf(f.vendaId) >= 0;
+  });
+  if(faturas.length < antes) {
+    S.set('faturas', faturas);
+    console.log('Faturas orfas removidas:', antes - faturas.length);
+  }
+}
 
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
