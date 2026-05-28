@@ -1419,8 +1419,9 @@
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
     <span class="stitle" style="margin:0;"><i class="ti ti-users-group"></i> Parceiros</span>
     <div style="display:flex;gap:8px;">
-      <button class="btn-ok" id="btn-novo-parceiro" onclick="showFormParceiro(-1)"><i class="ti ti-plus"></i> Novo Parceiro</button>
-      <button class="btn" id="btn-novo-cliente" onclick="showFormCliente(-1)" style="display:none;"><i class="ti ti-plus"></i> Novo Cliente</button>
+      <button class="btn-ok" id="btn-novo-parceiro" onclick="showFormParceiro(-1)" style="display:none;"><i class="ti ti-plus"></i> Novo Parceiro</button>
+      <button class="btn-ok" id="btn-novo-cliente" onclick="showFormCliente(-1)" style="display:none;"><i class="ti ti-plus"></i> Novo Cliente</button>
+      <button class="btn-ok" id="btn-novo-fornecedor" onclick="showFormFornecedor()" style="display:none;background:rgba(255,170,0,0.10);border-color:var(--amber-border);color:var(--amber-text);"><i class="ti ti-plus"></i> Novo Fornecedor</button>
     </div>
   </div>
 
@@ -1483,6 +1484,26 @@
 
   <!-- SUBTAB FORNECEDORES -->
   <div id="parc-subtab-fornecedores" class="subtab">
+    <!-- Form novo fornecedor -->
+    <div id="form-fornecedor" style="display:none;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1.25rem;position:relative;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--amber-text),transparent);opacity:0.5;border-radius:var(--radius-lg) var(--radius-lg) 0 0;pointer-events:none;"></div>
+      <div class="stitle" style="font-size:12px;margin-bottom:1rem;"><i class="ti ti-building-store"></i> Novo Fornecedor</div>
+      <div class="grid2">
+        <div class="field"><label>Razao Social / Nome *</label><input type="text" id="forn-razao" placeholder="Nome ou Razao Social"></div>
+        <div class="field"><label>Nome Fantasia</label><input type="text" id="forn-fantasia" placeholder="Nome Fantasia"></div>
+        <div class="field"><label>CNPJ / CPF</label><input type="text" id="forn-doc" placeholder="00.000.000/0000-00"></div>
+        <div class="field"><label>Telefone</label><input type="text" id="forn-tel" placeholder="(45) 99999-9999"></div>
+        <div class="field"><label>E-mail</label><input type="text" id="forn-email" class="no-upper" placeholder="email@empresa.com"></div>
+        <div class="field"><label>Cidade / Estado</label><input type="text" id="forn-cidade" placeholder="Cascavel / PR"></div>
+        <div class="field"><label>Chave Pix</label><input type="text" id="forn-pix" class="no-upper" placeholder="CNPJ, CPF, e-mail ou telefone"></div>
+        <div class="field"><label>Site / Marketplace</label><input type="text" id="forn-site" class="no-upper" placeholder="www.exemplo.com.br"></div>
+      </div>
+      <div class="field"><label>Observacoes</label><input type="text" id="forn-obs" placeholder="Condicoes comerciais, prazo de entrega..."></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+        <button class="btn-ok" onclick="salvarFornecedor()"><i class="ti ti-device-floppy"></i> Salvar</button>
+        <button class="btn" onclick="document.getElementById('form-fornecedor').style.display='none'"><i class="ti ti-x"></i> Cancelar</button>
+      </div>
+    </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;">
       <select id="filtro-parceiro-tipo" onchange="renderParceiros()"
         style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
@@ -6059,42 +6080,104 @@ function initDRESelects() {
 
 /* ===== SUBTABS PARCEIROS UNIFICADO ===== */
 function showParcSubtab(sub) {
-  // Ocultar todas as subtabs
   document.querySelectorAll('#tab-parceiros .subtab').forEach(function(e){
     e.style.display = 'none'; e.classList.remove('active');
   });
   document.querySelectorAll('#tab-parceiros .subtab-btn').forEach(function(b){ b.classList.remove('active'); });
-
-  // Mostrar subtab escolhida
   var alvo = document.getElementById('parc-subtab-'+sub);
   if(alvo) { alvo.style.display = 'block'; alvo.classList.add('active'); }
-
-  // Ativar botao
   document.querySelectorAll('#tab-parceiros .subtab-btn').forEach(function(b){
     if((b.getAttribute('onclick')||'').includes("'"+sub+"'")) b.classList.add('active');
   });
-
-  // Atualizar botoes de novo
-  var btnParceiro = document.getElementById('btn-novo-parceiro');
-  var btnCliente  = document.getElementById('btn-novo-cliente');
+  var btnP = document.getElementById('btn-novo-parceiro');
+  var btnC = document.getElementById('btn-novo-cliente');
+  var btnF = document.getElementById('btn-novo-fornecedor');
+  if(btnP) btnP.style.display = 'none';
+  if(btnC) btnC.style.display = 'none';
+  if(btnF) btnF.style.display = 'none';
   if(sub === 'clientes') {
-    if(btnParceiro) btnParceiro.style.display = 'none';
-    if(btnCliente)  btnCliente.style.display  = 'inline-flex';
+    if(btnC) btnC.style.display = 'inline-flex';
     sincronizarClientesDasVendas();
     renderClientes();
   } else if(sub === 'fornecedores') {
-    if(btnParceiro) btnParceiro.style.display = 'none';
-    if(btnCliente)  btnCliente.style.display  = 'none';
-    // Filtrar apenas fornecedores
+    if(btnF) btnF.style.display = 'inline-flex';
     var selFiltro = document.getElementById('filtro-parceiro-tipo');
     if(selFiltro) selFiltro.value = 'fornecedor';
     renderParceiros();
   } else {
-    if(btnParceiro) btnParceiro.style.display = 'inline-flex';
-    if(btnCliente)  btnCliente.style.display  = 'none';
+    if(btnP) btnP.style.display = 'inline-flex';
     renderTodosParceiros();
   }
 }
+
+function showFormCliente(idx) {
+  _clienteEditIdx = idx;
+  var subtabCli = document.getElementById('parc-subtab-clientes');
+  if(subtabCli && subtabCli.style.display === 'none') showParcSubtab('clientes');
+  var form = document.getElementById('form-cliente');
+  var titulo = document.getElementById('form-cliente-titulo');
+  if(!form) return;
+  form.style.display = 'block';
+  if(idx < 0) {
+    if(titulo) titulo.innerHTML = '<i class="ti ti-user-plus"></i> Novo Cliente';
+    ['cli-nome','cli-apelido','cli-tel','cli-email','cli-cidade','cli-obs'].forEach(function(id){
+      var el = document.getElementById(id); if(el) el.value = '';
+    });
+    var tipEl = document.getElementById('cli-tipo');
+    if(tipEl) tipEl.value = 'consumidor';
+  } else {
+    var c = clientes[idx];
+    if(!c) return;
+    if(titulo) titulo.innerHTML = '<i class="ti ti-edit"></i> Editar Cliente';
+    document.getElementById('cli-nome').value    = c.nome    || '';
+    document.getElementById('cli-apelido').value = c.apelido || '';
+    document.getElementById('cli-tel').value     = c.tel     || '';
+    document.getElementById('cli-email').value   = c.email   || '';
+    document.getElementById('cli-cidade').value  = c.cidade  || '';
+    document.getElementById('cli-obs').value     = c.obs     || '';
+    document.getElementById('cli-tipo').value    = c.tipo    || 'consumidor';
+  }
+  form.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function showFormFornecedor() {
+  var subtabForn = document.getElementById('parc-subtab-fornecedores');
+  if(subtabForn && subtabForn.style.display === 'none') showParcSubtab('fornecedores');
+  var form = document.getElementById('form-fornecedor');
+  if(!form) return;
+  form.style.display = 'block';
+  ['forn-razao','forn-fantasia','forn-doc','forn-tel','forn-email','forn-cidade','forn-pix','forn-site','forn-obs'].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.value = '';
+  });
+  form.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function salvarFornecedor() {
+  var razao = upper(document.getElementById('forn-razao').value);
+  if(!razao) { alert('Informe o nome ou razao social.'); return; }
+  var existe = parceiros.some(function(p){
+    return (p.razao||'').toUpperCase() === razao && (p.tipo==='fornecedor'||p.tipo==='ambos');
+  });
+  if(existe && !confirm('Ja existe fornecedor: '+razao+'. Deseja salvar mesmo assim?')) return;
+  var forn = {
+    id: Date.now(), tipo:'fornecedor', pessoa:'PJ',
+    razao:   razao,
+    fantasia: upper(document.getElementById('forn-fantasia').value),
+    doc:     document.getElementById('forn-doc').value.trim(),
+    tel:     document.getElementById('forn-tel').value.trim(),
+    email:   document.getElementById('forn-email').value.trim().toLowerCase(),
+    cidade:  upper(document.getElementById('forn-cidade').value),
+    pix:     document.getElementById('forn-pix').value.trim(),
+    obs:     upper(document.getElementById('forn-obs').value),
+    data:    hoje()
+  };
+  parceiros.unshift(forn);
+  S.set('parceiros', parceiros);
+  document.getElementById('form-fornecedor').style.display = 'none';
+  renderParceiros();
+  alert('Fornecedor salvo: ' + razao);
+}
+
 
 function renderTodosParceiros() {
   var filtro = (document.getElementById('filtro-parceiro-todos')||{}).value || '';
