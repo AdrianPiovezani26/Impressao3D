@@ -2832,7 +2832,7 @@ function salvarVenda(){
     : itensVenda.map(function(it){ return it.nome; }).join(', ');
   const statusPgto=document.getElementById('v-status-pgto').value;
   var qtdTotal = itensVenda.reduce(function(s,it){ return s+it.qtd; }, 0);
-  const venda={id:Date.now(),cliente,prodNome,valor:total,itens:itensVenda,qtd:qtdTotal||parseInt(document.getElementById('v-qtd').value)||1,pgto:document.getElementById('v-pgto').value,statusPgto,data:document.getElementById('v-data').value,venc:document.getElementById('v-venc').value,obs:document.getElementById('v-obs').value};
+  const venda={id:Date.now(),cliente,prodNome,valor:total,itens:itensVenda,qtd:qtdTotal||parseInt(document.getElementById('v-qtd').value)||1,pgto:document.getElementById('v-pgto').value,statusPgto,data:document.getElementById('v-data').value,venc:(coletarParcelas().length?coletarParcelas()[0].venc:'')||'',obs:document.getElementById('v-obs').value};
   vendas.unshift(venda);S.set('vendas',vendas);
   // Marcar produto como vendido
   if(!isNaN(pIdx) && produtos[pIdx]) {
