@@ -2062,7 +2062,7 @@ function salvarFilamento(){
   var qtdEmG = paraGramas(qtd, unidQtd);
   var pesoRoloRaw = parseFloat(document.getElementById('f-peso-rolo').value)||1000;
   var pesoRoloEmG = paraGramas(pesoRoloRaw, unidRolo);
-  const f={id:editFilIdx>=0?filamentos[editFilIdx].id:Date.now(),marca,modelo:document.getElementById('f-modelo').value,corNome:upper(document.getElementById('f-cor-nome').value)||'NAO INFORMADA',corHex:document.getElementById('f-cor-hex').value,diam:document.getElementById('f-diam').value,qtd:qtdEmG,preco:parseFloat(document.getElementById('f-preco').value)||0,pesoRolo:pesoRoloEmG,temp:document.getElementById('f-temp').value,tempMesa:document.getElementById('f-temp-mesa').value,data:document.getElementById('f-data').value,obs:document.getElementById('f-obs').value};
+  const f={id:editFilIdx>=0?filamentos[editFilIdx].id:Date.now(),marca:upper(marca),modelo:upper(document.getElementById('f-modelo').value),corNome:upper(document.getElementById('f-cor-nome').value)||'NAO INFORMADA',corHex:document.getElementById('f-cor-hex').value,diam:document.getElementById('f-diam').value,qtd:qtdEmG,preco:parseFloat(document.getElementById('f-preco').value)||0,pesoRolo:pesoRoloEmG,temp:document.getElementById('f-temp').value,tempMesa:document.getElementById('f-temp-mesa').value,data:document.getElementById('f-data').value,obs:upper(document.getElementById('f-obs').value)};
   if(editFilIdx>=0)filamentos[editFilIdx]=f;else filamentos.unshift(f);
   S.set('filamentos',filamentos);fecharFormFil();renderFils();buildFilSelect();checkEstoque();
 }
@@ -5755,67 +5755,77 @@ function sincronizarStatusProdutos() {
 
 
 function converterDadosParaMaiusculas() {
+  // Flag v2 para forcar nova rodada em todos os dados
+  var flag = localStorage.getItem('akp3d_maiusc_v2');
+  var forcou = !flag;
   var alterou = false;
-  var campos_texto = ['nome','razao','fantasia','cliente','prodNome','desc','corNome','marca','modelo','filNome','cat','motivo','obs'];
 
-  // Converter filamentos
-  filamentos.forEach(function(f) {
-    if(f.marca && f.marca !== f.marca.toUpperCase()) { f.marca = f.marca.toUpperCase(); alterou = true; }
-    if(f.modelo && f.modelo !== f.modelo.toUpperCase()) { f.modelo = f.modelo.toUpperCase(); alterou = true; }
-    if(f.corNome && f.corNome !== f.corNome.toUpperCase()) { f.corNome = f.corNome.toUpperCase(); alterou = true; }
+  function up(s){ return s ? s.toUpperCase() : s; }
+  function chk(obj, campo){
+    if(obj[campo] && obj[campo] !== obj[campo].toUpperCase()){
+      obj[campo] = obj[campo].toUpperCase(); alterou = true;
+    }
+  }
+
+  // Filamentos
+  filamentos.forEach(function(f){
+    chk(f,'marca'); chk(f,'modelo'); chk(f,'corNome'); chk(f,'obs');
   });
 
-  // Converter produtos
-  produtos.forEach(function(p) {
-    if(p.nome && p.nome !== p.nome.toUpperCase()) { p.nome = p.nome.toUpperCase(); alterou = true; }
-    if(p.cat && p.cat !== p.cat.toUpperCase()) { p.cat = p.cat.toUpperCase(); alterou = true; }
-    if(p.clienteVenda && p.clienteVenda !== p.clienteVenda.toUpperCase()) { p.clienteVenda = p.clienteVenda.toUpperCase(); alterou = true; }
+  // Produtos
+  produtos.forEach(function(p){
+    chk(p,'nome'); chk(p,'cat'); chk(p,'clienteVenda'); chk(p,'obs'); chk(p,'filNome');
   });
 
-  // Converter pedidos
-  pedidos.forEach(function(p) {
-    if(p.nome && p.nome !== p.nome.toUpperCase()) { p.nome = p.nome.toUpperCase(); alterou = true; }
-    if(p.filNome && p.filNome !== p.filNome.toUpperCase()) { p.filNome = p.filNome.toUpperCase(); alterou = true; }
+  // Pedidos
+  pedidos.forEach(function(p){
+    chk(p,'nome'); chk(p,'filNome'); chk(p,'obs');
   });
 
-  // Converter vendas
-  vendas.forEach(function(v) {
-    if(v.cliente && v.cliente !== v.cliente.toUpperCase()) { v.cliente = v.cliente.toUpperCase(); alterou = true; }
-    if(v.prodNome && v.prodNome !== v.prodNome.toUpperCase()) { v.prodNome = v.prodNome.toUpperCase(); alterou = true; }
+  // Vendas
+  vendas.forEach(function(v){
+    chk(v,'cliente'); chk(v,'prodNome'); chk(v,'obs');
   });
 
-  // Converter compras
-  compras.forEach(function(c) {
-    if(c.desc && c.desc !== c.desc.toUpperCase()) { c.desc = c.desc.toUpperCase(); alterou = true; }
-    if(c.fornNome && c.fornNome !== c.fornNome.toUpperCase()) { c.fornNome = c.fornNome.toUpperCase(); alterou = true; }
+  // Faturas
+  faturas.forEach(function(f){
+    chk(f,'cliente'); chk(f,'descricao');
   });
 
-  // Converter parceiros
-  parceiros.forEach(function(p) {
-    if(p.razao && p.razao !== p.razao.toUpperCase()) { p.razao = p.razao.toUpperCase(); alterou = true; }
-    if(p.fantasia && p.fantasia !== p.fantasia.toUpperCase()) { p.fantasia = p.fantasia.toUpperCase(); alterou = true; }
-    if(p.cidade && p.cidade !== p.cidade.toUpperCase()) { p.cidade = p.cidade.toUpperCase(); alterou = true; }
-    if(p.bairro && p.bairro !== p.bairro.toUpperCase()) { p.bairro = p.bairro.toUpperCase(); alterou = true; }
+  // Compras
+  compras.forEach(function(c){
+    chk(c,'desc'); chk(c,'fornNome'); chk(c,'obs');
   });
 
-  // Converter faturas
-  faturas.forEach(function(f) {
-    if(f.cliente && f.cliente !== f.cliente.toUpperCase()) { f.cliente = f.cliente.toUpperCase(); alterou = true; }
-    if(f.descricao && f.descricao !== f.descricao.toUpperCase()) { f.descricao = f.descricao.toUpperCase(); alterou = true; }
+  // Parceiros
+  parceiros.forEach(function(p){
+    chk(p,'razao'); chk(p,'fantasia'); chk(p,'cidade'); chk(p,'bairro'); chk(p,'obs');
   });
 
-  if(alterou) {
-    S.set('filamentos', filamentos);
-    S.set('produtos', produtos);
-    S.set('pedidos', pedidos);
-    S.set('vendas', vendas);
-    S.set('compras', compras);
-    S.set('parceiros', parceiros);
-    S.set('faturas', faturas);
-    console.log('Dados convertidos para maiusculas');
+  // Clientes
+  clientes.forEach(function(c){
+    chk(c,'nome'); chk(c,'apelido'); chk(c,'cidade'); chk(c,'obs');
+  });
+
+  // Movimentacoes
+  movimentacoes.forEach(function(m){
+    chk(m,'filNome'); chk(m,'motivo');
+  });
+
+  if(alterou || forcou) {
+    S.set('filamentos',   filamentos);
+    S.set('produtos',     produtos);
+    S.set('pedidos',      pedidos);
+    S.set('vendas',       vendas);
+    S.set('faturas',      faturas);
+    S.set('compras',      compras);
+    S.set('parceiros',    parceiros);
+    S.set('clientes',     clientes);
+    S.set('movimentacoes',movimentacoes);
+    if(forcou) localStorage.setItem('akp3d_maiusc_v2','1');
+    console.log('Dados padronizados em maiusculas');
   }
 }
-
 
 /* ===== BAIXA RETROATIVA PEDIDOS CONCLUIDOS ===== */
 function baixaRetroativaPedidosConcluidos() {
