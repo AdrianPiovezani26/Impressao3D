@@ -7124,25 +7124,45 @@ function recarregarDados() {
 
 /* ===== CUSTO DE PRODUTO ===== */
 function calcularCustoProduto(p) {
-  // 1. Se ja tem custoNum salvo, usar direto
+  // 1. Se ja tem custoNum salvo diretamente, usar
   if(p.custoNum && p.custoNum > 0) return p.custoNum;
 
-  // 2. Tentar extrair da obs (produtos importados do Excel)
+  // 2. Buscar no historico de precificacao pelo nome do produto (fonte mais completa)
+  // O custoUnit do historico inclui: filamento + energia + mao de obra + depreciacao
+  if(_histCalc && _histCalc.length) {
+    var nomeUp = (p.nome||'').toUpperCase().trim();
+    var hist = null;
+    // Busca exata primeiro
+    for(var i=0; i<_histCalc.length; i++) {
+      if((_histCalc[i].nome||'').toUpperCase().trim() === nomeUp) { hist=_histCalc[i]; break; }
+    }
+    // Busca parcial se nao achou
+    if(!hist) {
+      for(var i=0; i<_histCalc.length; i++) {
+        if((_histCalc[i].nome||'').toUpperCase().includes(nomeUp) ||
+           nomeUp.includes((_histCalc[i].nome||'').toUpperCase())) { hist=_histCalc[i]; break; }
+      }
+    }
+    if(hist && hist.custoUnit && hist.custoUnit > 0) return hist.custoUnit;
+  }
+
+  // 3. Tentar extrair da obs (produtos importados do Excel)
   if(p.obs) {
-    var match = p.obs.match(/CUSTO[:\s]+R\$\s*([\d.,]+)/i);
+    var match = (p.obs||'').match(/CUSTO[:\s]+R\$\s*([\d.,]+)/i);
     if(match) {
       var val = parseFloat(match[1].replace('.','').replace(',','.'));
       if(val > 0) return val;
     }
   }
 
-  // 3. Calcular a partir dos filamentos registrados
+  // 4. Calcular apenas a partir dos filamentos (custo minimo de material)
+  // Usar precoRolo salvo no produto se disponivel, senao usar cadastro atual
   if(p.fils && p.fils.length) {
     var custoFil = p.fils.reduce(function(s, f) {
-      var fil = filamentos[f.filIdx];
-      if(!fil || !fil.preco || !fil.pesoRolo) return s;
-      var custoG = parseFloat(fil.preco) / parseFloat(fil.pesoRolo);
-      return s + (custoG * parseFloat(f.peso||0));
+      var precoR = f.precoRolo || (filamentos[f.filIdx] ? parseFloat(filamentos[f.filIdx].preco)||0 : 0);
+      var pesoR  = f.pesoRolo  || (filamentos[f.filIdx] ? parseFloat(filamentos[f.filIdx].pesoRolo)||1000 : 1000);
+      if(!precoR || !pesoR) return s;
+      return s + (precoR / pesoR * parseFloat(f.peso||0));
     }, 0);
     if(custoFil > 0) return custoFil;
   }
@@ -7152,20 +7172,22 @@ function calcularCustoProduto(p) {
 
 function migrarCustoProdutos() {
   // Migrar custoNum de todos os produtos que nao tem
-  var flag = localStorage.getItem('akp3d_custo_migrado_v1');
+  var flag = localStorage.getItem('akp3d_custo_migrado_v2');
   if(flag) return;
   var alterou = false;
   produtos.forEach(function(p) {
-    if(!p.custoNum || p.custoNum <= 0) {
-      var custo = calcularCustoProduto(p);
-      if(custo > 0) { p.custoNum = custo; alterou = true; }
+    // Recalcular sempre usando a nova logica (historico > obs > filamentos)
+    var custo = calcularCustoProduto(p);
+    if(custo > 0 && custo !== p.custoNum) {
+      p.custoNum = custo;
+      alterou = true;
     }
   });
   if(alterou) {
     S.set('produtos', produtos);
     console.log('Custo migrado para produtos');
   }
-  localStorage.setItem('akp3d_custo_migrado_v1', '1');
+  localStorage.setItem('akp3d_custo_migrado_v2', '1');
 }
 /* ===== FIM CUSTO PRODUTO ===== */
 
