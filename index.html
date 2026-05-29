@@ -5507,6 +5507,14 @@ function abrirEdicaoPedido(idx) {
   document.getElementById('modal-pedido').style.display = 'flex';
 }
 
+function calcTotalModal() {
+  var qtd       = parseFloat(document.getElementById('mp-qtd').value)||1;
+  var precoUnit = parseFloat(document.getElementById('mp-preco-unit').value)||0;
+  var total     = qtd * precoUnit;
+  var totalEl   = document.getElementById('mp-total');
+  if(totalEl) totalEl.textContent = fmt(total);
+}
+
 function addFilModal(filIdx, pesoVal) {
   var container = document.getElementById('mp-fils-lista');
   if(!container) return;
