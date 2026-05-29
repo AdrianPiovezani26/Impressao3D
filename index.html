@@ -2956,7 +2956,75 @@ function updPedSt(i,v){
   renderPedidos();
   renderDashboard();
 }
-function delPed(i){if(confirm('Remover pedido?')){pedidos.splice(i,1);S.set('pedidos',pedidos);renderPedidos();}}
+function delPed(i) {
+  var p = pedidos[i];
+  if(!p) return;
+
+  // Verificar se tem movimentacoes de estoque associadas
+  var nomePed = p.nome || '';
+  var movsPed = movimentacoes.filter(function(m){
+    return m.tipo === 'saida' &&
+      (m.referencia||'').toUpperCase().includes(nomePed.toUpperCase()) &&
+      nomePed.length > 3;
+  });
+
+  var msg = 'Remover o pedido "' + nomePed + '"?';
+  if(movsPed.length > 0 && p.estoquesBaixados) {
+    msg += '\n\n Este pedido baixou o estoque de ' + movsPed.length + ' filamento(s).';
+    msg += '\nAs movimentacoes serao revertidas e o estoque sera restaurado.';
+  }
+  if(!confirm(msg)) return;
+
+  // Se o estoque foi baixado, reverter as movimentacoes
+  if(p.estoquesBaixados && movsPed.length > 0) {
+    var hj = new Date().toISOString().slice(0,10);
+    var hr = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    var estornou = false;
+
+    movsPed.forEach(function(m) {
+      var f = filamentos[m.filIdx];
+      if(!f) return;
+      var antes = parseFloat(f.qtd)||0;
+      var depois = antes + parseFloat(m.qtd||0);
+      filamentos[m.filIdx].qtd = depois;
+      // Registrar estorno
+      movimentacoes.unshift({
+        id: Date.now()+Math.floor(Math.random()*9999),
+        filIdx: m.filIdx,
+        filNome: m.filNome,
+        corHex: m.corHex,
+        tipo: 'entrada',
+        qtd: parseFloat(m.qtd||0),
+        antes: antes.toFixed(0),
+        depois: depois.toFixed(0),
+        motivo: 'ESTORNO - Pedido excluido',
+        referencia: 'Estorno: ' + nomePed,
+        data: hj,
+        hora: hr
+      });
+      estornou = true;
+    });
+
+    // Remover as saidas originais do historico
+    movimentacoes = movimentacoes.filter(function(m){
+      return !(movsPed.some(function(mp){ return mp.id === m.id; }));
+    });
+
+    if(estornou) {
+      S.set('filamentos', filamentos);
+      S.set('movimentacoes', movimentacoes);
+      renderFils();
+      buildFilSelect();
+      checkEstoque();
+    }
+  }
+
+  // Remover o pedido
+  pedidos.splice(i, 1);
+  S.set('pedidos', pedidos);
+  renderPedidos();
+  renderDashboard();
+}
 
 /* ---- VENDAS ---- */
 function buildProdOpts(){
