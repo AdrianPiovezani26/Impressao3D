@@ -5372,20 +5372,42 @@ function renderHistoricoCalc() {
 function editarHistCalc(id) {
   var h = _histCalc.find(function(x){ return x.id===id; });
   if(!h) return;
-  // Restaurar campos principais
-  document.getElementById('c-nome-peca').value = h.nome || '';
-  document.getElementById('c-qtd').value = h.qtd || 1;
-  document.getElementById('c-horas-h').value = h.horasH || 0;
-  document.getElementById('c-horas-m').value = h.horasM || 0;
-  document.getElementById('c-markup').value = h.markup || 0;
-  document.getElementById('c-desc-lojista').value = h.descLojista || 30;
-  if(h.embal) document.getElementById('c-embal').value = h.embal;
-  if(h.impostos) document.getElementById('c-impostos').value = h.impostos;
-  if(h.insumos) document.getElementById('c-insumos').value = h.insumos;
-  setTipoCalc(h.tipoCalc || 'markup');
-  // Scroll e recalcular
-  document.getElementById('tab-calc').scrollIntoView({behavior:'smooth'});
-  calcular();
+
+  showTab('calc');
+  setTimeout(function(){
+    // Restaurar campos principais
+    document.getElementById('c-nome-peca').value      = h.nome || '';
+    document.getElementById('c-qtd').value            = h.qtd  || 1;
+    document.getElementById('c-horas-h').value        = h.horasH || 0;
+    document.getElementById('c-horas-m').value        = h.horasM || 0;
+    document.getElementById('c-markup').value         = h.markup || 0;
+    document.getElementById('c-desc-lojista').value   = h.descLojista || 30;
+    document.getElementById('c-watts').value          = h.watts || 0;
+    document.getElementById('c-kwh').value            = h.kwh   || 0;
+    document.getElementById('c-mdo').value            = h.mdo   || 0;
+    if(document.getElementById('c-impostos')) document.getElementById('c-impostos').value = h.impostos || 0;
+    if(document.getElementById('c-embal'))    document.getElementById('c-embal').value    = h.embal    || 0;
+    if(document.getElementById('c-insumos'))  document.getElementById('c-insumos').value  = h.insumos  || 0;
+    setTipoCalc(h.tipoCalc || 'markup');
+
+    // Restaurar filamentos
+    var listaFils = document.getElementById('c-fils-lista');
+    if(listaFils) {
+      listaFils.innerHTML = '';
+      var filsRest = h.filsDetalhes || [];
+      if(filsRest.length === 0 && h.fils) {
+        // Fallback: adicionar 1 linha vazia
+        addFilCalc();
+      } else {
+        filsRest.forEach(function(f){
+          addFilCalc(f.filIdx >= 0 ? f.filIdx : undefined, f.peso, f.precoRolo, f.pesoRolo);
+        });
+      }
+    }
+
+    calcular();
+    document.getElementById('tab-calc').scrollIntoView({behavior:'smooth'});
+  }, 150);
 }
 
 function pedidoHistCalc(id) {
@@ -5448,35 +5470,69 @@ var _pedidoEditIdx = -1;
 function abrirEdicaoPedido(idx) {
   var p = pedidos[idx];
   if(!p) return;
-  // Concluido: ir direto para venda sem abrir modal de edicao
-  if(p.status === 'concluido') {
-    _pedidoEditIdx = idx;
-    // Preencher modal temporariamente para usar importarPedidoVenda
-    document.getElementById('mp-nome').value = p.nome || '';
-    var qtd = parseInt(p.qtd) || 1;
-    document.getElementById('mp-qtd').value = qtd;
-    var precoTotal = parseFloat((p.preco||'').toString().replace('R$ ','').replace(/\./g,'').replace(',','.')) || 0;
-    var precoUnit = parseFloat(p.precoUnit) || (qtd > 0 ? precoTotal / qtd : precoTotal);
-    document.getElementById('mp-preco-unit').value = precoUnit.toFixed(2);
-    importarPedidoVenda();
-    return;
-  }
   _pedidoEditIdx = idx;
-  document.getElementById('mp-nome').value = p.nome || '';
-  var qtd = parseInt(p.qtd) || 1;
-  document.getElementById('mp-qtd').value = qtd;
-  // Calcular preco unitario
-  var precoStr = (p.preco || 'R$ 0,00').replace('R$','').replace(/\./g,'').replace(',','.').trim();
-  var precoTotal = parseFloat(precoStr) || 0;
-  var precoUnit = qtd > 0 ? precoTotal / qtd : precoTotal;
-  document.getElementById('mp-preco-unit').value = precoUnit.toFixed(2);
-  document.getElementById('mp-filnome').value = p.filNome || '';
-  document.getElementById('mp-peso').value = (p.peso && p.peso !== '--') ? p.peso : '';
-  document.getElementById('mp-horas').value = (p.horas && p.horas !== '--') ? p.horas : '';
-  document.getElementById('mp-obs').value = p.obs || '';
-  atualizarTotalPedido();
-  document.getElementById('mp-erro').style.display = 'none';
+
+  // Preencher campos do modal
+  document.getElementById('mp-nome').value       = p.nome      || '';
+  document.getElementById('mp-qtd').value        = p.qtd       || 1;
+  document.getElementById('mp-preco-unit').value = p.precoUnit || 0;
+
+  // Horas e minutos separados
+  var horasStr = p.horas || '';
+  var hH = 0, hM = 0;
+  var mH = horasStr.match(/(\d+)h/);
+  var mM = horasStr.match(/(\d+)min/);
+  if(mH) hH = parseInt(mH[1]);
+  if(mM) hM = parseInt(mM[1]);
+  if(document.getElementById('mp-horas-h')) document.getElementById('mp-horas-h').value = hH;
+  if(document.getElementById('mp-horas-m')) document.getElementById('mp-horas-m').value = hM;
+
+  // Status
+  var stEl = document.getElementById('mp-status');
+  if(stEl) stEl.value = p.status || 'pendente';
+
+  // Restaurar filamentos do pedido
+  var filsListaEl = document.getElementById('mp-fils-lista');
+  if(filsListaEl) {
+    filsListaEl.innerHTML = '';
+    var fils = p.filsEstoque || [];
+    if(fils.length > 0) {
+      fils.forEach(function(f){ addFilModal(f.filIdx, f.peso); });
+    } else {
+      addFilModal();
+    }
+  }
+
+  calcTotalModal();
   document.getElementById('modal-pedido').style.display = 'flex';
+}
+
+function addFilModal(filIdx, pesoVal) {
+  var container = document.getElementById('mp-fils-lista');
+  if(!container) return;
+  var d = document.createElement('div');
+  d.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:4px;';
+
+  var sel = document.createElement('select');
+  sel.style.cssText = 'flex:2;min-width:150px;border:1px solid var(--border2);border-radius:var(--radius);padding:5px 8px;font-size:12px;background:var(--bg2);color:var(--text);';
+  sel.innerHTML = '<option value="">-- Sem filamento --</option>' +
+    filamentos.map(function(f,i){ return '<option value="'+i+'">'+f.corNome+' '+f.marca+' '+f.modelo+'</option>'; }).join('');
+  if(filIdx !== undefined && filIdx >= 0) sel.value = filIdx;
+
+  var inp = document.createElement('input');
+  inp.type='number'; inp.placeholder='Peso (g)'; inp.min='0'; inp.step='1';
+  inp.style.cssText='width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:5px 8px;font-size:12px;background:var(--bg2);color:var(--text);';
+  if(pesoVal) inp.value = pesoVal;
+
+  var lbl = document.createElement('span');
+  lbl.textContent='g'; lbl.style.cssText='font-size:12px;color:var(--text2);flex-shrink:0;';
+
+  var btn = document.createElement('button');
+  btn.className='rm'; btn.innerHTML='<i class="ti ti-x"></i>';
+  btn.addEventListener('click', function(){ d.remove(); });
+
+  d.appendChild(sel); d.appendChild(inp); d.appendChild(lbl); d.appendChild(btn);
+  container.appendChild(d);
 }
 
 function atualizarTotalPedido() {
@@ -5494,30 +5550,51 @@ function fecharModalPedido() {
 
 function salvarEdicaoPedido() {
   if(_pedidoEditIdx < 0) return;
-  var nome = document.getElementById('mp-nome').value.trim();
-  if(!nome) {
-    var erroEl = document.getElementById('mp-erro');
-    erroEl.textContent = 'Informe o nome da peca.';
-    erroEl.style.display = 'block';
-    return;
-  }
-  var qtd = parseInt(document.getElementById('mp-qtd').value) || 1;
-  var precoUnit = parseFloat(document.getElementById('mp-preco-unit').value) || 0;
+  var p = pedidos[_pedidoEditIdx];
+  var nome  = upper(document.getElementById('mp-nome').value) || p.nome;
+  var qtd   = Math.max(1, parseInt(document.getElementById('mp-qtd').value)||1);
+  var precoUnit = parseFloat(document.getElementById('mp-preco-unit').value)||0;
   var total = qtd * precoUnit;
-  pedidos[_pedidoEditIdx] = Object.assign({}, pedidos[_pedidoEditIdx], {
-    nome: nome,
-    qtd: qtd,
-    preco: fmt(total),
-    precoUnit: precoUnit,
-    filNome: document.getElementById('mp-filnome').value,
-    peso: document.getElementById('mp-peso').value || '--',
-    horas: document.getElementById('mp-horas').value || '--',
-    obs: document.getElementById('mp-obs').value
+  var status = (document.getElementById('mp-status')||{}).value || p.status;
+
+  // Horas e minutos
+  var hH = parseInt((document.getElementById('mp-horas-h')||{}).value)||0;
+  var hM = parseInt((document.getElementById('mp-horas-m')||{}).value)||0;
+  var tempoStr = (hH>0||hM>0) ? ((hH>0?hH+'h':'')+( hM>0?' '+hM+'min':'')).trim() : (p.horas||'--');
+
+  // Coletar filamentos editados
+  var filsEstoque = [];
+  var pesoTotal = 0;
+  var container = document.getElementById('mp-fils-lista');
+  if(container) {
+    container.querySelectorAll('div').forEach(function(row){
+      var sel  = row.querySelector('select');
+      var inp  = row.querySelector('input[type=number]');
+      var idxF = sel ? parseInt(sel.value) : -1;
+      var peso = parseFloat(inp ? inp.value : 0)||0;
+      if(!isNaN(idxF) && idxF >= 0 && filamentos[idxF] && peso > 0) {
+        filsEstoque.push({filIdx:idxF, filNome:filamentos[idxF].corNome+' '+filamentos[idxF].marca+' '+filamentos[idxF].modelo, peso:peso});
+        pesoTotal += peso;
+      }
+    });
+  }
+  var filNomeStr = filsEstoque.length ? filsEstoque.map(function(f){ return f.filNome+' ('+f.peso+'g)'; }).join(', ') : (p.filNome||'--');
+
+  // Atualizar pedido mantendo flag estoquesBaixados
+  pedidos[_pedidoEditIdx] = Object.assign({}, p, {
+    nome: nome, qtd: qtd, precoUnit: precoUnit,
+    preco: precoUnit > 0 ? fmt(total) : p.preco,
+    status: status, horas: tempoStr,
+    filNome: filNomeStr,
+    filsEstoque: filsEstoque.length > 0 ? filsEstoque : p.filsEstoque,
+    peso: pesoTotal || p.peso,
   });
+
   S.set('pedidos', pedidos);
   fecharModalPedido();
   renderPedidos();
   renderDashboard();
+  alert('Pedido atualizado: ' + nome);
 }
 
 function importarPedidoVenda() {
