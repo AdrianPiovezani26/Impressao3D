@@ -5900,11 +5900,11 @@ function salvarCliente() {
   var nome = upper(document.getElementById('cli-nome').value);
   if(!nome) { alert('Informe o nome do cliente.'); return; }
   var cliAtualId = _clienteEditIdx >= 0 ? clientes[_clienteEditIdx].id : null;
-  if(verificarDuplicata(clientes, 'nome', nome, cliAtualId)) {
-    if(!confirmarDuplicata('cliente', nome)) return;
+  if(verificarDuplicata(clientes,'nome',nome,cliAtualId)) {
+    if(!confirmarDuplicata('cliente',nome)) return;
   }
   var cli = {
-    id:    _clienteEditIdx >= 0 ? clientes[_clienteEditIdx].id : Date.now(),
+    id:    _clienteEditIdx>=0 ? clientes[_clienteEditIdx].id : Date.now(),
     nome:  nome,
     apelido: upper(document.getElementById('cli-apelido').value),
     tel:   document.getElementById('cli-tel').value.trim(),
@@ -5912,16 +5912,16 @@ function salvarCliente() {
     cidade: upper(document.getElementById('cli-cidade').value),
     tipo:  document.getElementById('cli-tipo').value,
     obs:   upper(document.getElementById('cli-obs').value),
-    dataCadastro: _clienteEditIdx >= 0 ? (clientes[_clienteEditIdx].dataCadastro || hoje()) : hoje()
+    pix:   (document.getElementById('cli-pix')||{value:''}).value.trim(),
+    dataCadastro: _clienteEditIdx>=0 ? (clientes[_clienteEditIdx].dataCadastro||hoje()) : hoje()
   };
-  if(_clienteEditIdx >= 0) {
-    clientes[_clienteEditIdx] = cli;
-  } else {
-    clientes.unshift(cli);
-  }
-  S.set('clientes', clientes);
-  document.getElementById('form-cliente').style.display = 'none';
+  if(_clienteEditIdx>=0) { clientes[_clienteEditIdx]=cli; }
+  else { clientes.push(cli); }
+  clientes.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||'','pt-BR'); });
+  S.set('clientes',clientes);
+  document.getElementById('form-cliente').style.display='none';
   renderClientes();
+  alert('Cliente salvo: '+nome);
 }
 
 function delCliente(idx) {
@@ -6046,22 +6046,36 @@ function verHistoricoCliente(idx) {
 }
 
 function sincronizarClientesDasVendas() {
-  // Criar cliente automaticamente a partir do historico de vendas
   var alterou = false;
+  var vistos = {};
+
+  // Puxar de vendas
   vendas.forEach(function(v) {
-    if(!v.cliente || v.cliente === 'PRODUTO AVULSO') return;
-    var nomeUp = v.cliente.toUpperCase().trim();
-    var existe = clientes.some(function(c){ return (c.nome||'').toUpperCase() === nomeUp; });
+    if(!v.cliente || v.cliente==='PRODUTO AVULSO') return;
+    var n = v.cliente.toUpperCase().trim();
+    if(!vistos[n]) { vistos[n] = v.data||hoje(); }
+  });
+  // Puxar de pedidos concluidos
+  pedidos.forEach(function(p) {
+    if(p.clienteVenda && p.clienteVenda.trim()) {
+      var n = p.clienteVenda.toUpperCase().trim();
+      if(!vistos[n]) vistos[n] = p.data||hoje();
+    }
+  });
+
+  Object.keys(vistos).forEach(function(nome){
+    var existe = clientes.some(function(c){ return (c.nome||'').toUpperCase()===nome; });
     if(!existe) {
       clientes.push({
-        id: Date.now() + Math.floor(Math.random()*9999),
-        nome: nomeUp, apelido: '', tel: '', email: '',
-        cidade: '', tipo: 'consumidor', obs: 'Importado automaticamente do historico de vendas',
-        dataCadastro: v.data || hoje()
+        id: Date.now()+Math.floor(Math.random()*9999),
+        nome: nome, apelido:'', tel:'', email:'', cidade:'',
+        tipo:'consumidor', obs:'', pix:'',
+        dataCadastro: vistos[nome]
       });
       alterou = true;
     }
   });
+  clientes.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||'','pt-BR'); });
   if(alterou) S.set('clientes', clientes);
 }
 
@@ -6478,14 +6492,14 @@ function showParcSubtab(sub) {
 function showFormCliente(idx) {
   _clienteEditIdx = idx;
   var subtabCli = document.getElementById('parc-subtab-clientes');
-  if(subtabCli && subtabCli.style.display === 'none') showParcSubtab('clientes');
-  var form = document.getElementById('form-cliente');
+  if(subtabCli && subtabCli.style.display==='none') showParcSubtab('clientes');
+  var form   = document.getElementById('form-cliente');
   var titulo = document.getElementById('form-cliente-titulo');
   if(!form) return;
   form.style.display = 'block';
   if(idx < 0) {
     if(titulo) titulo.innerHTML = '<i class="ti ti-user-plus"></i> Novo Cliente';
-    ['cli-nome','cli-apelido','cli-tel','cli-email','cli-cidade','cli-obs'].forEach(function(id){
+    ['cli-nome','cli-apelido','cli-tel','cli-email','cli-cidade','cli-obs','cli-pix'].forEach(function(id){
       var el = document.getElementById(id); if(el) el.value = '';
     });
     var tipEl = document.getElementById('cli-tipo');
@@ -6493,14 +6507,17 @@ function showFormCliente(idx) {
   } else {
     var c = clientes[idx];
     if(!c) return;
-    if(titulo) titulo.innerHTML = '<i class="ti ti-edit"></i> Editar Cliente';
+    if(titulo) titulo.innerHTML = '<i class="ti ti-edit"></i> Editar: ' + c.nome;
     document.getElementById('cli-nome').value    = c.nome    || '';
     document.getElementById('cli-apelido').value = c.apelido || '';
     document.getElementById('cli-tel').value     = c.tel     || '';
     document.getElementById('cli-email').value   = c.email   || '';
     document.getElementById('cli-cidade').value  = c.cidade  || '';
     document.getElementById('cli-obs').value     = c.obs     || '';
-    document.getElementById('cli-tipo').value    = c.tipo    || 'consumidor';
+    var tipEl = document.getElementById('cli-tipo');
+    if(tipEl) tipEl.value = c.tipo || 'consumidor';
+    var pixEl = document.getElementById('cli-pix');
+    if(pixEl) pixEl.value = c.pix || '';
   }
   form.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
