@@ -989,6 +989,24 @@
 
   <!-- SUBTAB VENDAS -->
   <div id="rel-sub-vendas" class="subtab active">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;align-items:center;">
+      <input type="text" id="rel-v-cliente" placeholder="Filtrar por cliente..." oninput="renderRelatorios()"
+        style="flex:1;min-width:150px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 10px;font-size:12px;background:var(--bg2);color:var(--text);outline:none;">
+      <select id="rel-v-pgto" onchange="renderRelatorios()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:6px 10px;font-size:12px;background:var(--bg2);color:var(--text);">
+        <option value="">Todas as formas</option>
+        <option value="Pix">Pix</option>
+        <option value="Dinheiro">Dinheiro</option>
+        <option value="Cartao de Credito">Cartao de Credito</option>
+        <option value="Cartao de Debito">Cartao de Debito</option>
+        <option value="A prazo">A prazo</option>
+        <option value="Boleto">Boleto</option>
+      </select>
+      <select id="rel-v-status" onchange="renderRelatorios()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:6px 10px;font-size:12px;background:var(--bg2);color:var(--text);">
+        <option value="">Todos os status</option>
+        <option value="pago">Pagas</option>
+        <option value="pendente">Pendentes</option>
+      </select>
+    </div>
     <div id="rel-kpis-vendas" style="margin-bottom:1.25rem;"></div>
     <div class="rel-grid">
       <div class="rel-card">
@@ -1008,6 +1026,25 @@
 
   <!-- SUBTAB PRODUTOS -->
   <div id="rel-sub-produtos" class="subtab" style="display:none;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;">
+      <input type="text" id="rel-p-busca" placeholder="Buscar produto..." oninput="renderRelatorios()"
+        style="flex:1;min-width:150px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 10px;font-size:12px;background:var(--bg2);color:var(--text);outline:none;">
+      <select id="rel-p-cat" onchange="renderRelatorios()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:6px 10px;font-size:12px;background:var(--bg2);color:var(--text);">
+        <option value="">Todas as categorias</option>
+        <option value="DECORACAO">Decoracao</option>
+        <option value="MINIATURA">Miniatura</option>
+        <option value="SUPORTE">Suporte</option>
+        <option value="CHAVEIRO">Chaveiro</option>
+        <option value="PLACA">Placa</option>
+        <option value="CAIXA">Caixa</option>
+        <option value="OUTRO">Outro</option>
+      </select>
+      <select id="rel-p-status" onchange="renderRelatorios()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:6px 10px;font-size:12px;background:var(--bg2);color:var(--text);">
+        <option value="">Todos</option>
+        <option value="disponivel">Disponiveis</option>
+        <option value="vendido">Vendidos</option>
+      </select>
+    </div>
     <div class="rel-grid">
       <div class="rel-card">
         <div class="rel-titulo"><i class="ti ti-trophy"></i> Produtos Mais Vendidos</div>
@@ -1026,6 +1063,16 @@
 
   <!-- SUBTAB CLIENTES -->
   <div id="rel-sub-clientes" class="subtab" style="display:none;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;">
+      <input type="text" id="rel-c-busca" placeholder="Buscar cliente..." oninput="renderRelatorios()"
+        style="flex:1;min-width:150px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 10px;font-size:12px;background:var(--bg2);color:var(--text);outline:none;">
+      <select id="rel-c-tipo" onchange="renderRelatorios()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:6px 10px;font-size:12px;background:var(--bg2);color:var(--text);">
+        <option value="">Todos os tipos</option>
+        <option value="consumidor">Consumidor Final</option>
+        <option value="lojista">Lojista</option>
+        <option value="empresa">Empresa</option>
+      </select>
+    </div>
     <div class="rel-card">
       <div class="rel-titulo"><i class="ti ti-crown"></i> Top Clientes por Faturamento</div>
       <div id="rel-top-clientes"></div>
@@ -1044,6 +1091,24 @@
 
   <!-- SUBTAB FILAMENTOS -->
   <div id="rel-sub-filamentos" class="subtab" style="display:none;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;align-items:center;">
+      <select id="rel-fil-sel" onchange="renderRelatorios()" style="flex:2;min-width:200px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 10px;font-size:12px;background:var(--bg2);color:var(--text);">
+        <option value="">Todos os filamentos</option>
+      </select>
+      <select id="rel-fil-tipo-mov" onchange="renderRelatorios()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:6px 10px;font-size:12px;background:var(--bg2);color:var(--text);">
+        <option value="">Entradas e Saidas</option>
+        <option value="entrada">Apenas Entradas</option>
+        <option value="saida">Apenas Saidas</option>
+      </select>
+    </div>
+    <!-- Extrato individual quando filamento selecionado -->
+    <div id="rel-fil-extrato-wrap" style="display:none;">
+      <div class="rel-card">
+        <div class="rel-titulo" id="rel-fil-extrato-titulo"><i class="ti ti-package"></i> Extrato do Filamento</div>
+        <div id="rel-fil-extrato"></div>
+      </div>
+    </div>
+    <div id="rel-fil-geral-wrap">
     <div class="rel-grid">
       <div class="rel-card">
         <div class="rel-titulo"><i class="ti ti-package"></i> Consumo por Filamento</div>
@@ -1058,10 +1123,26 @@
       <div class="rel-titulo"><i class="ti ti-shopping-bag"></i> Compras de Filamentos</div>
       <div id="rel-compras-fil"></div>
     </div>
+    </div><!-- fim rel-fil-geral-wrap -->
   </div>
 
   <!-- SUBTAB FINANCEIRO -->
   <div id="rel-sub-financeiro" class="subtab" style="display:none;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;">
+      <select id="rel-fin-cat" onchange="renderRelatorios()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:6px 10px;font-size:12px;background:var(--bg2);color:var(--text);">
+        <option value="">Todas as categorias</option>
+        <option value="fixo">Custo Fixo</option>
+        <option value="variavel">Custo Variavel</option>
+        <option value="investimento">Investimento</option>
+        <option value="imposto">Imposto/Taxa</option>
+      </select>
+      <select id="rel-fin-status" onchange="renderRelatorios()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:6px 10px;font-size:12px;background:var(--bg2);color:var(--text);">
+        <option value="">Todas</option>
+        <option value="paga">Pagas</option>
+        <option value="pendente">Pendentes</option>
+        <option value="vencida">Vencidas</option>
+      </select>
+    </div>
     <div id="rel-kpis-fin" style="margin-bottom:1.25rem;"></div>
     <div class="rel-grid">
       <div class="rel-card">
@@ -6536,17 +6617,27 @@ function renderRelatorios() {
 
 /* ===== RELATORIO VENDAS ===== */
 function renderRelVendas(datas) {
-  var lista = relFiltrarVendas(datas.de, datas.ate);
-  var total = lista.reduce(function(s,v){ return s+v.valor; }, 0);
-  var qtdVendas = lista.length;
-  var ticketMedio = qtdVendas ? total/qtdVendas : 0;
-  var pagas = lista.filter(function(v){ return v.statusPgto==='pago'; });
-  var totalPago = pagas.reduce(function(s,v){ return s+v.valor; }, 0);
+  // Aplicar filtros extras
+  var filtCli    = ((document.getElementById('rel-v-cliente')||{}).value||'').toUpperCase().trim();
+  var filtPgto   = (document.getElementById('rel-v-pgto')||{}).value||'';
+  var filtStatus = (document.getElementById('rel-v-status')||{}).value||'';
 
-  // KPIs
+  var lista = relFiltrarVendas(datas.de, datas.ate).filter(function(v){
+    if(filtCli    && !(v.cliente||'').toUpperCase().includes(filtCli)) return false;
+    if(filtPgto   && (v.pgto||v.formaPgto||'') !== filtPgto) return false;
+    if(filtStatus && v.statusPgto !== filtStatus) return false;
+    return true;
+  });
+
+  var total      = lista.reduce(function(s,v){ return s+v.valor; }, 0);
+  var qtdVendas  = lista.length;
+  var ticketMedio= qtdVendas ? total/qtdVendas : 0;
+  var pagas      = lista.filter(function(v){ return v.statusPgto==='pago'; });
+  var totalPago  = pagas.reduce(function(s,v){ return s+v.valor; }, 0);
+
   var kpis = document.getElementById('rel-kpis-vendas');
   if(kpis) kpis.innerHTML =
-    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1rem;">' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1rem;">' +
       kpiRel('Faturamento', fmt(total), 'var(--neon)', 'ti-trending-up') +
       kpiRel('Qtd Vendas', qtdVendas, 'var(--blue-text)', 'ti-shopping-cart') +
       kpiRel('Ticket Medio', fmt(ticketMedio), 'var(--text)', 'ti-receipt') +
@@ -6554,28 +6645,20 @@ function renderRelVendas(datas) {
       kpiRel('A Receber', fmt(total-totalPago), 'var(--amber-text)', 'ti-clock') +
     '</div>';
 
-  // Evolucao de vendas por dia/semana
+  // Evolucao por data
   var evolEl = document.getElementById('rel-evolucao-vendas');
   if(evolEl) {
-    if(!lista.length) { evolEl.innerHTML = '<div class="rel-empty">Nenhuma venda no periodo.</div>'; }
+    if(!lista.length) { evolEl.innerHTML='<div class="rel-empty">Nenhuma venda no periodo.</div>'; }
     else {
-      // Agrupar por data
       var porData = {};
-      lista.forEach(function(v){
-        if(!porData[v.data]) porData[v.data] = 0;
-        porData[v.data] += v.valor;
-      });
+      lista.forEach(function(v){ if(!porData[v.data]) porData[v.data]=0; porData[v.data]+=v.valor; });
       var datas2 = Object.keys(porData).sort();
-      var maxVal = Math.max.apply(null, datas2.map(function(d){ return porData[d]; }));
-      evolEl.innerHTML = '<div style="overflow-x:auto;">' +
-        '<table class="rel-tabela">' +
-        '<thead><tr><th>Data</th><th class="num">Vendas (R$)</th><th>Proporcao</th></tr></thead><tbody>' +
+      var maxVal = Math.max.apply(null,datas2.map(function(d){return porData[d];}));
+      evolEl.innerHTML = '<div style="overflow-x:auto;"><table class="rel-tabela"><thead><tr><th>Data</th><th class="num">Vendas (R$)</th><th>Proporcao</th></tr></thead><tbody>' +
         datas2.map(function(d){
-          var pct = maxVal > 0 ? (porData[d]/maxVal*100).toFixed(0) : 0;
-          return '<tr><td>'+fmtD(d)+'</td><td class="num" style="color:var(--neon);">'+fmt(porData[d])+'</td>' +
-            '<td style="width:120px;"><div class="rel-barra-wrap"><div class="rel-barra" style="width:'+pct+'%"></div></div></td></tr>';
-        }).join('') +
-        '</tbody></table></div>';
+          var pct=(porData[d]/maxVal*100).toFixed(0);
+          return '<tr><td>'+fmtD(d)+'</td><td class="num" style="color:var(--neon);">'+fmt(porData[d])+'</td><td><div class="rel-barra-wrap"><div class="rel-barra" style="width:'+pct+'%"></div></div></td></tr>';
+        }).join('')+'</tbody></table></div>';
     }
   }
 
@@ -6583,312 +6666,373 @@ function renderRelVendas(datas) {
   var pgtoEl = document.getElementById('rel-formas-pgto');
   if(pgtoEl) {
     var porPgto = {};
-    lista.forEach(function(v){
-      var f = v.formaPgto || v.pgto || 'Nao informado';
-      if(!porPgto[f]) porPgto[f] = {qtd:0, total:0};
-      porPgto[f].qtd++;
-      porPgto[f].total += v.valor;
-    });
-    var pgtoKeys = Object.keys(porPgto).sort(function(a,b){ return porPgto[b].total-porPgto[a].total; });
-    var maxPgto = pgtoKeys.length ? porPgto[pgtoKeys[0]].total : 1;
-    pgtoEl.innerHTML = pgtoKeys.length ? '<table class="rel-tabela">' +
-      '<thead><tr><th>Forma</th><th class="num">Qtd</th><th class="num">Total</th></tr></thead><tbody>' +
+    lista.forEach(function(v){ var f=v.pgto||v.formaPgto||'Nao informado'; if(!porPgto[f]) porPgto[f]={qtd:0,total:0}; porPgto[f].qtd++; porPgto[f].total+=v.valor; });
+    var pgtoKeys = Object.keys(porPgto).sort(function(a,b){return porPgto[b].total-porPgto[a].total;});
+    pgtoEl.innerHTML = pgtoKeys.length ?
+      '<table class="rel-tabela"><thead><tr><th>Forma</th><th class="num">Qtd</th><th class="num">Total</th><th class="num">%</th></tr></thead><tbody>' +
       pgtoKeys.map(function(k){
-        return '<tr><td>'+k+'</td><td class="num">'+porPgto[k].qtd+'</td><td class="num" style="color:var(--neon);">'+fmt(porPgto[k].total)+'</td></tr>';
-      }).join('') + '</tbody></table>' : '<div class="rel-empty">Sem dados.</div>';
+        var pct = total>0?(porPgto[k].total/total*100).toFixed(1):'0';
+        return '<tr><td>'+k+'</td><td class="num">'+porPgto[k].qtd+'</td><td class="num" style="color:var(--neon);">'+fmt(porPgto[k].total)+'</td><td class="num" style="color:var(--text3);">'+pct+'%</td></tr>';
+      }).join('')+'</tbody></table>' : '<div class="rel-empty">Sem dados.</div>';
   }
 
-  // Detalhamento
+  // Detalhamento completo
   var detEl = document.getElementById('rel-detalhe-vendas');
   if(detEl) {
     if(!lista.length) { detEl.innerHTML='<div class="rel-empty">Nenhuma venda no periodo.</div>'; return; }
-    var listaOrd = lista.slice().sort(function(a,b){ return b.data>a.data?1:-1; });
-    detEl.innerHTML = '<div style="overflow-x:auto;"><table class="rel-tabela">' +
-      '<thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th class="num">Qtd</th><th class="num">Valor</th><th>Pagto</th></tr></thead><tbody>' +
+    var listaOrd = lista.slice().sort(function(a,b){return b.data>a.data?1:-1;});
+    detEl.innerHTML = '<div style="overflow-x:auto;"><table class="rel-tabela"><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th class="num">Qtd</th><th class="num">Valor</th><th>Pagto</th><th>Status</th></tr></thead><tbody>' +
       listaOrd.map(function(v){
         return '<tr><td>'+fmtD(v.data)+'</td><td>'+v.cliente+'</td><td>'+(v.prodNome||'--')+'</td>' +
           '<td class="num">'+(v.qtd||1)+'</td>' +
           '<td class="num" style="color:var(--neon);font-weight:700;">'+fmt(v.valor)+'</td>' +
+          '<td>'+(v.pgto||v.formaPgto||'--')+'</td>' +
           '<td><span class="tag '+(v.statusPgto==='pago'?'tag-green':'tag-amber')+'" style="font-size:10px;">'+(v.statusPgto==='pago'?'Pago':'Pendente')+'</span></td>' +
         '</tr>';
-      }).join('') + '</tbody></table></div>';
+      }).join('')+'</tbody></table></div>';
   }
 }
 
-/* ===== RELATORIO PRODUTOS ===== */
 function renderRelProdutos(datas) {
-  var lista = relFiltrarVendas(datas.de, datas.ate);
+  var filtBusca  = ((document.getElementById('rel-p-busca')||{}).value||'').toUpperCase().trim();
+  var filtCat    = (document.getElementById('rel-p-cat')||{}).value||'';
+  var filtStatus = (document.getElementById('rel-p-status')||{}).value||'';
 
-  // Top produtos por quantidade
+  var lista = relFiltrarVendas(datas.de, datas.ate);
   var porProd = {};
   lista.forEach(function(v){
-    var nome = v.prodNome || 'AVULSO';
-    if(!porProd[nome]) porProd[nome] = {qtd:0, total:0};
-    porProd[nome].qtd  += (v.qtd||1);
-    porProd[nome].total += v.valor;
+    var nome = v.prodNome||'AVULSO';
+    if(!porProd[nome]) porProd[nome]={qtd:0,total:0};
+    porProd[nome].qtd  +=(v.qtd||1);
+    porProd[nome].total+=v.valor;
   });
-  var topProd = Object.keys(porProd).sort(function(a,b){ return porProd[b].qtd-porProd[a].qtd; });
+
+  // Filtrar por busca
+  if(filtBusca) {
+    Object.keys(porProd).forEach(function(k){ if(!k.toUpperCase().includes(filtBusca)) delete porProd[k]; });
+  }
+
+  var topProd = Object.keys(porProd).sort(function(a,b){return porProd[b].qtd-porProd[a].qtd;});
   var maxQtd  = topProd.length ? porProd[topProd[0]].qtd : 1;
+  var topRec  = Object.keys(porProd).sort(function(a,b){return porProd[b].total-porProd[a].total;});
+  var maxRec  = topRec.length ? porProd[topRec[0]].total : 1;
 
   var topEl = document.getElementById('rel-top-produtos');
   if(topEl) topEl.innerHTML = topProd.length ?
-    '<table class="rel-tabela"><thead><tr><th class="pos">#</th><th>Produto</th><th class="num">Qtd</th><th>Distribuicao</th></tr></thead><tbody>' +
-    topProd.slice(0,10).map(function(k,i){
-      var pct = (porProd[k].qtd/maxQtd*100).toFixed(0);
-      return '<tr><td class="pos">'+(i+1)+'</td><td>'+k+'</td><td class="num" style="color:var(--blue-text);">'+porProd[k].qtd+'</td>' +
-        '<td><div class="rel-barra-wrap"><div class="rel-barra" style="width:'+pct+'%;background:var(--blue-text);"></div></div></td></tr>';
-    }).join('') + '</tbody></table>' : '<div class="rel-empty">Nenhuma venda no periodo.</div>';
+    '<table class="rel-tabela"><thead><tr><th class="pos">#</th><th>Produto</th><th class="num">Qtd</th><th class="num">Receita</th><th>Barra</th></tr></thead><tbody>' +
+    topProd.slice(0,15).map(function(k,i){
+      var pct=(porProd[k].qtd/maxQtd*100).toFixed(0);
+      return '<tr><td class="pos">'+(i+1)+'</td><td>'+k+'</td><td class="num" style="color:var(--blue-text);">'+porProd[k].qtd+'</td><td class="num" style="color:var(--neon);">'+fmt(porProd[k].total)+'</td><td><div class="rel-barra-wrap"><div class="rel-barra" style="width:'+pct+'%;background:var(--blue-text);"></div></div></td></tr>';
+    }).join('')+'</tbody></table>' : '<div class="rel-empty">Nenhuma venda no periodo.</div>';
 
-  // Receita por produto
-  var topRec = Object.keys(porProd).sort(function(a,b){ return porProd[b].total-porProd[a].total; });
-  var maxRec = topRec.length ? porProd[topRec[0]].total : 1;
   var recEl = document.getElementById('rel-receita-produto');
   if(recEl) recEl.innerHTML = topRec.length ?
     '<table class="rel-tabela"><thead><tr><th class="pos">#</th><th>Produto</th><th class="num">Receita</th><th>Proporcao</th></tr></thead><tbody>' +
-    topRec.slice(0,10).map(function(k,i){
-      var pct = (porProd[k].total/maxRec*100).toFixed(0);
-      return '<tr><td class="pos">'+(i+1)+'</td><td>'+k+'</td><td class="num" style="color:var(--neon);">'+fmt(porProd[k].total)+'</td>' +
-        '<td><div class="rel-barra-wrap"><div class="rel-barra" style="width:'+pct+'%"></div></div></td></tr>';
-    }).join('') + '</tbody></table>' : '<div class="rel-empty">Sem dados.</div>';
+    topRec.slice(0,15).map(function(k,i){
+      var pct=(porProd[k].total/maxRec*100).toFixed(0);
+      return '<tr><td class="pos">'+(i+1)+'</td><td>'+k+'</td><td class="num" style="color:var(--neon);">'+fmt(porProd[k].total)+'</td><td><div class="rel-barra-wrap"><div class="rel-barra" style="width:'+pct+'%"></div></div></td></tr>';
+    }).join('')+'</tbody></table>' : '<div class="rel-empty">Sem dados.</div>';
 
-  // Estoque vs Vendidos
+  // Estoque filtrado
   var estEl = document.getElementById('rel-estoque-vendidos');
   if(estEl) {
-    var disponiveis = produtos.filter(function(p){ return !p.vendido; }).length;
-    var vendidos    = produtos.filter(function(p){ return p.vendido; }).length;
+    var prodsFiltrados = produtos.filter(function(p){
+      if(filtBusca && !(p.nome||'').toUpperCase().includes(filtBusca)) return false;
+      if(filtCat && (p.cat||'').toUpperCase() !== filtCat) return false;
+      if(filtStatus==='vendido' && !p.vendido) return false;
+      if(filtStatus==='disponivel' && p.vendido) return false;
+      return true;
+    });
+    var disponiveis = prodsFiltrados.filter(function(p){return !p.vendido;}).length;
+    var vendidos    = prodsFiltrados.filter(function(p){return p.vendido;}).length;
     estEl.innerHTML =
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:1rem;">' +
-        kpiRel('Total Produtos', produtos.length, 'var(--text)', 'ti-box') +
+      '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1rem;">' +
+        kpiRel('Filtrados', prodsFiltrados.length, 'var(--text)', 'ti-box') +
         kpiRel('Disponiveis', disponiveis, 'var(--neon)', 'ti-check') +
         kpiRel('Vendidos', vendidos, 'var(--blue-text)', 'ti-shopping-cart') +
       '</div>' +
-      '<table class="rel-tabela"><thead><tr><th>Produto</th><th>Categoria</th><th class="num">Preco</th><th>Status</th></tr></thead><tbody>' +
-      produtos.slice(0,20).map(function(p){
+      '<div style="overflow-x:auto;"><table class="rel-tabela"><thead><tr><th>Produto</th><th>Categoria</th><th class="num">Custo</th><th class="num">Preco</th><th class="num">Margem</th><th>Status</th></tr></thead><tbody>' +
+      prodsFiltrados.slice(0,30).map(function(p){
+        var custo  = calcularCustoProduto(p);
+        var margem = (custo>0&&p.precoNum>0)?((p.precoNum-custo)/p.precoNum*100).toFixed(1):'--';
         return '<tr><td>'+p.nome+'</td><td>'+(p.cat||'--')+'</td>' +
+          '<td class="num" style="color:var(--text2);">'+(custo>0?fmt(custo):'--')+'</td>' +
           '<td class="num" style="color:var(--neon);">'+p.preco+'</td>' +
+          '<td class="num" style="color:'+(parseFloat(margem)>30?'var(--neon)':'var(--amber-text)')+';">'+(margem!='--'?margem+'%':'--')+'</td>' +
           '<td><span class="tag '+(p.vendido?'tag-green':'tag-blue')+'" style="font-size:10px;">'+(p.vendido?'Vendido':'Disponivel')+'</span></td></tr>';
-      }).join('') + '</tbody></table>';
+      }).join('')+'</tbody></table></div>';
   }
 }
 
-/* ===== RELATORIO CLIENTES ===== */
 function renderRelClientes(datas) {
-  var lista = relFiltrarVendas(datas.de, datas.ate);
+  var filtBusca = ((document.getElementById('rel-c-busca')||{}).value||'').toUpperCase().trim();
+  var filtTipo  = (document.getElementById('rel-c-tipo')||{}).value||'';
 
-  // Top clientes
+  var lista = relFiltrarVendas(datas.de, datas.ate);
   var porCli = {};
   lista.forEach(function(v){
-    var c = v.cliente || 'NAO INFORMADO';
-    if(!porCli[c]) porCli[c] = {qtd:0, total:0, prods:[]};
-    porCli[c].qtd++;
-    porCli[c].total += v.valor;
+    var c=v.cliente||'NAO INFORMADO';
+    if(!porCli[c]) porCli[c]={qtd:0,total:0,prods:[]};
+    porCli[c].qtd++; porCli[c].total+=v.valor;
     if(v.prodNome && porCli[c].prods.indexOf(v.prodNome)<0) porCli[c].prods.push(v.prodNome);
   });
-  var topCli = Object.keys(porCli).sort(function(a,b){ return porCli[b].total-porCli[a].total; });
-  var maxCli = topCli.length ? porCli[topCli[0]].total : 1;
+
+  // Filtrar
+  if(filtBusca) Object.keys(porCli).forEach(function(k){ if(!k.includes(filtBusca)) delete porCli[k]; });
+  if(filtTipo) {
+    var clisFiltTipo = clientes.filter(function(c){ return c.tipo===filtTipo; }).map(function(c){ return c.nome.toUpperCase(); });
+    Object.keys(porCli).forEach(function(k){ if(clisFiltTipo.indexOf(k)<0) delete porCli[k]; });
+  }
+
+  var topCli  = Object.keys(porCli).sort(function(a,b){return porCli[b].total-porCli[a].total;});
+  var maxCli  = topCli.length ? porCli[topCli[0]].total : 1;
 
   var topEl = document.getElementById('rel-top-clientes');
   if(topEl) topEl.innerHTML = topCli.length ?
-    '<table class="rel-tabela"><thead><tr><th class="pos">#</th><th>Cliente</th><th class="num">Compras</th><th class="num">Total Gasto</th><th class="num">Ticket Medio</th></tr></thead><tbody>' +
+    '<div style="overflow-x:auto;"><table class="rel-tabela"><thead><tr><th class="pos">#</th><th>Cliente</th><th class="num">Compras</th><th class="num">Total Gasto</th><th class="num">Ticket Medio</th><th>Produtos</th></tr></thead><tbody>' +
     topCli.map(function(k,i){
-      var ticket = porCli[k].qtd ? porCli[k].total/porCli[k].qtd : 0;
-      return '<tr>' +
-        '<td class="pos">'+(i+1)+'</td>' +
-        '<td><strong>'+k+'</strong><br><span style="font-size:11px;color:var(--text3);">'+porCli[k].prods.slice(0,2).join(', ')+(porCli[k].prods.length>2?'...':'')+'</span></td>' +
+      var ticket=porCli[k].qtd?porCli[k].total/porCli[k].qtd:0;
+      return '<tr><td class="pos">'+(i+1)+'</td><td><strong>'+k+'</strong></td>' +
         '<td class="num">'+porCli[k].qtd+'</td>' +
         '<td class="num" style="color:var(--neon);font-weight:700;">'+fmt(porCli[k].total)+'</td>' +
-        '<td class="num" style="color:var(--text2);">'+fmt(ticket)+'</td>' +
+        '<td class="num">'+fmt(ticket)+'</td>' +
+        '<td style="font-size:11px;color:var(--text3);">'+porCli[k].prods.slice(0,2).join(', ')+(porCli[k].prods.length>2?'...':'')+'</td>' +
       '</tr>';
-    }).join('') + '</tbody></table>' : '<div class="rel-empty">Nenhuma venda no periodo.</div>';
+    }).join('')+'</tbody></table></div>' : '<div class="rel-empty">Nenhum cliente no periodo.</div>';
 
-  // Frequencia de compra
   var freqEl = document.getElementById('rel-freq-clientes');
   if(freqEl) {
-    var freq1 = topCli.filter(function(k){ return porCli[k].qtd === 1; }).length;
-    var freq2  = topCli.filter(function(k){ return porCli[k].qtd >= 2 && porCli[k].qtd <= 3; }).length;
-    var freq3  = topCli.filter(function(k){ return porCli[k].qtd > 3; }).length;
-    freqEl.innerHTML =
-      '<table class="rel-tabela"><thead><tr><th>Perfil</th><th class="num">Clientes</th><th class="num">Percentual</th></tr></thead><tbody>' +
-      '<tr><td>Compra unica</td><td class="num">'+freq1+'</td><td class="num">'+(topCli.length?((freq1/topCli.length)*100).toFixed(0):0)+'%</td></tr>' +
-      '<tr><td>Recorrente (2-3x)</td><td class="num">'+freq2+'</td><td class="num">'+(topCli.length?((freq2/topCli.length)*100).toFixed(0):0)+'%</td></tr>' +
-      '<tr><td>Fiel (4x ou mais)</td><td class="num" style="color:var(--neon);">'+freq3+'</td><td class="num">'+(topCli.length?((freq3/topCli.length)*100).toFixed(0):0)+'%</td></tr>' +
+    var freq1=topCli.filter(function(k){return porCli[k].qtd===1;}).length;
+    var freq2=topCli.filter(function(k){return porCli[k].qtd>=2&&porCli[k].qtd<=3;}).length;
+    var freq3=topCli.filter(function(k){return porCli[k].qtd>3;}).length;
+    var tot=topCli.length||1;
+    freqEl.innerHTML='<table class="rel-tabela"><thead><tr><th>Perfil</th><th class="num">Clientes</th><th class="num">%</th></tr></thead><tbody>' +
+      '<tr><td>Compra unica</td><td class="num">'+freq1+'</td><td class="num">'+((freq1/tot)*100).toFixed(0)+'%</td></tr>' +
+      '<tr><td>Recorrente (2-3x)</td><td class="num">'+freq2+'</td><td class="num">'+((freq2/tot)*100).toFixed(0)+'%</td></tr>' +
+      '<tr><td>Fiel (4x+)</td><td class="num" style="color:var(--neon);">'+freq3+'</td><td class="num">'+((freq3/tot)*100).toFixed(0)+'%</td></tr>' +
       '</tbody></table>';
   }
 
-  // Perfil dos clientes
   var perfEl = document.getElementById('rel-perfil-clientes');
   if(perfEl) {
-    var tipoCli = {consumidor:0, lojista:0, empresa:0, sem:0};
-    clientes.forEach(function(c){ tipoCli[c.tipo] = (tipoCli[c.tipo]||0)+1; });
-    var totalCli = clientes.length || 1;
-    perfEl.innerHTML =
-      '<table class="rel-tabela"><thead><tr><th>Tipo</th><th class="num">Qtd</th><th class="num">%</th></tr></thead><tbody>' +
-      '<tr><td>Consumidor Final</td><td class="num">'+tipoCli.consumidor+'</td><td class="num">'+((tipoCli.consumidor/totalCli)*100).toFixed(0)+'%</td></tr>' +
-      '<tr><td>Lojista/Revendedor</td><td class="num">'+tipoCli.lojista+'</td><td class="num">'+((tipoCli.lojista/totalCli)*100).toFixed(0)+'%</td></tr>' +
-      '<tr><td>Empresa</td><td class="num">'+tipoCli.empresa+'</td><td class="num">'+((tipoCli.empresa/totalCli)*100).toFixed(0)+'%</td></tr>' +
-      '</tbody></table>' +
-      '<div style="margin-top:10px;font-size:12px;color:var(--text3);">Total de clientes cadastrados: <strong style="color:var(--text);">'+clientes.length+'</strong></div>';
+    var tp={consumidor:0,lojista:0,empresa:0};
+    clientes.forEach(function(c){ tp[c.tipo]=(tp[c.tipo]||0)+1; });
+    var tot=clientes.length||1;
+    perfEl.innerHTML='<table class="rel-tabela"><thead><tr><th>Tipo</th><th class="num">Qtd</th><th class="num">%</th></tr></thead><tbody>' +
+      '<tr><td>Consumidor Final</td><td class="num">'+tp.consumidor+'</td><td class="num">'+((tp.consumidor/tot)*100).toFixed(0)+'%</td></tr>' +
+      '<tr><td>Lojista</td><td class="num">'+tp.lojista+'</td><td class="num">'+((tp.lojista/tot)*100).toFixed(0)+'%</td></tr>' +
+      '<tr><td>Empresa</td><td class="num">'+tp.empresa+'</td><td class="num">'+((tp.empresa/tot)*100).toFixed(0)+'%</td></tr>' +
+      '</tbody></table><div style="margin-top:8px;font-size:12px;color:var(--text3);">Total cadastrados: <strong>'+clientes.length+'</strong></div>';
   }
 }
 
-/* ===== RELATORIO FILAMENTOS ===== */
 function renderRelFilamentos(datas) {
-  // Consumo a partir do historico de movimentacoes
-  var movPeriodo = movimentacoes.filter(function(m){
-    return m.tipo==='saida' && m.data>=datas.de && m.data<=datas.ate;
-  });
+  var filtFilSel  = (document.getElementById('rel-fil-sel')||{}).value||'';
+  var filtTipoMov = (document.getElementById('rel-fil-tipo-mov')||{}).value||'';
 
-  var porFil = {};
-  movPeriodo.forEach(function(m){
-    if(!porFil[m.filNome]) porFil[m.filNome] = {qtd:0, corHex:m.corHex, refs:[]};
-    porFil[m.filNome].qtd += parseFloat(m.qtd)||0;
-    if(m.referencia && porFil[m.filNome].refs.indexOf(m.referencia)<0)
-      porFil[m.filNome].refs.push(m.referencia);
-  });
-  var topFil = Object.keys(porFil).sort(function(a,b){ return porFil[b].qtd-porFil[a].qtd; });
-  var maxFil = topFil.length ? porFil[topFil[0]].qtd : 1;
-
-  var conEl = document.getElementById('rel-consumo-fil');
-  if(conEl) conEl.innerHTML = topFil.length ?
-    '<table class="rel-tabela"><thead><tr><th class="pos">#</th><th>Filamento</th><th class="num">Consumido</th><th>Proporcao</th></tr></thead><tbody>' +
-    topFil.map(function(k,i){
-      var pct = (porFil[k].qtd/maxFil*100).toFixed(0);
-      return '<tr>' +
-        '<td class="pos">'+(i+1)+'</td>' +
-        '<td><div style="display:flex;align-items:center;gap:6px;">' +
-          '<span class="cor-dot" style="background:'+(porFil[k].corHex||'#555')+'"></span>'+k+
-        '</div></td>' +
-        '<td class="num" style="color:var(--amber-text);font-weight:700;">'+porFil[k].qtd.toFixed(0)+'g</td>' +
-        '<td><div class="rel-barra-wrap"><div class="rel-barra" style="width:'+pct+'%;background:var(--amber-text);"></div></div></td>' +
-      '</tr>';
-    }).join('') + '</tbody></table>' :
-    '<div class="rel-empty"><i class="ti ti-package" style="font-size:28px;display:block;margin-bottom:8px;"></i>Sem movimentacoes no periodo.</div>';
-
-  // Estoque critico
-  var critEl = document.getElementById('rel-estoque-critico');
-  if(critEl) {
-    var criticos = filamentos.filter(function(f){ return (parseFloat(f.qtd)||0) < 100; })
-      .sort(function(a,b){ return (parseFloat(a.qtd)||0)-(parseFloat(b.qtd)||0); });
-    critEl.innerHTML = criticos.length ?
-      '<table class="rel-tabela"><thead><tr><th>Filamento</th><th class="num">Estoque</th><th>Status</th></tr></thead><tbody>' +
-      criticos.map(function(f){
-        var qtd = parseFloat(f.qtd)||0;
-        var cor = qtd < 50 ? 'var(--red-text)' : 'var(--amber-text)';
-        return '<tr><td><div style="display:flex;align-items:center;gap:6px;">' +
-          '<span class="cor-dot" style="background:'+(f.corHex||'#555')+'"></span>' +
-          f.corNome+' '+f.marca+' '+f.modelo+'</div></td>' +
-          '<td class="num" style="color:'+cor+';font-weight:700;">'+qtd.toFixed(0)+'g</td>' +
-          '<td><span class="tag '+(qtd<50?'tag-red':'tag-amber')+'" style="font-size:10px;">'+(qtd<50?'Critico':'Baixo')+'</span></td></tr>';
-      }).join('') + '</tbody></table>' :
-      '<div class="rel-empty" style="color:var(--neon);"><i class="ti ti-check" style="font-size:24px;display:block;"></i>Todos os filamentos com estoque adequado!</div>';
+  // Popular select de filamentos
+  var selFil = document.getElementById('rel-fil-sel');
+  if(selFil && selFil.options.length <= 1) {
+    filamentos.forEach(function(f,i){
+      var opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = f.corNome+' '+f.marca+' '+f.modelo;
+      selFil.appendChild(opt);
+    });
   }
 
-  // Compras de filamentos no periodo
-  var cmpEl = document.getElementById('rel-compras-fil');
-  if(cmpEl) {
-    var comprasPer = compras.filter(function(c){ return c.data>=datas.de && c.data<=datas.ate; });
-    var totalCmp = comprasPer.reduce(function(s,c){ return s+(c.total||0); },0);
-    cmpEl.innerHTML = comprasPer.length ?
-      '<div style="margin-bottom:10px;font-size:13px;">Total investido em filamentos no periodo: <strong style="color:var(--neon);">'+fmt(totalCmp)+'</strong></div>' +
-      '<table class="rel-tabela"><thead><tr><th>Data</th><th>Descricao</th><th>Fornecedor</th><th class="num">Total</th></tr></thead><tbody>' +
-      comprasPer.map(function(c){
-        return '<tr><td>'+fmtD(c.data)+'</td><td>'+(c.desc||'--')+'</td><td>'+(c.fornNome||'--')+'</td><td class="num" style="color:var(--neon);">'+fmt(c.total||0)+'</td></tr>';
-      }).join('') + '</tbody></table>' :
-      '<div class="rel-empty">Nenhuma compra registrada no periodo.</div>';
+  // Extrato individual
+  var extratoWrap = document.getElementById('rel-fil-extrato-wrap');
+  var geralWrap   = document.getElementById('rel-fil-geral-wrap');
+
+  if(filtFilSel !== '') {
+    // Modo extrato  mostrar detalhes do filamento selecionado
+    if(extratoWrap) extratoWrap.style.display = 'block';
+    if(geralWrap)   geralWrap.style.display   = 'none';
+    var idxFil = parseInt(filtFilSel);
+    var f = filamentos[idxFil];
+    if(!f) return;
+    var movsFil = movimentacoes.filter(function(m){
+      if(m.filIdx !== idxFil) return false;
+      if(m.data < datas.de || m.data > datas.ate) return false;
+      if(filtTipoMov && m.tipo !== filtTipoMov) return false;
+      return true;
+    }).sort(function(a,b){ return b.data>a.data?1:-1; });
+    var totalEnt = movsFil.filter(function(m){return m.tipo==='entrada';}).reduce(function(s,m){return s+parseFloat(m.qtd||0);},0);
+    var totalSai = movsFil.filter(function(m){return m.tipo==='saida';}).reduce(function(s,m){return s+parseFloat(m.qtd||0);},0);
+    var saldo    = parseFloat(f.qtd||0);
+    var custo_g  = f.preco>0&&f.pesoRolo>0?(parseFloat(f.preco)/parseFloat(f.pesoRolo)).toFixed(4):'--';
+
+    var titulo = document.getElementById('rel-fil-extrato-titulo');
+    if(titulo) titulo.innerHTML = '<span class="cor-dot" style="background:'+f.corHex+';"></span> '+f.corNome+' '+f.marca+' '+f.modelo;
+
+    var extEl = document.getElementById('rel-fil-extrato');
+    if(extEl) {
+      extEl.innerHTML =
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:1rem;">' +
+          kpiRel('Estoque Atual', saldo.toFixed(0)+'g', 'var(--neon)', 'ti-package') +
+          kpiRel('Entradas', '+'+totalEnt.toFixed(0)+'g', 'var(--blue-text)', 'ti-arrow-down-circle') +
+          kpiRel('Saidas', '-'+totalSai.toFixed(0)+'g', 'var(--red-text)', 'ti-arrow-up-circle') +
+          kpiRel('Custo/g', 'R$ '+custo_g, 'var(--amber-text)', 'ti-coin') +
+        '</div>' +
+        (movsFil.length ? '<div style="overflow-x:auto;"><table class="rel-tabela"><thead><tr><th>Data</th><th>Tipo</th><th class="num">Qtd</th><th class="num">Antes</th><th class="num">Depois</th><th>Referencia</th></tr></thead><tbody>' +
+          movsFil.map(function(m){
+            var cor = m.tipo==='entrada'?'var(--blue-text)':'var(--red-text)';
+            var sinal = m.tipo==='entrada'?'+':'-';
+            return '<tr><td>'+fmtD(m.data)+(m.hora?' '+m.hora:'')+'</td>' +
+              '<td><span class="tag '+(m.tipo==='entrada'?'tag-blue':'tag-red')+'" style="font-size:10px;">'+m.tipo+'</span></td>' +
+              '<td class="num" style="color:'+cor+';font-weight:700;">'+sinal+parseFloat(m.qtd).toFixed(0)+'g</td>' +
+              '<td class="num" style="color:var(--text3);">'+(m.antes||'--')+'g</td>' +
+              '<td class="num" style="color:var(--text3);">'+(m.depois||'--')+'g</td>' +
+              '<td style="font-size:11px;color:var(--text3);">'+(m.referencia||m.motivo||'--')+'</td>' +
+            '</tr>';
+          }).join('')+'</tbody></table></div>' :
+          '<div class="rel-empty">Nenhuma movimentacao no periodo.</div>');
+    }
+  } else {
+    // Modo geral
+    if(extratoWrap) extratoWrap.style.display = 'none';
+    if(geralWrap)   geralWrap.style.display   = 'block';
+
+    var movPeriodo = movimentacoes.filter(function(m){
+      if(m.data<datas.de||m.data>datas.ate) return false;
+      if(filtTipoMov && m.tipo!==filtTipoMov) return false;
+      return true;
+    });
+    var porFil={};
+    movPeriodo.forEach(function(m){
+      if(!porFil[m.filNome]) porFil[m.filNome]={qtd:0,corHex:m.corHex,ent:0,sai:0};
+      if(m.tipo==='saida')   porFil[m.filNome].sai+=parseFloat(m.qtd||0);
+      if(m.tipo==='entrada') porFil[m.filNome].ent+=parseFloat(m.qtd||0);
+      porFil[m.filNome].qtd+=parseFloat(m.qtd||0);
+    });
+    var topFil=Object.keys(porFil).sort(function(a,b){return porFil[b].sai-porFil[a].sai;});
+    var maxFil=topFil.length?Math.max.apply(null,topFil.map(function(k){return porFil[k].sai;})):1;
+
+    var conEl=document.getElementById('rel-consumo-fil');
+    if(conEl) conEl.innerHTML=topFil.length?
+      '<table class="rel-tabela"><thead><tr><th class="pos">#</th><th>Filamento</th><th class="num">Entradas</th><th class="num">Saidas</th><th>Proporcao</th></tr></thead><tbody>'+
+      topFil.map(function(k,i){
+        var pct=(porFil[k].sai/maxFil*100).toFixed(0);
+        return '<tr><td class="pos">'+(i+1)+'</td>' +
+          '<td><div style="display:flex;align-items:center;gap:6px;"><span class="cor-dot" style="background:'+(porFil[k].corHex||'#555')+'"></span>'+k+'</div></td>' +
+          '<td class="num" style="color:var(--blue-text);">+'+porFil[k].ent.toFixed(0)+'g</td>' +
+          '<td class="num" style="color:var(--red-text);">-'+porFil[k].sai.toFixed(0)+'g</td>' +
+          '<td><div class="rel-barra-wrap"><div class="rel-barra" style="width:'+pct+'%;background:var(--amber-text);"></div></div></td></tr>';
+      }).join('')+'</tbody></table>' :
+      '<div class="rel-empty">Sem movimentacoes no periodo.</div>';
+
+    var critEl=document.getElementById('rel-estoque-critico');
+    if(critEl){
+      var criticos=filamentos.filter(function(f){return (parseFloat(f.qtd)||0)<100;}).sort(function(a,b){return (parseFloat(a.qtd)||0)-(parseFloat(b.qtd)||0);});
+      critEl.innerHTML=criticos.length?
+        '<table class="rel-tabela"><thead><tr><th>Filamento</th><th class="num">Estoque</th><th class="num">%Rolo</th><th>Status</th></tr></thead><tbody>'+
+        criticos.map(function(f){
+          var qtd=parseFloat(f.qtd)||0;
+          var pct=f.pesoRolo>0?(qtd/f.pesoRolo*100).toFixed(0):0;
+          return '<tr><td><div style="display:flex;align-items:center;gap:6px;"><span class="cor-dot" style="background:'+f.corHex+'"></span>'+f.corNome+' '+f.marca+' '+f.modelo+'</div></td>' +
+            '<td class="num" style="color:'+(qtd<50?'var(--red-text)':'var(--amber-text)')+';font-weight:700;">'+qtd.toFixed(0)+'g</td>' +
+            '<td class="num" style="color:var(--text3);">'+pct+'%</td>' +
+            '<td><span class="tag '+(qtd<50?'tag-red':'tag-amber')+'" style="font-size:10px;">'+(qtd<50?'Critico':'Baixo')+'</span></td></tr>';
+        }).join('')+'</tbody></table>' :
+        '<div class="rel-empty" style="color:var(--neon);"><i class="ti ti-check" style="font-size:24px;display:block;"></i>Todos com estoque adequado!</div>';
+    }
+
+    var cmpEl=document.getElementById('rel-compras-fil');
+    if(cmpEl){
+      var comprasPer=compras.filter(function(c){return c.data>=datas.de&&c.data<=datas.ate;});
+      var totalCmp=comprasPer.reduce(function(s,c){return s+(c.total||0);},0);
+      cmpEl.innerHTML=comprasPer.length?
+        '<div style="margin-bottom:10px;font-size:13px;">Total investido: <strong style="color:var(--neon);">'+fmt(totalCmp)+'</strong></div>' +
+        '<div style="overflow-x:auto;"><table class="rel-tabela"><thead><tr><th>Data</th><th>Descricao</th><th>Fornecedor</th><th class="num">Total</th></tr></thead><tbody>'+
+        comprasPer.map(function(c){return '<tr><td>'+fmtD(c.data)+'</td><td>'+(c.desc||'--')+'</td><td>'+(c.fornNome||'--')+'</td><td class="num" style="color:var(--neon);">'+fmt(c.total||0)+'</td></tr>';}).join('')+
+        '</tbody></table></div>' :
+        '<div class="rel-empty">Nenhuma compra no periodo.</div>';
+    }
   }
 }
 
-/* ===== RELATORIO FINANCEIRO ===== */
 function renderRelFinanceiro(datas) {
-  var listaVendas = relFiltrarVendas(datas.de, datas.ate);
-  var totalReceitas = listaVendas.reduce(function(s,v){ return s+v.valor; },0);
-  var comprasPer  = compras.filter(function(c){ return c.data>=datas.de && c.data<=datas.ate; });
-  var totalCompras = comprasPer.reduce(function(s,c){ return s+(c.total||0); },0);
-  var despPagas   = contasPagar.filter(function(cp){ return cp.status==='paga' && (cp.dataPagamento||'')>=datas.de && (cp.dataPagamento||'')<=datas.ate; });
-  var totalDesp   = despPagas.reduce(function(s,cp){ return s+cp.valor; },0);
-  var lucroBruto  = totalReceitas - totalCompras;
-  var lucroLiq    = totalReceitas - totalCompras - totalDesp;
-  var margem      = totalReceitas > 0 ? (lucroLiq/totalReceitas*100).toFixed(1) : 0;
+  var filtCat    = (document.getElementById('rel-fin-cat')||{}).value||'';
+  var filtStatus = (document.getElementById('rel-fin-status')||{}).value||'';
 
-  // KPIs
-  var kpiFin = document.getElementById('rel-kpis-fin');
-  if(kpiFin) kpiFin.innerHTML =
-    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1rem;">' +
+  var listaVendas = relFiltrarVendas(datas.de, datas.ate);
+  var totalReceitas= listaVendas.reduce(function(s,v){return s+v.valor;},0);
+  var comprasPer  = compras.filter(function(c){return c.data>=datas.de&&c.data<=datas.ate;});
+  var totalCompras = comprasPer.reduce(function(s,c){return s+(c.total||0);},0);
+  var despFiltradas= contasPagar.filter(function(cp){
+    if(cp.status!=='paga') return false;
+    var dataRef = cp.dataPagamento||cp.venc||'';
+    if(dataRef<datas.de||dataRef>datas.ate) return false;
+    if(filtCat && cp.cat!==filtCat) return false;
+    if(filtStatus && cp.status!==filtStatus) return false;
+    return true;
+  });
+  var totalDesp   = despFiltradas.reduce(function(s,cp){return s+cp.valor;},0);
+  var lucroBruto  = totalReceitas-totalCompras;
+  var lucroLiq    = totalReceitas-totalCompras-totalDesp;
+  var margem      = totalReceitas>0?(lucroLiq/totalReceitas*100).toFixed(1):0;
+
+  var kpiFin=document.getElementById('rel-kpis-fin');
+  if(kpiFin) kpiFin.innerHTML=
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1rem;">' +
       kpiRel('Receita', fmt(totalReceitas), 'var(--neon)', 'ti-trending-up') +
-      kpiRel('Custo Filamentos', fmt(totalCompras), 'var(--amber-text)', 'ti-package') +
+      kpiRel('CMV', fmt(totalCompras), 'var(--amber-text)', 'ti-package') +
       kpiRel('Lucro Bruto', fmt(lucroBruto), lucroBruto>=0?'var(--neon)':'var(--red-text)', 'ti-calculator') +
       kpiRel('Despesas', fmt(totalDesp), 'var(--red-text)', 'ti-arrow-up-circle') +
-      kpiRel('Lucro Liquido', fmt(lucroLiq), lucroLiq>=0?'var(--neon)':'var(--red-text)', 'ti-chart-bar') +
+      kpiRel('Lucro Liq', fmt(lucroLiq), lucroLiq>=0?'var(--neon)':'var(--red-text)', 'ti-chart-bar') +
       kpiRel('Margem', margem+'%', lucroLiq>=0?'var(--neon)':'var(--red-text)', 'ti-percent') +
     '</div>';
 
-  // Receitas x Despesas por mes
-  var recDesp = document.getElementById('rel-receitas-despesas');
-  if(recDesp) {
-    var porMes = {};
-    listaVendas.forEach(function(v){
-      var m = (v.data||'').slice(0,7);
-      if(!porMes[m]) porMes[m] = {rec:0, desp:0};
-      porMes[m].rec += v.valor;
-    });
-    despPagas.forEach(function(cp){
-      var m = (cp.dataPagamento||'').slice(0,7);
-      if(!porMes[m]) porMes[m] = {rec:0, desp:0};
-      porMes[m].desp += cp.valor;
-    });
-    var meses = Object.keys(porMes).sort();
-    var nomMes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    recDesp.innerHTML = meses.length ?
-      '<table class="rel-tabela"><thead><tr><th>Mes</th><th class="num">Receita</th><th class="num">Despesas</th><th class="num">Saldo</th></tr></thead><tbody>' +
+  var recDesp=document.getElementById('rel-receitas-despesas');
+  if(recDesp){
+    var porMes={};
+    listaVendas.forEach(function(v){var m=(v.data||'').slice(0,7);if(!porMes[m])porMes[m]={rec:0,desp:0};porMes[m].rec+=v.valor;});
+    despFiltradas.forEach(function(cp){var m=(cp.dataPagamento||'').slice(0,7);if(!porMes[m])porMes[m]={rec:0,desp:0};porMes[m].desp+=cp.valor;});
+    var meses=Object.keys(porMes).sort();
+    var nomMes=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    recDesp.innerHTML=meses.length?
+      '<div style="overflow-x:auto;"><table class="rel-tabela"><thead><tr><th>Mes</th><th class="num">Receita</th><th class="num">Despesas</th><th class="num">Saldo</th></tr></thead><tbody>'+
       meses.map(function(m){
-        var saldo = porMes[m].rec - porMes[m].desp;
-        var mn = parseInt(m.slice(5,7))-1;
-        return '<tr><td>'+(nomMes[mn]||m)+'/'+m.slice(0,4)+'</td>' +
+        var saldo=porMes[m].rec-porMes[m].desp;
+        return '<tr><td>'+(nomMes[parseInt(m.slice(5,7))-1]||m)+'/'+m.slice(0,4)+'</td>' +
           '<td class="num" style="color:var(--neon);">'+fmt(porMes[m].rec)+'</td>' +
           '<td class="num" style="color:var(--red-text);">'+fmt(porMes[m].desp)+'</td>' +
-          '<td class="num" style="color:'+(saldo>=0?'var(--neon)':'var(--red-text)')+';">'+fmt(saldo)+'</td>' +
-        '</tr>';
-      }).join('') + '</tbody></table>' : '<div class="rel-empty">Sem dados no periodo.</div>';
+          '<td class="num" style="color:'+(saldo>=0?'var(--neon)':'var(--red-text)')+';">'+fmt(saldo)+'</td></tr>';
+      }).join('')+'</tbody></table></div>' :
+      '<div class="rel-empty">Sem dados no periodo.</div>';
   }
 
-  // Resumo contas a pagar
-  var cpEl = document.getElementById('rel-resumo-pagar');
-  if(cpEl) {
-    var cpPend = contasPagar.filter(function(cp){ return cp.status==='pendente'||cp.status==='vencida'; });
-    var cpTot  = cpPend.reduce(function(s,cp){ return s+cp.valor; },0);
-    var cpVenc = cpPend.filter(function(cp){ return cp.status==='vencida'; });
-    var cpVencTot = cpVenc.reduce(function(s,cp){ return s+cp.valor; },0);
-    cpEl.innerHTML =
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">' +
-        '<div style="background:var(--bg3);border-radius:var(--radius);padding:10px;text-align:center;">' +
-          '<div style="font-size:11px;color:var(--text3);">A Pagar</div>' +
-          '<div style="font-size:18px;font-weight:700;color:var(--amber-text);">'+fmt(cpTot)+'</div>' +
-          '<div style="font-size:11px;color:var(--text3);">'+cpPend.length+' conta(s)</div>' +
-        '</div>' +
-        '<div style="background:var(--bg3);border-radius:var(--radius);padding:10px;text-align:center;">' +
-          '<div style="font-size:11px;color:var(--text3);">Vencidas</div>' +
-          '<div style="font-size:18px;font-weight:700;color:var(--red-text);">'+fmt(cpVencTot)+'</div>' +
-          '<div style="font-size:11px;color:var(--text3);">'+cpVenc.length+' conta(s)</div>' +
-        '</div>' +
+  // Contas a pagar filtradas
+  var cpEl=document.getElementById('rel-resumo-pagar');
+  if(cpEl){
+    var cpFilt=contasPagar.filter(function(cp){
+      if(filtCat&&cp.cat!==filtCat) return false;
+      if(filtStatus&&cp.status!==filtStatus) return false;
+      return true;
+    });
+    var cpPend=cpFilt.filter(function(cp){return cp.status==='pendente'||cp.status==='vencida';});
+    var cpVenc=cpFilt.filter(function(cp){return cp.status==='vencida';});
+    cpEl.innerHTML=
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">' +
+        '<div style="background:var(--bg3);border-radius:var(--radius);padding:10px;text-align:center;"><div style="font-size:11px;color:var(--text3);">A Pagar</div><div style="font-size:16px;font-weight:700;color:var(--amber-text);">'+fmt(cpPend.reduce(function(s,cp){return s+cp.valor;},0))+'</div></div>' +
+        '<div style="background:var(--bg3);border-radius:var(--radius);padding:10px;text-align:center;"><div style="font-size:11px;color:var(--text3);">Vencidas</div><div style="font-size:16px;font-weight:700;color:var(--red-text);">'+fmt(cpVenc.reduce(function(s,cp){return s+cp.valor;},0))+'</div></div>' +
+        '<div style="background:var(--bg3);border-radius:var(--radius);padding:10px;text-align:center;"><div style="font-size:11px;color:var(--text3);">Total filtrado</div><div style="font-size:16px;font-weight:700;color:var(--neon);">'+cpFilt.length+' contas</div></div>' +
       '</div>' +
-      (cpVenc.length ? '<table class="rel-tabela"><thead><tr><th>Conta</th><th class="num">Valor</th><th>Vencimento</th></tr></thead><tbody>' +
-        cpVenc.map(function(cp){
-          return '<tr><td>'+cp.desc+'</td><td class="num" style="color:var(--red-text);">'+fmt(cp.valor)+'</td><td>'+fmtD(cp.venc)+'</td></tr>';
-        }).join('') + '</tbody></table>' : '');
+      (cpFilt.length?'<div style="overflow-x:auto;"><table class="rel-tabela"><thead><tr><th>Descricao</th><th>Cat</th><th class="num">Valor</th><th>Venc</th><th>Status</th></tr></thead><tbody>'+
+        cpFilt.slice(0,20).map(function(cp){
+          return '<tr><td>'+cp.desc+'</td><td style="font-size:11px;color:var(--text3);">'+(cp.cat||'--')+'</td><td class="num" style="color:'+(cp.status==='paga'?'var(--neon)':'var(--amber-text)')+';">'+fmt(cp.valor)+'</td><td>'+fmtD(cp.venc)+'</td><td><span class="tag '+(cp.status==='paga'?'tag-green':cp.status==='vencida'?'tag-red':'tag-amber')+'" style="font-size:10px;">'+cp.status+'</span></td></tr>';
+        }).join('')+'</tbody></table></div>':'');
   }
 
-  // DRE Resumido
-  var dreEl = document.getElementById('rel-dre-resumido');
-  if(dreEl) dreEl.innerHTML =
+  var dreEl=document.getElementById('rel-dre-resumido');
+  if(dreEl) dreEl.innerHTML=
     '<div style="max-width:480px;">' +
-      dreLinhaGrupo('RECEITAS BRUTAS', 'var(--neon)') +
-      dreLinha('Vendas do periodo', totalReceitas, 'var(--neon)') +
-      dreLinhaGrupo('(-) CMV', 'var(--amber-text)') +
-      dreLinha('Compras de filamentos/insumos', totalCompras, 'var(--amber-text)') +
-      dreLinhaTotal('LUCRO BRUTO', lucroBruto) +
-      dreLinhaGrupo('(-) DESPESAS OPERACIONAIS', 'var(--red-text)') +
-      dreLinha('Despesas pagas no periodo', totalDesp, 'var(--red-text)') +
-      dreLinhaTotal('LUCRO LIQUIDO', lucroLiq) +
+      dreLinhaGrupo('RECEITAS BRUTAS','var(--neon)') + dreLinha('Vendas do periodo',totalReceitas,'var(--neon)') +
+      dreLinhaGrupo('(-) CMV','var(--amber-text)') + dreLinha('Compras de insumos',totalCompras,'var(--amber-text)') +
+      dreLinhaTotal('LUCRO BRUTO',lucroBruto) +
+      dreLinhaGrupo('(-) DESPESAS OPERACIONAIS','var(--red-text)') + dreLinha('Despesas pagas',totalDesp,'var(--red-text)') +
+      dreLinhaTotal('LUCRO LIQUIDO',lucroLiq) +
       '<div style="margin-top:8px;padding:8px 12px;background:var(--bg3);border-radius:var(--radius);display:flex;justify-content:space-between;">' +
         '<span style="font-size:12px;color:var(--text2);">Margem Liquida</span>' +
         '<span style="font-size:14px;font-weight:700;color:'+(lucroLiq>=0?'var(--neon)':'var(--red-text)')+';">'+margem+'%</span>' +
