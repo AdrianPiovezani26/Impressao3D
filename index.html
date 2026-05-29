@@ -2289,7 +2289,13 @@ function salvarProduto(){
   const precoNum=parseFloat(document.getElementById('p-preco').value)||0;
   const fils=getFilsProd();
   const p={id:editProdIdx>=0?produtos[editProdIdx].id:Date.now(),nome,cat:document.getElementById('p-cat').value,fils,filNome:fils.map(f=>f.filNome).join(', ')||'--',horas:document.getElementById('p-horas').value,precoNum,preco:precoNum?fmt(precoNum):'--',obs:document.getElementById('p-obs').value};
-  if(editProdIdx>=0)produtos[editProdIdx]=p;else produtos.unshift(p);
+  if(editProdIdx>=0){
+    produtos[editProdIdx]=p;
+  } else {
+    produtos.push(p);
+  }
+  // Manter em ordem alfabetica
+  produtos.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||'','pt-BR'); });
   S.set('produtos',produtos);
   document.getElementById('form-prod').style.display='none';
   renderProds();
@@ -2318,9 +2324,10 @@ function renderProds(){
   var totalVendidos = produtos.filter(function(p){ return p.vendido; }).length;
   var totalDisp = produtos.length - totalVendidos;
   var filtroStatus = window._filtroStatusProd || 'todos';
-  var lista = filtroStatus==='vendidos' ? produtos.filter(function(p){return p.vendido;}) :
-              filtroStatus==='disponiveis' ? produtos.filter(function(p){return !p.vendido;}) :
-              produtos;
+  var prodOrdenados = produtos.slice().sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||'','pt-BR'); });
+  var lista = filtroStatus==='vendidos' ? prodOrdenados.filter(function(p){return p.vendido;}) :
+              filtroStatus==='disponiveis' ? prodOrdenados.filter(function(p){return !p.vendido;}) :
+              prodOrdenados;
 
   var rows = lista.map(function(p){
     var i = produtos.indexOf(p);
@@ -3213,6 +3220,7 @@ function salvarVenda(){
   document.getElementById('v-valor').value='';document.getElementById('v-total').value='';document.getElementById('v-qtd').value='1';
   consignacoes = S.get('consignacoes') || [];
   converterDadosParaMaiusculas();
+  migrarOrdemProdutos();
   sincronizarStatusProdutos();
   migrarCustoProdutos();
   limparFaturasOrfas();
@@ -8105,6 +8113,16 @@ function renderKpisConsig() {
    FIM MODULO CONSIGNACAO
    ===================================================== */
 
+
+function migrarOrdemProdutos() {
+  var flag = localStorage.getItem('akp3d_ordem_prod_v1');
+  if(flag) return;
+  produtos.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||'','pt-BR'); });
+  S.set('produtos', produtos);
+  localStorage.setItem('akp3d_ordem_prod_v1','1');
+  console.log('Produtos ordenados alfabeticamente');
+}
+
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
   if(verificarSessao()) {
@@ -8148,6 +8166,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Rotinas de inicializacao de dados
   consignacoes = S.get('consignacoes') || [];
   converterDadosParaMaiusculas();
+  migrarOrdemProdutos();
   sincronizarStatusProdutos();
   migrarCustoProdutos();
   limparFaturasOrfas();
