@@ -1683,9 +1683,9 @@
   <!-- SUBTAB CLIENTES -->
   <div id="parc-subtab-clientes" class="subtab active">
     <!-- Formulario cliente -->
-    <div id="form-cliente" style="display:none;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1.25rem;position:relative;">
+    <div id="form-cliente-parc" style="display:none;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1.25rem;position:relative;">
       <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--neon),transparent);opacity:0.5;border-radius:var(--radius-lg) var(--radius-lg) 0 0;pointer-events:none;"></div>
-      <div class="stitle" style="font-size:12px;margin-bottom:1rem;" id="form-cliente-titulo"><i class="ti ti-user-plus"></i> Novo Cliente</div>
+      <div class="stitle" style="font-size:12px;margin-bottom:1rem;" id="form-cliente-parc-titulo"><i class="ti ti-user-plus"></i> Novo Cliente</div>
       <div class="grid2">
         <div class="field"><label>Nome Completo *</label><input type="text" id="cli-nome" placeholder="Nome do cliente"></div>
         <div class="field"><label>Apelido / Como chama</label><input type="text" id="cli-apelido" placeholder="Ex: Joao, Mae..."></div>
@@ -1704,14 +1704,14 @@
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
         <button class="btn-ok" onclick="salvarCliente()"><i class="ti ti-device-floppy"></i> Salvar</button>
-        <button class="btn" onclick="document.getElementById('form-cliente').style.display='none'"><i class="ti ti-x"></i> Cancelar</button>
+        <button class="btn" onclick="document.getElementById('form-cliente-parc').style.display='none'"><i class="ti ti-x"></i> Cancelar</button>
       </div>
     </div>
     <!-- Busca e filtros clientes -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;">
-      <input type="text" id="cli-busca" placeholder="Buscar cliente..." oninput="renderClientes()"
+      <input type="text" id="cli-busca-parc" placeholder="Buscar cliente..." oninput="renderClientes()"
         style="flex:1;min-width:180px;border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);outline:none;">
-      <select id="cli-filtro-tipo" onchange="renderClientes()"
+      <select id="cli-filtro-tipo-parc" onchange="renderClientes()"
         style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
         <option value="">Todos os tipos</option>
         <option value="consumidor">Consumidor Final</option>
@@ -5920,7 +5920,8 @@ function salvarCliente() {
   else { clientes.push(cli); }
   clientes.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||'','pt-BR'); });
   S.set('clientes',clientes);
-  document.getElementById('form-cliente').style.display='none';
+  var formCli = document.getElementById('form-cliente-parc') || document.getElementById('form-cliente');
+  if(formCli) formCli.style.display='none';
   renderClientes();
   alert('Cliente salvo: '+nome);
 }
@@ -5936,8 +5937,8 @@ function renderClientes() {
   // Sincronizar clientes a partir do historico de vendas e pedidos
   sincronizarClientesDasVendas();
 
-  var busca   = (document.getElementById('cli-busca') || {}).value || '';
-  var filtTipo = (document.getElementById('cli-filtro-tipo') || {}).value || '';
+  var busca   = ((document.getElementById('cli-busca-parc') || document.getElementById('cli-busca')) || {}).value || '';
+  var filtTipo = ((document.getElementById('cli-filtro-tipo-parc') || document.getElementById('cli-filtro-tipo')) || {}).value || '';
   var el = document.getElementById('lista-clientes-parc') || document.getElementById('lista-clientes');
   var resumoEl = document.getElementById('resumo-clientes-parc') || document.getElementById('resumo-clientes');
   if(!el) return;
@@ -6497,8 +6498,9 @@ function showFormCliente(idx) {
   _clienteEditIdx = idx;
   var subtabCli = document.getElementById('parc-subtab-clientes');
   if(subtabCli && subtabCli.style.display==='none') showParcSubtab('clientes');
-  var form   = document.getElementById('form-cliente');
-  var titulo = document.getElementById('form-cliente-titulo');
+  // Usar form da tab-parceiros (form-cliente-parc) se disponivel
+  var form   = document.getElementById('form-cliente-parc') || document.getElementById('form-cliente');
+  var titulo = document.getElementById('form-cliente-parc-titulo') || document.getElementById('form-cliente-titulo');
   if(!form) return;
   form.style.display = 'block';
   if(idx < 0) {
