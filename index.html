@@ -268,6 +268,46 @@
   .rel-empty{text-align:center;padding:2rem;color:var(--text3);font-size:13px;}
 
 </style>
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+    const firebaseConfig = {
+      apiKey: "AIzaSyASdQ7sCFvfSByZkYVGDX67j5VnDzKTEZw",
+      authDomain: "akp3d-oficial.firebaseapp.com",
+      projectId: "akp3d-oficial",
+      storageBucket: "akp3d-oficial.firebasestorage.app",
+      messagingSenderId: "246540101390",
+      appId: "1:246540101390:web:4a49544c6c971a51a5595f"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+    const CHAVES = ['filamentos','produtos','pedidos','vendas','faturas','compras','parceiros','clientes','contas_pagar','movimentacoes','hist_calc','cfg'];
+    async function fbSalvar(chave, valor) {
+      try { await setDoc(doc(db,'akp3d',chave),{data:JSON.stringify(valor)}); } catch(e) {}
+    }
+    async function fbCarregar(chave) {
+      try { const s=await getDoc(doc(db,'akp3d',chave)); if(s.exists()) return JSON.parse(s.data().data); } catch(e) {}
+      return null;
+    }
+    async function fbSincronizar() {
+      var ind = document.getElementById('fb-sync-status');
+      if(ind) { ind.style.display='flex'; ind.querySelector('span').textContent='Sincronizando...'; }
+      var ok = true;
+      try {
+        for(var i=0;i<CHAVES.length;i++) {
+          var k=CHAVES[i], fb=await fbCarregar(k);
+          if(fb!==null) { localStorage.setItem('akp3d_'+k,JSON.stringify(fb)); }
+          else { var loc=localStorage.getItem('akp3d_'+k); if(loc) await fbSalvar(k,JSON.parse(loc)); }
+        }
+      } catch(e) { ok=false; }
+      if(ind) { ind.querySelector('span').textContent=ok?'Sincronizado':'Offline'; setTimeout(()=>ind.style.display='none',2000); }
+      if(ok && typeof recarregarDados==='function') recarregarDados();
+    }
+    window.fbSalvar = fbSalvar;
+    document.addEventListener('DOMContentLoaded', fbSincronizar);
+  </script>
+
 </head>
 <body>
 
@@ -1694,7 +1734,7 @@ function setTipoCalc(tipo) {
   calcular();
 }
 
-const S={get:k=>{try{return JSON.parse(localStorage.getItem('akp3d_'+k)||'null');}catch{return null;}},set:(k,v)=>localStorage.setItem('akp3d_'+k,JSON.stringify(v))};
+const S={get:k=>{try{return JSON.parse(localStorage.getItem('akp3d_'+k)||'null');}catch{return null;}},set:(k,v)=>{localStorage.setItem('akp3d_'+k,JSON.stringify(v));if(typeof window.fbSalvar==='function')window.fbSalvar(k,v).catch(()=>{});}};
 let filamentos=S.get('filamentos')||[];
 let produtos=S.get('produtos')||[];
 let pedidos=S.get('pedidos')||[];
@@ -7057,6 +7097,22 @@ function darBaixaFatura(id) {
 }
 
 /* ===== FIM BAIXA DE PAGAMENTO ===== */
+
+
+/* ===== FIREBASE SYNC ===== */
+function recarregarDados() {
+  filamentos=S.get('filamentos')||[];produtos=S.get('produtos')||[];
+  pedidos=S.get('pedidos')||[];vendas=S.get('vendas')||[];
+  faturas=S.get('faturas')||[];compras=S.get('compras')||[];
+  parceiros=S.get('parceiros')||[];clientes=S.get('clientes')||[];
+  contasPagar=S.get('contas_pagar')||[];movimentacoes=S.get('movimentacoes')||[];
+  _histCalc=S.get('hist_calc')||[];cfg=S.get('cfg')||{};
+  converterDadosParaMaiusculas();sincronizarStatusProdutos();
+  limparFaturasOrfas();checkEstoque();renderFils();buildFilSelect();
+  renderHistoricoCalc();renderDashboard();
+  console.log('Firebase: dados sincronizados');
+}
+/* ===== FIM FIREBASE SYNC ===== */
 
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
