@@ -7599,11 +7599,25 @@ function abrirFormLote(idx) {
   var titulo = document.getElementById('form-lote-titulo');
   form.style.display = 'block';
 
-  // Popular select de parceiros
+  // Popular select com TODOS os parceiros e clientes
   var sel = document.getElementById('cl-parceiro');
+  // Unir parceiros + clientes (sem duplicatas)
+  var todosParceiros = parceiros.slice();
+  clientes.forEach(function(c){
+    var jaExiste = todosParceiros.some(function(p){
+      return (p.razao||p.nome||'').toUpperCase() === (c.nome||'').toUpperCase();
+    });
+    if(!jaExiste) todosParceiros.push({id:'cli_'+c.nome, razao:c.nome, tipo:'cliente'});
+  });
+  todosParceiros.sort(function(a,b){
+    return (a.razao||a.nome||'').localeCompare(b.razao||b.nome||'','pt-BR');
+  });
   sel.innerHTML = '<option value="">Selecione o parceiro...</option>' +
-    parceiros.filter(function(p){ return p.tipo!=='fornecedor'; })
-    .map(function(p){ return '<option value="'+p.id+'">'+(p.razao||p.nome||'Parceiro')+'</option>'; }).join('');
+    todosParceiros.map(function(p){
+      var nome = p.razao||p.nome||'Parceiro';
+      var tipo = p.tipo ? ' ('+p.tipo+')' : '';
+      return '<option value="'+p.id+'">'+nome+tipo+'</option>';
+    }).join('');
 
   // Preencher data
   document.getElementById('cl-data').value = hoje();
