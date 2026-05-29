@@ -1832,7 +1832,7 @@ function buildFilSelect(){
   ];
   var opts = '<option value="">Selecionar filamento...</option>' +
     filamentos.map(function(f,i){
-      return '<option value="'+i+'">'+f.marca+' '+f.modelo+' -- '+f.corNome+' ('+f.qtd+'g)</option>';
+      return '<option value="'+i+'">'+f.corNome+' '+f.marca+' '+f.modelo+' ('+f.qtd+'g)</option>';
     }).join('');
   selectsParaAtualizar.forEach(function(s){ if(s) s.innerHTML = opts; });
   // Atualizar selects dentro das linhas de multi-filamento (precificacao e produtos)
@@ -1843,7 +1843,7 @@ function buildFilSelect(){
       var valAtual = sel.value;
       sel.innerHTML = '<option value="">-- Manual --</option>' +
         filamentos.map(function(f,i){
-          return '<option value="'+i+'">'+f.marca+' '+f.modelo+' -- '+f.corNome+' ('+f.qtd+'g)</option>';
+          return '<option value="'+i+'">'+f.corNome+' '+f.marca+' '+f.modelo+' ('+f.qtd+'g)</option>';
         }).join('');
       sel.value = valAtual;
     });
@@ -1989,7 +1989,7 @@ function addFilProdInline(i, filIdx, pesoVal) {
   var sel = document.createElement('select');
   sel.style.cssText = 'flex:2;min-width:150px;border:1px solid var(--border2);border-radius:var(--radius);padding:5px 8px;font-size:12px;background:var(--bg2);color:var(--text);';
   sel.innerHTML = '<option value="">-- Sem filamento --</option>' +
-    filamentos.map(function(f,fi){ return '<option value="'+fi+'">'+ f.marca+' '+f.modelo+' -- '+f.corNome+'</option>'; }).join('');
+    filamentos.map(function(f,fi){ return '<option value="'+fi+'">'+ f.corNome+' '+f.marca+' '+f.modelo+'</option>'; }).join('');
   if(filIdx !== undefined && filIdx >= 0) sel.value = filIdx;
   var inp = document.createElement('input');
   inp.type='number'; inp.placeholder='Peso (g)'; inp.min='0'; inp.step='1';
@@ -2241,7 +2241,7 @@ function addFilCalc(filIdx, pesoVal) {
   var sel = document.createElement('select');
   sel.style.cssText = 'flex:2;min-width:150px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:13px;background:var(--bg2);color:var(--text);';
   sel.innerHTML = '<option value="">-- Manual --</option>' +
-    filamentos.map(function(f,i){ return '<option value="'+i+'">'+f.marca+' '+f.modelo+' -- '+f.corNome+' ('+f.qtd+'g)</option>'; }).join('');
+    filamentos.map(function(f,i){ return '<option value="'+i+'">'+f.corNome+' '+f.marca+' '+f.modelo+' ('+f.qtd+'g)</option>'; }).join('');
   sel.addEventListener('change', function(){ syncDotCalc(sel); calcular(); });
 
   var dot = document.createElement('span');
@@ -2640,7 +2640,7 @@ function addFilPedidoManual(filIdx, pesoVal) {
   var sel = document.createElement('select');
   sel.style.cssText = 'flex:2;min-width:160px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:12px;background:var(--bg2);color:var(--text);';
   sel.innerHTML = '<option value="">-- Sem filamento --</option>' +
-    filamentos.map(function(f,i){ return '<option value="'+i+'">'+f.marca+' '+f.modelo+' -- '+f.corNome+'</option>'; }).join('');
+    filamentos.map(function(f,i){ return '<option value="'+i+'">'+f.corNome+' '+f.marca+' '+f.modelo+'</option>'; }).join('');
   if(filIdx !== undefined && filIdx >= 0) sel.value = filIdx;
 
   var inpPeso = document.createElement('input');
@@ -3506,7 +3506,7 @@ function renderEstoque() {
     ? criticos.map(function(f){
         var pct = f.pesoRolo>0?((parseFloat(f.qtd||0)/parseFloat(f.pesoRolo||1000))*100).toFixed(0):0;
         return '<div class="alerta-box"><i class="ti ti-alert-triangle"></i><span>' +
-          '<strong>'+f.marca+' '+f.modelo+' '+f.corNome+'</strong> -- estoque critico: ' +
+          '<strong>'+f.corNome+' '+f.marca+' '+f.modelo+'</strong> -- estoque critico: ' +
           '<strong>'+f.qtd+'g</strong> restantes ('+pct+'% do rolo)</span></div>';
       }).join('') : '';
 
@@ -3587,12 +3587,12 @@ function renderEstoque() {
     var valAtual = selFil.value;
     // Mesmo order da tela: por modelo e cor
     var filOrdenados = filamentos.slice().sort(function(a,b){
-      return (a.modelo||'').localeCompare(b.modelo||'','pt-BR') || (a.marca||'').localeCompare(b.marca||'','pt-BR') || (a.corNome||'').localeCompare(b.corNome||'','pt-BR');
+      return (a.corNome||'').localeCompare(b.corNome||'','pt-BR') || (a.marca||'').localeCompare(b.marca||'','pt-BR') || (a.modelo||'').localeCompare(b.modelo||'','pt-BR');
     });
     selFil.innerHTML = '<option value="">Todos os filamentos</option>' +
       filOrdenados.map(function(f){
         var idx = filamentos.indexOf(f);
-        return '<option value="'+idx+'">'+f.marca+' '+f.modelo+' '+f.corNome+'</option>';
+        return '<option value="'+idx+'">'+f.corNome+' '+f.marca+' '+f.modelo+'</option>';
       }).join('');
     selFil.value = valAtual;
   }
@@ -4865,7 +4865,7 @@ function renderDashboard() {
   }
   var filCriticos = filamentos.filter(function(f){ return f.pesoRolo>0 && (f.qtd/f.pesoRolo*100)<=15; });
   if(filCriticos.length) {
-    alertas += '<div class="dash-info-box"><i class="ti ti-package"></i><span><strong>Estoque critico:</strong> ' + filCriticos.map(function(f){ return f.marca+' '+f.modelo+' '+f.corNome+' ('+f.qtd+'g)'; }).join(', ') + '</span></div>';
+    alertas += '<div class="dash-info-box"><i class="ti ti-package"></i><span><strong>Estoque critico:</strong> ' + filCriticos.map(function(f){ return f.corNome+' '+f.marca+' '+f.modelo+' ('+f.qtd+'g)'; }).join(', ') + '</span></div>';
   }
   if(alertasEl) alertasEl.innerHTML = alertas;
 
@@ -5516,7 +5516,7 @@ function baixaRetroativaPedidosConcluidos() {
     movimentacoes.unshift({
       id: Date.now()+Math.floor(Math.random()*9999),
       filIdx:b.filIdx,
-      filNome:f.marca+' '+f.modelo+' '+f.corNome,
+      filNome:f.corNome+' '+f.marca+' '+f.modelo,
       corHex:f.corHex,
       tipo:'saida',
       qtd:b.peso,
@@ -6769,7 +6769,7 @@ function renderRelFilamentos(datas) {
         var cor = qtd < 50 ? 'var(--red-text)' : 'var(--amber-text)';
         return '<tr><td><div style="display:flex;align-items:center;gap:6px;">' +
           '<span class="cor-dot" style="background:'+(f.corHex||'#555')+'"></span>' +
-          f.marca+' '+f.modelo+' '+f.corNome+'</div></td>' +
+          f.corNome+' '+f.marca+' '+f.modelo+'</div></td>' +
           '<td class="num" style="color:'+cor+';font-weight:700;">'+qtd.toFixed(0)+'g</td>' +
           '<td><span class="tag '+(qtd<50?'tag-red':'tag-amber')+'" style="font-size:10px;">'+(qtd<50?'Critico':'Baixo')+'</span></td></tr>';
       }).join('') + '</tbody></table>' :
