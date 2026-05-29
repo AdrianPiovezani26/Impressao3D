@@ -1699,8 +1699,9 @@
             <option value="empresa">Empresa</option>
           </select>
         </div>
+        <div class="field"><label>Chave Pix</label><input type="text" id="cli-pix" class="no-upper" placeholder="CPF, telefone ou e-mail"></div>
+        <div class="field"><label>Observacoes</label><input type="text" id="cli-obs" placeholder="Preferencias, informacoes importantes..."></div>
       </div>
-      <div class="field"><label>Observacoes</label><input type="text" id="cli-obs" placeholder="Preferencias, informacoes importantes..."></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
         <button class="btn-ok" onclick="salvarCliente()"><i class="ti ti-device-floppy"></i> Salvar</button>
         <button class="btn" onclick="document.getElementById('form-cliente').style.display='none'"><i class="ti ti-x"></i> Cancelar</button>
@@ -5932,6 +5933,9 @@ function delCliente(idx) {
 }
 
 function renderClientes() {
+  // Sincronizar clientes a partir do historico de vendas e pedidos
+  sincronizarClientesDasVendas();
+
   var busca   = (document.getElementById('cli-busca') || {}).value || '';
   var filtTipo = (document.getElementById('cli-filtro-tipo') || {}).value || '';
   var el = document.getElementById('lista-clientes');
