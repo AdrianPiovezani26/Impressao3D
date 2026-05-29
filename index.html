@@ -6018,40 +6018,55 @@ function renderClientes() {
 
 function verHistoricoCliente(idx) {
   var c = clientes[idx];
-  var wrap = document.getElementById('historico-cliente-wrap');
-  var lista = document.getElementById('historico-cliente-lista');
-  var titulo = document.getElementById('historico-cliente-titulo');
+  if(!c) return;
+
+  // Usar elementos da tab-parceiros primeiro
+  var wrap   = document.querySelector('#parc-subtab-clientes #historico-cliente-wrap')
+            || document.getElementById('historico-cliente-wrap');
+  var lista  = document.querySelector('#parc-subtab-clientes #historico-cliente-lista')
+            || document.getElementById('historico-cliente-lista');
+  var titulo = document.querySelector('#parc-subtab-clientes #historico-cliente-titulo')
+            || document.getElementById('historico-cliente-titulo');
   if(!wrap || !lista) return;
 
-  var vendasCli = vendas.filter(function(v){ return (v.cliente||'').toUpperCase() === (c.nome||'').toUpperCase(); });
+  var vendasCli = vendas.filter(function(v){
+    return (v.cliente||'').toUpperCase() === (c.nome||'').toUpperCase();
+  });
   vendasCli.sort(function(a,b){ return b.data > a.data ? 1 : -1; });
 
-  var totalGasto = vendasCli.reduce(function(s,v){ return s+(v.valor||0); }, 0);
-  var ticketMedio = vendasCli.length ? totalGasto/vendasCli.length : 0;
+  var totalGasto   = vendasCli.reduce(function(s,v){ return s+(v.valor||0); }, 0);
+  var ticketMedio  = vendasCli.length ? totalGasto/vendasCli.length : 0;
+  var totalPago    = vendasCli.filter(function(v){ return v.statusPgto==='pago'; }).reduce(function(s,v){ return s+(v.valor||0); },0);
+  var totalPendente= totalGasto - totalPago;
 
-  titulo.innerHTML = '<i class="ti ti-history"></i> Historico de ' + c.nome +
-    ' <span style="font-size:11px;color:var(--text3);">-- '+vendasCli.length+' compra(s) | Total: '+fmt(totalGasto)+' | Ticket medio: '+fmt(ticketMedio)+'</span>';
+  if(titulo) titulo.innerHTML = '<i class="ti ti-history"></i> Historico: ' + c.nome;
 
   if(!vendasCli.length) {
     lista.innerHTML = '<div class="empty">Nenhuma compra registrada para este cliente.</div>';
   } else {
-    lista.innerHTML = vendasCli.map(function(v) {
-      return '<div class="fin-card '+(v.statusPgto==='pago'?'paga':'pendente')+'" style="padding:.75rem 1rem;">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">' +
-          '<div>' +
-            '<strong style="font-size:13px;">' + v.prodNome + '</strong>' +
-            '<br><span style="font-size:11px;color:var(--text3);">' + fmtD(v.data) + ' | ' + (v.formaPgto||'') + '</span>' +
-          '</div>' +
-          '<div style="text-align:right;">' +
-            '<div style="font-weight:700;color:var(--neon);font-size:15px;">' + fmt(v.valor) + '</div>' +
-            '<span class="tag '+(v.statusPgto==='pago'?'tag-green':'tag-amber')+'" style="font-size:10px;">'+(v.statusPgto==='pago'?'Pago':'Pendente')+'</span>' +
-          '</div>' +
-        '</div>' +
-      '</div>';
-    }).join('');
+    lista.innerHTML =
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:1rem;">' +
+        '<div style="background:var(--bg3);border-radius:var(--radius);padding:8px;text-align:center;"><div style="font-size:10px;color:var(--text3);">Compras</div><div style="font-weight:700;color:var(--blue-text);">'+vendasCli.length+'</div></div>' +
+        '<div style="background:var(--bg3);border-radius:var(--radius);padding:8px;text-align:center;"><div style="font-size:10px;color:var(--text3);">Total Gasto</div><div style="font-weight:700;color:var(--neon);">'+fmt(totalGasto)+'</div></div>' +
+        '<div style="background:var(--bg3);border-radius:var(--radius);padding:8px;text-align:center;"><div style="font-size:10px;color:var(--text3);">Ticket Medio</div><div style="font-weight:700;color:var(--text);">'+fmt(ticketMedio)+'</div></div>' +
+        '<div style="background:var(--bg3);border-radius:var(--radius);padding:8px;text-align:center;"><div style="font-size:10px;color:var(--text3);">A Receber</div><div style="font-weight:700;color:var(--amber-text);">'+fmt(totalPendente)+'</div></div>' +
+      '</div>' +
+      '<div style="overflow-x:auto;"><table class="rel-tabela"><thead><tr>' +
+        '<th>Data</th><th>Produto</th><th class="num">Valor</th><th>Pagto</th><th>Status</th>' +
+      '</tr></thead><tbody>' +
+      vendasCli.map(function(v){
+        return '<tr>' +
+          '<td>'+fmtD(v.data)+'</td>' +
+          '<td>'+(v.prodNome||'--')+'</td>' +
+          '<td class="num" style="color:var(--neon);font-weight:700;">'+fmt(v.valor)+'</td>' +
+          '<td style="font-size:12px;">'+(v.pgto||v.formaPgto||'--')+'</td>' +
+          '<td><span class="tag '+(v.statusPgto==='pago'?'tag-green':'tag-amber')+'" style="font-size:10px;">'+(v.statusPgto==='pago'?'Pago':'Pendente')+'</span></td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table></div>';
   }
   wrap.style.display = 'block';
-  wrap.scrollIntoView({behavior:'smooth'});
+  wrap.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 
 function sincronizarClientesDasVendas() {
