@@ -7124,29 +7124,27 @@ function recarregarDados() {
 
 /* ===== CUSTO DE PRODUTO ===== */
 function calcularCustoProduto(p) {
-  // 1. Se ja tem custoNum salvo diretamente, usar
-  if(p.custoNum && p.custoNum > 0) return p.custoNum;
-
-  // 2. Buscar no historico de precificacao pelo nome do produto (fonte mais completa)
-  // O custoUnit do historico inclui: filamento + energia + mao de obra + depreciacao
+  // PRIORIDADE 1: Historico de precificacao (fonte mais completa)
+  // Inclui: filamento + energia + mao de obra + depreciacao
   if(_histCalc && _histCalc.length) {
     var nomeUp = (p.nome||'').toUpperCase().trim();
     var hist = null;
-    // Busca exata primeiro
     for(var i=0; i<_histCalc.length; i++) {
       if((_histCalc[i].nome||'').toUpperCase().trim() === nomeUp) { hist=_histCalc[i]; break; }
     }
-    // Busca parcial se nao achou
     if(!hist) {
       for(var i=0; i<_histCalc.length; i++) {
-        if((_histCalc[i].nome||'').toUpperCase().includes(nomeUp) ||
-           nomeUp.includes((_histCalc[i].nome||'').toUpperCase())) { hist=_histCalc[i]; break; }
+        var hn = (_histCalc[i].nome||'').toUpperCase().trim();
+        if(hn.includes(nomeUp) || nomeUp.includes(hn)) { hist=_histCalc[i]; break; }
       }
     }
     if(hist && hist.custoUnit && hist.custoUnit > 0) return hist.custoUnit;
   }
 
-  // 3. Tentar extrair da obs (produtos importados do Excel)
+  // PRIORIDADE 2: custoNum salvo manualmente
+  if(p.custoNum && p.custoNum > 0) return p.custoNum;
+
+  // PRIORIDADE 3: Extrair da obs (importados do Excel)
   if(p.obs) {
     var match = (p.obs||'').match(/CUSTO[:\s]+R\$\s*([\d.,]+)/i);
     if(match) {
@@ -7155,8 +7153,7 @@ function calcularCustoProduto(p) {
     }
   }
 
-  // 4. Calcular apenas a partir dos filamentos (custo minimo de material)
-  // Usar precoRolo salvo no produto se disponivel, senao usar cadastro atual
+  // PRIORIDADE 4: Custo de material dos filamentos
   if(p.fils && p.fils.length) {
     var custoFil = p.fils.reduce(function(s, f) {
       var precoR = f.precoRolo || (filamentos[f.filIdx] ? parseFloat(filamentos[f.filIdx].preco)||0 : 0);
@@ -7172,7 +7169,7 @@ function calcularCustoProduto(p) {
 
 function migrarCustoProdutos() {
   // Migrar custoNum de todos os produtos que nao tem
-  var flag = localStorage.getItem('akp3d_custo_migrado_v2');
+  var flag = localStorage.getItem('akp3d_custo_migrado_v3');
   if(flag) return;
   var alterou = false;
   produtos.forEach(function(p) {
@@ -7187,7 +7184,7 @@ function migrarCustoProdutos() {
     S.set('produtos', produtos);
     console.log('Custo migrado para produtos');
   }
-  localStorage.setItem('akp3d_custo_migrado_v2', '1');
+  localStorage.setItem('akp3d_custo_migrado_v3', '1');
 }
 /* ===== FIM CUSTO PRODUTO ===== */
 
