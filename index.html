@@ -2028,8 +2028,9 @@ function salvarProdInline(i) {
       }
     });
   }
+  var custoNumSalvo = parseFloat(document.getElementById('pe-custo-'+i).value)||0;
   produtos[i] = Object.assign({}, produtos[i], {
-    nome:nome, cat:cat, precoNum:precoNum,
+    nome:nome, cat:cat, precoNum:precoNum, custoNum:custoNumSalvo,
     preco: precoNum ? fmt(precoNum) : '--',
     horas:horas, obs:obs, fils:fils,
     filNome: fils.length ? fils.map(function(f){ return f.filNome; }).join(', ') : '--'
@@ -2168,6 +2169,8 @@ function renderProds(){
       ? '<span class="tag '+(p.estoqueZerado?'tag-red':'tag-blue')+'" style="font-size:10px;margin-left:4px;">'+(p.estoqueZerado?'Estoque zerado':p.qtd+' un')+'</span>'
       : '';
     var btnVender = '<button class="btn-ok" onclick="venderProduto('+i+')" style="padding:5px 10px;font-size:11px;" title="'+(p.vendido?'Vender novamente':'Vender')+'"><i class="ti ti-shopping-cart"></i> '+(p.vendido?'Vender novamente':'Vender')+'</button>';
+    var custo  = calcularCustoProduto(p);
+    var margem = (custo > 0 && p.precoNum > 0) ? ((p.precoNum - custo) / p.precoNum * 100) : 0;
     var rowStyle = p.vendido ? 'background:rgba(57,255,20,0.03);' : '';
     return '<tr id="prod-row-'+i+'" style="'+rowStyle+'">' +
       '<td><strong>'+p.nome+'</strong>'+vendidoBadge+qtdBadge+
@@ -2175,7 +2178,9 @@ function renderProds(){
       '<td><span class="tag tag-blue">'+(p.cat||'Outro')+'</span></td>' +
       '<td style="font-size:12px;">'+filsHtml+'</td>' +
       '<td>'+(p.horas&&p.horas!='--'?p.horas:'--')+'</td>' +
+      '<td style="font-size:12px;color:var(--text3);">'+(custo>0?fmt(custo):'--')+'</td>' +
       '<td style="font-weight:700;color:'+(p.vendido?'var(--text2)':'var(--neon)')+';text-shadow:'+(p.vendido?'none':'var(--neon-glow-sm)')+';">'+p.preco+'</td>' +
+      '<td style="font-size:12px;color:'+(margem>0?'var(--neon)':'var(--text3)')+';">'+(margem>0?margem.toFixed(1)+'%':'--')+'</td>' +
       '<td><div class="row-actions">' +
         '<button class="btn-edit" onclick="abrirEditProd('+i+')" title="Editar"><i class="ti ti-edit"></i></button>' +
         btnVender +
@@ -2192,6 +2197,7 @@ function renderProds(){
                 return '<option'+(p.cat===c?' selected':'')+'>'+c+'</option>';
               }).join('') +
             '</select></div>' +
+            '<div class="field"><label>Custo (R$)</label><input type="number" id="pe-custo-'+i+'" value="'+(p.custoNum||custo||'')+'" step="0.01" min="0" placeholder="Custo unitario"></div>' +
             '<div class="field"><label>Preco de Venda (R$)</label><input type="number" id="pe-preco-'+i+'" value="'+(p.precoNum||'')+'" step="0.01" min="0"></div>' +
             '<div class="field"><label>Horas de impressao</label><input type="text" id="pe-horas-'+i+'" value="'+(p.horas&&p.horas!='--'?p.horas:'')+'" placeholder="Ex: 2h 30min"></div>' +
           '</div>' +
@@ -2220,7 +2226,7 @@ function renderProds(){
   '</div>';
 
   el.innerHTML = resumo + '<div class="overflow-x"><table>' +
-    '<thead><tr><th>Produto</th><th>Categoria</th><th>Filamentos</th><th>Horas</th><th>Preco</th><th></th></tr></thead>' +
+    '<thead><tr><th>Produto</th><th>Categoria</th><th>Filamentos</th><th>Horas</th><th>Custo</th><th>Preco</th><th>Margem</th><th></th></tr></thead>' +
     '<tbody>'+rows+'</tbody></table></div>';
 
   // Preencher filamentos nas linhas de edicao
@@ -2972,6 +2978,7 @@ function salvarVenda(){
   document.getElementById('v-valor').value='';document.getElementById('v-total').value='';document.getElementById('v-qtd').value='1';
   converterDadosParaMaiusculas();
   sincronizarStatusProdutos();
+  migrarCustoProdutos();
   limparFaturasOrfas();
   baixaRetroativaPedidosConcluidos();
   estornoChaveiroHercules();
@@ -7114,6 +7121,54 @@ function recarregarDados() {
 }
 /* ===== FIM FIREBASE SYNC ===== */
 
+
+/* ===== CUSTO DE PRODUTO ===== */
+function calcularCustoProduto(p) {
+  // 1. Se ja tem custoNum salvo, usar direto
+  if(p.custoNum && p.custoNum > 0) return p.custoNum;
+
+  // 2. Tentar extrair da obs (produtos importados do Excel)
+  if(p.obs) {
+    var match = p.obs.match(/CUSTO[:\s]+R\$\s*([\d.,]+)/i);
+    if(match) {
+      var val = parseFloat(match[1].replace('.','').replace(',','.'));
+      if(val > 0) return val;
+    }
+  }
+
+  // 3. Calcular a partir dos filamentos registrados
+  if(p.fils && p.fils.length) {
+    var custoFil = p.fils.reduce(function(s, f) {
+      var fil = filamentos[f.filIdx];
+      if(!fil || !fil.preco || !fil.pesoRolo) return s;
+      var custoG = parseFloat(fil.preco) / parseFloat(fil.pesoRolo);
+      return s + (custoG * parseFloat(f.peso||0));
+    }, 0);
+    if(custoFil > 0) return custoFil;
+  }
+
+  return 0;
+}
+
+function migrarCustoProdutos() {
+  // Migrar custoNum de todos os produtos que nao tem
+  var flag = localStorage.getItem('akp3d_custo_migrado_v1');
+  if(flag) return;
+  var alterou = false;
+  produtos.forEach(function(p) {
+    if(!p.custoNum || p.custoNum <= 0) {
+      var custo = calcularCustoProduto(p);
+      if(custo > 0) { p.custoNum = custo; alterou = true; }
+    }
+  });
+  if(alterou) {
+    S.set('produtos', produtos);
+    console.log('Custo migrado para produtos');
+  }
+  localStorage.setItem('akp3d_custo_migrado_v1', '1');
+}
+/* ===== FIM CUSTO PRODUTO ===== */
+
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
   if(verificarSessao()) {
@@ -7157,6 +7212,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Rotinas de inicializacao de dados
   converterDadosParaMaiusculas();
   sincronizarStatusProdutos();
+  migrarCustoProdutos();
   limparFaturasOrfas();
   baixaRetroativaPedidosConcluidos();
   estornoChaveiroHercules();
