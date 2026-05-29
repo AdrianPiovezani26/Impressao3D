@@ -1719,8 +1719,8 @@
         <option value="empresa">Empresa</option>
       </select>
     </div>
-    <div id="resumo-clientes" style="margin-bottom:1rem;"></div>
-    <div id="lista-clientes"></div>
+    <div id="resumo-clientes-parc" style="margin-bottom:1rem;"></div>
+    <div id="lista-clientes-parc"></div>
     <!-- Historico do cliente -->
     <div id="historico-cliente-wrap" style="display:none;margin-top:1rem;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
@@ -5938,8 +5938,8 @@ function renderClientes() {
 
   var busca   = (document.getElementById('cli-busca') || {}).value || '';
   var filtTipo = (document.getElementById('cli-filtro-tipo') || {}).value || '';
-  var el = document.getElementById('lista-clientes');
-  var resumoEl = document.getElementById('resumo-clientes');
+  var el = document.getElementById('lista-clientes-parc') || document.getElementById('lista-clientes');
+  var resumoEl = document.getElementById('resumo-clientes-parc') || document.getElementById('resumo-clientes');
   if(!el) return;
 
   // Sincronizar clientes a partir do historico de vendas
