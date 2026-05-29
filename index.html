@@ -7833,7 +7833,13 @@ function salvarLote() {
   if(!itens.length) { alert('Adicione ao menos 1 item ao lote.'); return; }
 
   var parceiro = parceiros.find(function(p){ return p.id == parceiroId; });
-  var parceiroNome = parceiro ? (parceiro.razao||parceiro.nome) : 'Parceiro';
+  // Se nao achou em parceiros, buscar em clientes (id: 'cli_NOME')
+  if(!parceiro && String(parceiroId).startsWith('cli_')) {
+    var nomeCliente = String(parceiroId).replace('cli_','');
+    var cli = clientes.find(function(c){ return c.nome === nomeCliente; });
+    if(cli) parceiro = { razao: cli.nome };
+  }
+  var parceiroNome = parceiro ? (parceiro.razao||parceiro.nome||'Parceiro') : String(parceiroId);
 
   // Calcular data de acerto prevista
   var dataAcerto = new Date(dataEnvio+'T00:00:00');
