@@ -3221,6 +3221,7 @@ function salvarVenda(){
   ['v-cliente','v-obs'].forEach(id=>{document.getElementById(id).value='';});
   document.getElementById('v-valor').value='';document.getElementById('v-total').value='';document.getElementById('v-qtd').value='1';
   consignacoes = S.get('consignacoes') || [];
+  migrarNomesConsignacao();
   converterDadosParaMaiusculas();
   migrarOrdemProdutos();
   sincronizarStatusProdutos();
@@ -8179,6 +8180,24 @@ function migrarOrdemProdutos() {
   console.log('Produtos ordenados alfabeticamente');
 }
 
+
+function migrarNomesConsignacao() {
+  var alterou = false;
+  (consignacoes||[]).forEach(function(l) {
+    if((l.parceiroNome === 'Parceiro' || !l.parceiroNome) && l.parceiroId) {
+      var p = parceiros.find(function(p){ return p.id == l.parceiroId; });
+      if(p) {
+        l.parceiroNome = p.razao || p.nome || l.parceiroNome;
+        alterou = true;
+      } else if(String(l.parceiroId).startsWith('cli_')) {
+        l.parceiroNome = String(l.parceiroId).replace('cli_','');
+        alterou = true;
+      }
+    }
+  });
+  if(alterou) S.set('consignacoes', consignacoes);
+}
+
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
   if(verificarSessao()) {
@@ -8221,6 +8240,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if(lancEl) { lancEl.style.cssText += ';display:block'; lancEl.classList.add('active'); }
   // Rotinas de inicializacao de dados
   consignacoes = S.get('consignacoes') || [];
+  migrarNomesConsignacao();
   converterDadosParaMaiusculas();
   migrarOrdemProdutos();
   sincronizarStatusProdutos();
