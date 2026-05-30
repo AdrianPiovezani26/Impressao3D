@@ -763,6 +763,7 @@
       <select id="filtro-ped" onchange="renderPedidos()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);">
         <option value="">Todos</option><option value="pendente">Pendente</option><option value="imprimindo">Imprimindo</option><option value="concluido">Concluido</option>
       </select>
+      <button class="btn" id="btn-toggle-kanban" onclick="toggleKanban()" title="Alternar Kanban/Lista" style="padding:7px 10px;"><i class="ti ti-layout-columns"></i></button>
       <button class="btn-ok" onclick="toggleFormPedido()"><i class="ti ti-plus"></i> Novo Pedido</button>
     </div>
   </div>
@@ -820,6 +821,30 @@
   </div>
 
   <div id="resumo-pedidos" style="margin-bottom:1rem;"></div>
+  <!-- Kanban view -->
+  <div id="kanban-pedidos" style="display:none;overflow-x:auto;">
+    <div style="display:flex;gap:12px;min-width:600px;padding-bottom:8px;">
+      <div style="flex:1;min-width:180px;">
+        <div style="padding:8px 12px;background:rgba(255,170,0,0.1);border:1px solid var(--amber-border);border-radius:var(--radius-lg);margin-bottom:8px;font-size:12px;font-weight:700;color:var(--amber-text);display:flex;justify-content:space-between;">
+          <span><i class="ti ti-clock"></i> Pendente</span><span id="kb-count-pendente" class="tag tag-amber">0</span>
+        </div>
+        <div id="kb-col-pendente" style="min-height:80px;display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+      <div style="flex:1;min-width:180px;">
+        <div style="padding:8px 12px;background:rgba(0,170,255,0.1);border:1px solid var(--blue-border);border-radius:var(--radius-lg);margin-bottom:8px;font-size:12px;font-weight:700;color:var(--blue-text);display:flex;justify-content:space-between;">
+          <span><i class="ti ti-printer"></i> Imprimindo</span><span id="kb-count-imprimindo" class="tag tag-blue">0</span>
+        </div>
+        <div id="kb-col-imprimindo" style="min-height:80px;display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+      <div style="flex:1;min-width:180px;">
+        <div style="padding:8px 12px;background:rgba(57,255,20,0.1);border:1px solid var(--neon-border);border-radius:var(--radius-lg);margin-bottom:8px;font-size:12px;font-weight:700;color:var(--neon);display:flex;justify-content:space-between;">
+          <span><i class="ti ti-check"></i> Concluido</span><span id="kb-count-concluido" class="tag tag-green">0</span>
+        </div>
+        <div id="kb-col-concluido" style="min-height:80px;display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+    </div>
+  </div>
+  <!-- Lista view -->
   <div id="lista-pedidos"></div>
 </div>
 
@@ -1881,7 +1906,6 @@
         </div>
       </div>
     </div>
-
     <div class="field"><label>Observacao</label>
       <input type="text" id="mp-obs" placeholder="Observacoes do pedido...">
     </div>
@@ -1894,27 +1918,7 @@
   </div>
 </div>
 
-<!-- MODAL SELL SELECIONAR PEDIDOS PARA VENDA -->
-<div id="modal-sel-pedidos" class="modal-overlay" style="display:none;" onclick="if(event.target===this)fecharSeletorPedidos()">
-  <div class="modal-box" style="max-width:600px;">
-    <div class="modal-title"><i class="ti ti-clipboard-list"></i> Selecionar Pedidos para Venda</div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:1rem;">Selecione um ou mais pedidos do mesmo cliente para incluir na venda.</div>
-    <div id="sel-pedidos-lista" style="max-height:400px;overflow-y:auto;"></div>
-    <div style="display:flex;gap:8px;margin-top:1rem;justify-content:space-between;align-items:center;">
-      <span id="sel-pedidos-total" style="font-size:13px;color:var(--neon);font-weight:700;"></span>
-      <div style="display:flex;gap:8px;">
-        <button class="btn-ok" onclick="confirmarSeletorPedidos()"><i class="ti ti-check"></i> Confirmar</button>
-        <button class="btn" onclick="fecharSeletorPedidos()"><i class="ti ti-x"></i> Cancelar</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <script>
-
-
-
-
 // Converter texto para maiusculas padronizado
 function upper(str) {
   return str ? str.toString().toUpperCase().trim() : '';
@@ -2029,6 +2033,7 @@ function showTab(t){
   }
   if(t==='financeiro')  { renderFinKPIs(); showFinSubtab('pagar'); }
   if(t==='relatorios')  { setRelPeriodo('mes'); showRelSubtab('vendas'); }
+  if(t==='calc')        { carregarConfigPrecificacao(); }
   if(t==='consignacao') { renderKpisConsig(); showConsigSubtab('lotes'); }
   if(t==='parceiros')   { showParcSubtab('clientes'); }
 }
@@ -3865,6 +3870,14 @@ function renderEstoque() {
             '</div>' +
           '</div>' +
           '<div class="estoque-bar-wrap"><div class="estoque-bar" style="width:'+pct+'%;background:'+cor+';"></div></div>' +
+          '<div style="margin-top:6px;font-size:11px;color:var(--text3);">'+
+          (function(){
+            var prev = calcPrevisaoConsumo(idx);
+            if(!prev) return '';
+            var cor = prev.diasRestantes < 7 ? 'var(--red-text)' : prev.diasRestantes < 30 ? 'var(--amber-text)' : 'var(--neon)';
+            return '<span style="color:'+cor+';"><i class="ti ti-trending-down"></i> Media: '+prev.mediaDiaria+'g/dia | <strong>'+prev.diasRestantes+' dias restantes</strong></span>';
+          })() +
+          '</div>' +
           '<div class="grid3" style="margin-top:10px;">' +
             '<div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--neon);font-weight:700;">+'+totalEnt.toFixed(0)+'g</span><br>entradas</div>' +
             '<div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--red-text);font-weight:700;">-'+totalSai.toFixed(0)+'g</span><br>consumido</div>' +
@@ -5319,6 +5332,14 @@ function renderDashboard() {
       }).join('') + (pedidosAbertos.length > 8 ? '<div style="text-align:center;font-size:11px;color:var(--text3);padding-top:8px;">+' + (pedidosAbertos.length-8) + ' pedidos</div>' : '');
     }
   }
+
+  // Renderizar melhorias do dashboard
+  var totalVendasMesAtual = vendas.filter(function(v){
+    return v.data && v.data.slice(0,7) === hoje().slice(0,7);
+  }).reduce(function(s,v){ return s+(v.valor||0); }, 0);
+  renderMetaMensal(totalVendasMesAtual);
+  renderAlertasVencimento();
+  renderGraficoVendas();
 }
 /* ===== FIM DASHBOARD ===== */
 
@@ -8556,6 +8577,217 @@ function migrarNomesConsignacao() {
   });
   if(alterou) S.set('consignacoes', consignacoes);
 }
+
+
+/* ===================================================
+   MELHORIAS DOS MODULOS EXISTENTES
+   =================================================== */
+
+/* ----- META MENSAL (Dashboard) ----- */
+function salvarMeta() {
+  var v = parseFloat(document.getElementById('dp-meta-input').value)||0;
+  cfg.metaMensal = v;
+  S.set('cfg', cfg);
+  renderDashboard();
+}
+
+function renderMetaMensal(totalVendasMes) {
+  var meta = cfg.metaMensal || 0;
+  var inp  = document.getElementById('dp-meta-input');
+  if(inp && !inp.value && meta > 0) inp.value = meta;
+
+  var wrap  = document.getElementById('dp-meta-wrap');
+  var barra = document.getElementById('dp-meta-barra');
+  var pctEl = document.getElementById('dp-meta-pct');
+  var realEl= document.getElementById('dp-meta-realizado');
+  var faltaEl= document.getElementById('dp-meta-falta');
+
+  if(!meta || meta <= 0) { if(wrap) wrap.style.display='none'; return; }
+  if(wrap) wrap.style.display = 'block';
+
+  var pct = Math.min(100, (totalVendasMes/meta*100));
+  if(barra) barra.style.width = pct.toFixed(0)+'%';
+  if(barra) barra.style.background = pct>=100?'var(--neon)':pct>=70?'var(--amber-text)':'var(--red-text)';
+  if(pctEl) pctEl.textContent = pct.toFixed(0)+'%';
+  if(realEl) realEl.textContent = fmt(totalVendasMes) + ' realizado';
+  if(faltaEl) {
+    if(pct >= 100) {
+      faltaEl.textContent = 'Meta atingida! Superou em '+fmt(totalVendasMes-meta);
+      faltaEl.style.color = 'var(--neon)';
+    } else {
+      faltaEl.textContent = 'Faltam '+fmt(meta-totalVendasMes)+' para atingir a meta';
+      faltaEl.style.color = 'var(--text3)';
+    }
+  }
+}
+
+/* ----- ALERTAS DE VENCIMENTO (Dashboard) ----- */
+function renderAlertasVencimento() {
+  var el = document.getElementById('dp-alertas-venc');
+  if(!el) return;
+  var hj = hoje();
+  var d3 = new Date(); d3.setDate(d3.getDate()+3);
+  var d3s = d3.toISOString().slice(0,10);
+
+  var alertas = [];
+
+  // Faturas vencendo em 3 dias ou vencidas
+  faturas.filter(function(f){ return f.status==='pendente' && f.venc; }).forEach(function(f){
+    if(f.venc < hj) {
+      alertas.push({tipo:'danger', msg:'Fatura VENCIDA: '+f.cliente+'  '+fmt(f.valor)+' ('+fmtD(f.venc)+')'});
+    } else if(f.venc <= d3s) {
+      alertas.push({tipo:'warn', msg:'Fatura vence em breve: '+f.cliente+'  '+fmt(f.valor)+' ('+fmtD(f.venc)+')'});
+    }
+  });
+
+  // Pedidos pendentes ha mais de 7 dias
+  var d7 = new Date(); d7.setDate(d7.getDate()-7);
+  var d7s = d7.toISOString().slice(0,10);
+  pedidos.filter(function(p){ return p.status==='pendente'; }).forEach(function(p){
+    var dataP = p.data ? p.data.split('/').reverse().join('-') : '';
+    if(dataP && dataP < d7s) {
+      alertas.push({tipo:'warn', msg:'Pedido pendente ha mais de 7 dias: '+p.nome});
+    }
+  });
+
+  // Filamentos criticos
+  filamentos.filter(function(f){ return (parseFloat(f.qtd)||0) < 100; }).forEach(function(f){
+    alertas.push({tipo:'info', msg:'Estoque critico: '+f.corNome+' '+f.marca+'  '+parseFloat(f.qtd).toFixed(0)+'g restantes'});
+  });
+
+  if(!alertas.length) { el.innerHTML=''; return; }
+  el.innerHTML = alertas.slice(0,5).map(function(a){
+    var cor = a.tipo==='danger'?'var(--red-text)':a.tipo==='warn'?'var(--amber-text)':'var(--blue-text)';
+    var bg  = a.tipo==='danger'?'rgba(255,50,50,0.08)':a.tipo==='warn'?'rgba(255,170,0,0.08)':'rgba(0,170,255,0.08)';
+    var ico = a.tipo==='danger'?'ti-alert-circle':a.tipo==='warn'?'ti-alert-triangle':'ti-info-circle';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:'+bg+';border-left:3px solid '+cor+';border-radius:var(--radius);margin-bottom:5px;font-size:12px;">' +
+      '<i class="ti '+ico+'" style="color:'+cor+';flex-shrink:0;"></i>' +
+      '<span style="color:var(--text2);">'+a.msg+'</span></div>';
+  }).join('');
+}
+
+/* ----- GRAFICO EVOLUCAO VENDAS (Dashboard) ----- */
+function renderGraficoVendas() {
+  var graficoEl = document.getElementById('dp-grafico-vendas');
+  var labelsEl  = document.getElementById('dp-grafico-labels');
+  if(!graficoEl) return;
+
+  // Ultimos 14 dias
+  var dias = 14;
+  var dados = [];
+  for(var i=dias-1; i>=0; i--) {
+    var d = new Date(); d.setDate(d.getDate()-i);
+    var ds = d.toISOString().slice(0,10);
+    var total = vendas.filter(function(v){ return v.data===ds; }).reduce(function(s,v){ return s+(v.valor||0); },0);
+    dados.push({data:ds, total:total, label:d.getDate()+'/'+(d.getMonth()+1)});
+  }
+  var maxVal = Math.max.apply(null, dados.map(function(d){ return d.total; })) || 1;
+
+  graficoEl.innerHTML = dados.map(function(d){
+    var h = maxVal>0 ? Math.max(4, (d.total/maxVal*72)).toFixed(0) : 4;
+    var cor = d.total>0?'var(--neon)':'var(--bg3)';
+    var title = d.label+': '+fmt(d.total);
+    return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;cursor:default;" title="'+title+'">' +
+      '<div style="font-size:9px;color:var(--neon);margin-bottom:2px;white-space:nowrap;">'+(d.total>0?fmt(d.total):'')+'</div>' +
+      '<div style="width:100%;min-height:'+h+'px;background:'+cor+';border-radius:3px 3px 0 0;transition:height 0.3s;opacity:'+(d.total>0?'1':'0.3')+';"></div>' +
+    '</div>';
+  }).join('');
+
+  if(labelsEl) labelsEl.innerHTML = dados.map(function(d){
+    return '<div style="flex:1;text-align:center;font-size:9px;color:var(--text3);">'+d.dados+'</div>';
+  }).join('');
+}
+
+/* ----- KANBAN DE PEDIDOS ----- */
+var _kanbanAtivo = false;
+
+function toggleKanban() {
+  _kanbanAtivo = !_kanbanAtivo;
+  var kanban = document.getElementById('kanban-pedidos');
+  var lista  = document.getElementById('lista-pedidos');
+  var btn    = document.getElementById('btn-toggle-kanban');
+  if(kanban) kanban.style.display = _kanbanAtivo ? 'block' : 'none';
+  if(lista)  lista.style.display  = _kanbanAtivo ? 'none' : 'block';
+  if(btn) {
+    btn.style.background = _kanbanAtivo ? 'rgba(57,255,20,0.15)' : '';
+    btn.style.borderColor= _kanbanAtivo ? 'var(--neon)' : '';
+    btn.style.color      = _kanbanAtivo ? 'var(--neon)' : '';
+  }
+  if(_kanbanAtivo) renderKanban();
+}
+
+function renderKanban() {
+  var cols = {pendente:[], imprimindo:[], concluido:[]};
+  pedidos.forEach(function(p, i){ if(cols[p.status]) cols[p.status].push({p:p, i:i}); });
+
+  Object.keys(cols).forEach(function(st){
+    var el = document.getElementById('kb-col-'+st);
+    var cnt= document.getElementById('kb-count-'+st);
+    if(cnt) cnt.textContent = cols[st].length;
+    if(!el) return;
+    el.innerHTML = cols[st].map(function(item){
+      var p = item.p; var i = item.i;
+      var corStatus = st==='concluido'?'var(--neon)':st==='imprimindo'?'var(--blue-text)':'var(--amber-text)';
+      return '<div style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid '+corStatus+';border-radius:var(--radius);padding:8px 10px;cursor:pointer;" onclick="abrirEdicaoPedido('+i+')">' +
+        '<div style="font-size:12px;font-weight:700;margin-bottom:4px;">'+p.nome+'</div>' +
+        '<div style="font-size:11px;color:var(--text3);">'+p.data+' | '+p.horas+'</div>' +
+        '<div style="font-size:11px;color:var(--neon);margin-top:3px;">'+p.preco+'</div>' +
+        '<div style="display:flex;gap:4px;margin-top:6px;">' +
+          (st!=='imprimindo'?'<button class="btn" onclick="event.stopPropagation();updPedSt('+i+',\'imprimindo\')" style="font-size:10px;padding:3px 7px;">Imprimir</button>':'') +
+          (st!=='concluido'?'<button class="btn-ok" onclick="event.stopPropagation();updPedSt('+i+',\'concluido\')" style="font-size:10px;padding:3px 7px;">Concluir</button>':'') +
+        '</div>' +
+      '</div>';
+    }).join('');
+  });
+}
+
+/* ----- PREVISAO DE CONSUMO (Estoque) ----- */
+function calcPrevisaoConsumo(filIdx) {
+  // Calcular media diaria de consumo dos ultimos 30 dias
+  var d30 = new Date(); d30.setDate(d30.getDate()-30);
+  var d30s = d30.toISOString().slice(0,10);
+  var hj = hoje();
+
+  var movs = movimentacoes.filter(function(m){
+    return m.filIdx === filIdx && m.tipo === 'saida' && m.data >= d30s && m.data <= hj;
+  });
+  var totalConsumido = movs.reduce(function(s,m){ return s+parseFloat(m.qtd||0); },0);
+  var mediaDiaria = totalConsumido / 30;
+
+  if(mediaDiaria <= 0) return null;
+  var estoque = parseFloat((filamentos[filIdx]||{}).qtd||0);
+  var diasRestantes = Math.floor(estoque / mediaDiaria);
+  return {mediaDiaria: mediaDiaria.toFixed(1), diasRestantes: diasRestantes};
+}
+
+/* ----- CONFIG PADRAO PRECIFICACAO ----- */
+function salvarConfigPrecificacao() {
+  cfg.prec_watts   = parseFloat(document.getElementById('c-watts').value)||0;
+  cfg.prec_kwh     = parseFloat(document.getElementById('c-kwh').value)||0;
+  cfg.prec_mdo     = parseFloat(document.getElementById('c-mdo').value)||0;
+  cfg.prec_markup  = parseFloat(document.getElementById('c-markup').value)||0;
+  cfg.prec_embal   = parseFloat(document.getElementById('c-embal').value)||0;
+  cfg.prec_impostos= parseFloat(document.getElementById('c-impostos').value)||0;
+  cfg.prec_insumos = parseFloat(document.getElementById('c-insumos').value)||0;
+  cfg.prec_descLojista = parseFloat(document.getElementById('c-desc-lojista').value)||30;
+  S.set('cfg', cfg);
+  alert('Configuracoes padrao salvas! Serao carregadas automaticamente na proxima precificacao.');
+}
+
+function carregarConfigPrecificacao() {
+  if(!cfg.prec_watts) return; // Nao tem config salva
+  if(cfg.prec_watts)   { var el=document.getElementById('c-watts');   if(el&&!el.value) el.value=cfg.prec_watts; }
+  if(cfg.prec_kwh)     { var el=document.getElementById('c-kwh');     if(el&&!el.value) el.value=cfg.prec_kwh; }
+  if(cfg.prec_mdo)     { var el=document.getElementById('c-mdo');     if(el&&!el.value) el.value=cfg.prec_mdo; }
+  if(cfg.prec_markup)  { var el=document.getElementById('c-markup');  if(el&&!el.value) el.value=cfg.prec_markup; }
+  if(cfg.prec_embal)   { var el=document.getElementById('c-embal');   if(el&&!el.value) el.value=cfg.prec_embal; }
+  if(cfg.prec_impostos){ var el=document.getElementById('c-impostos');if(el&&!el.value) el.value=cfg.prec_impostos; }
+  if(cfg.prec_insumos) { var el=document.getElementById('c-insumos'); if(el&&!el.value) el.value=cfg.prec_insumos; }
+  if(cfg.prec_descLojista){ var el=document.getElementById('c-desc-lojista');if(el) el.value=cfg.prec_descLojista; }
+}
+/* ===================================================
+   FIM MELHORIAS MODULOS EXISTENTES
+   =================================================== */
 
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
