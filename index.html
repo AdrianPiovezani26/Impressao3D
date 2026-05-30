@@ -1823,25 +1823,65 @@
 
 <!-- MODAL EDICAO PEDIDO -->
 <div id="modal-pedido" class="modal-overlay" style="display:none;" onclick="if(event.target===this)fecharModalPedido()">
-  <div class="modal-box">
+  <div class="modal-box" style="max-width:560px;max-height:90vh;overflow-y:auto;">
     <div class="modal-title"><i class="ti ti-edit"></i> Editar Pedido</div>
-    <div class="field"><label>Nome da Peca</label><input type="text" id="mp-nome" placeholder="Nome do pedido"></div>
+
+    <!-- Nome e status -->
     <div class="grid2">
-      <div class="field"><label>Quantidade de Unidades</label><input type="number" id="mp-qtd" placeholder="1" min="1" step="1" value="1" oninput="atualizarTotalPedido()"></div>
-      <div class="field"><label>Preco por Unidade (R$)</label><input type="number" id="mp-preco-unit" placeholder="0.00" step="0.01 min="0" oninput="atualizarTotalPedido()">
+      <div class="field"><label>Nome da Peca</label><input type="text" id="mp-nome" placeholder="Nome do pedido"></div>
+      <div class="field"><label>Status</label>
+        <select id="mp-status" style="border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);width:100%;">
+          <option value="pendente">Pendente</option>
+          <option value="imprimindo">Imprimindo</option>
+          <option value="concluido">Concluido</option>
+        </select>
+      </div>
     </div>
+
+    <!-- Quantidade e preco -->
+    <div class="grid2">
+      <div class="field"><label>Quantidade de Unidades</label>
+        <input type="number" id="mp-qtd" placeholder="1" min="1" step="1" value="1" oninput="calcTotalModal()">
+      </div>
+      <div class="field"><label>Preco por Unidade (R$)</label>
+        <input type="number" id="mp-preco-unit" placeholder="0.00" step="0.01" min="0" oninput="calcTotalModal()">
+      </div>
     </div>
+    <div style="padding:8px 12px;background:var(--bg3);border-radius:var(--radius);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:12px;color:var(--text3);">Total do pedido</span>
+      <span id="mp-total" style="font-size:18px;font-weight:700;color:var(--neon);">R$ 0,00</span>
+    </div>
+
+    <!-- Tempo de impressao -->
     <div class="field">
-      <label>Total do Pedido</label>
-      <div id="mp-preco-total" style="font-size:20px;font-weight:700;color:var(--neon);padding:8px 0;"></div>
+      <label>Tempo de Impressao</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="number" id="mp-horas-h" placeholder="0" min="0" style="width:70px;border:1px solid var(--border2);border-radius:var(--radius);padding:7px 8px;font-size:13px;background:var(--bg2);color:var(--text);">
+        <span style="font-size:13px;color:var(--text2);">h</span>
+        <input type="number" id="mp-horas-m" placeholder="0" min="0" max="59" style="width:70px;border:1px solid var(--border2);border-radius:var(--radius);padding:7px 8px;font-size:13px;background:var(--bg2);color:var(--text);">
+        <span style="font-size:13px;color:var(--text2);">min</span>
+      </div>
     </div>
-    <div class="field"><label>Filamento(s)</label><input type="text" id="mp-filnome" placeholder="Ex: PLA Preto, PETG Granito"></div>
-    <div class="grid2">
-      <div class="field"><label>Peso total (g)</label><input type="number" id="mp-peso" placeholder="Ex: 150" step="0.1" min="0"></div>
-      <div class="field"><label>Tempo de impressao</label><input type="text" id="mp-horas" placeholder="Ex: 2h 30min"></div>
+
+    <!-- Filamentos utilizados -->
+    <div class="field">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <label style="margin:0;">Filamentos Utilizados</label>
+        <button class="btn" onclick="addFilModal()" style="font-size:11px;padding:3px 8px;"><i class="ti ti-plus"></i> Add</button>
+      </div>
+      <div id="mp-fils-lista" style="display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto;"></div>
+      <!-- Resumo custo de filamentos -->
+      <div id="mp-custo-fils" style="display:none;margin-top:8px;padding:8px 10px;background:var(--bg3);border-radius:var(--radius);font-size:12px;">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+          <span style="color:var(--text3);">Peso total: <strong id="mp-peso-total" style="color:var(--amber-text);">0g</strong></span>
+          <span style="color:var(--text3);">Custo material: <strong id="mp-custo-material" style="color:var(--red-text);">R$ 0,00</strong></span>
+          <span style="color:var(--text3);">Margem: <strong id="mp-margem" style="color:var(--neon);">--</strong></span>
+        </div>
+      </div>
     </div>
+
     <div class="field"><label>Observacao</label>
-      <textarea id="mp-obs" rows="2" style="border:1px solid var(--border2);border-radius:var(--radius);padding:8px;font-size:13px;background:var(--bg3);color:var(--text);width:100%;resize:vertical;outline:none;"></textarea>
+      <input type="text" id="mp-obs" placeholder="Observacoes do pedido...">
     </div>
     <div id="mp-erro" style="display:none;color:var(--red-text);font-size:12px;margin-bottom:8px;padding:6px 10px;background:var(--red-bg);border-radius:var(--radius);"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
@@ -5611,34 +5651,90 @@ function calcTotalModal() {
   var total     = qtd * precoUnit;
   var totalEl   = document.getElementById('mp-total');
   if(totalEl) totalEl.textContent = fmt(total);
+  calcCustoModal();
 }
 
 function addFilModal(filIdx, pesoVal) {
   var container = document.getElementById('mp-fils-lista');
   if(!container) return;
   var d = document.createElement('div');
-  d.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:4px;';
+  d.style.cssText = 'display:flex;gap:6px;align-items:center;padding:4px;background:var(--bg3);border-radius:var(--radius);';
 
   var sel = document.createElement('select');
-  sel.style.cssText = 'flex:2;min-width:150px;border:1px solid var(--border2);border-radius:var(--radius);padding:5px 8px;font-size:12px;background:var(--bg2);color:var(--text);';
-  sel.innerHTML = '<option value="">-- Sem filamento --</option>' +
-    filamentos.map(function(f,i){ return '<option value="'+i+'">'+f.corNome+' '+f.marca+' '+f.modelo+'</option>'; }).join('');
+  sel.style.cssText = 'flex:2;min-width:140px;border:1px solid var(--border2);border-radius:var(--radius);padding:5px 8px;font-size:12px;background:var(--bg2);color:var(--text);';
+  sel.innerHTML = '<option value="">-- Filamento --</option>' +
+    filamentos.map(function(f,i){
+      return '<option value="'+i+'">'+f.corNome+' '+f.marca+' '+f.modelo+'</option>';
+    }).join('');
   if(filIdx !== undefined && filIdx >= 0) sel.value = filIdx;
+  sel.addEventListener('change', calcCustoModal);
 
   var inp = document.createElement('input');
-  inp.type='number'; inp.placeholder='Peso (g)'; inp.min='0'; inp.step='1';
-  inp.style.cssText='width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:5px 8px;font-size:12px;background:var(--bg2);color:var(--text);';
-  if(pesoVal) inp.value = pesoVal;
+  inp.type='number'; inp.placeholder='g'; inp.min='0'; inp.step='1';
+  inp.style.cssText='width:65px;border:1px solid var(--border2);border-radius:var(--radius);padding:5px 8px;font-size:12px;background:var(--bg2);color:var(--text);text-align:center;';
+  if(pesoVal !== undefined) inp.value = pesoVal;
+  inp.addEventListener('input', calcCustoModal);
 
   var lbl = document.createElement('span');
   lbl.textContent='g'; lbl.style.cssText='font-size:12px;color:var(--text2);flex-shrink:0;';
 
+  // Label custo estimado
+  var lblCusto = document.createElement('span');
+  lblCusto.className = 'mp-fil-custo';
+  lblCusto.style.cssText='font-size:11px;color:var(--text3);flex-shrink:0;min-width:50px;';
+
   var btn = document.createElement('button');
   btn.className='rm'; btn.innerHTML='<i class="ti ti-x"></i>';
-  btn.addEventListener('click', function(){ d.remove(); });
+  btn.addEventListener('click', function(){ d.remove(); calcCustoModal(); });
 
-  d.appendChild(sel); d.appendChild(inp); d.appendChild(lbl); d.appendChild(btn);
+  d.appendChild(sel); d.appendChild(inp); d.appendChild(lbl); d.appendChild(lblCusto); d.appendChild(btn);
   container.appendChild(d);
+  calcCustoModal();
+}
+
+function calcCustoModal() {
+  var container = document.getElementById('mp-fils-lista');
+  var custoWrap  = document.getElementById('mp-custo-fils');
+  var pesoTotalEl= document.getElementById('mp-peso-total');
+  var custoEl    = document.getElementById('mp-custo-material');
+  var margemEl   = document.getElementById('mp-margem');
+  if(!container) return;
+
+  var pesoTotal = 0, custoTotal = 0;
+  container.querySelectorAll('div').forEach(function(row){
+    var sel = row.querySelector('select');
+    var inp = row.querySelector('input[type=number]');
+    var lblC= row.querySelector('.mp-fil-custo');
+    var idxF= sel ? parseInt(sel.value) : -1;
+    var peso = parseFloat(inp ? inp.value : 0)||0;
+    if(!isNaN(idxF) && idxF >= 0 && filamentos[idxF] && peso > 0) {
+      var f = filamentos[idxF];
+      var custoG = (parseFloat(f.preco)||0) / (parseFloat(f.pesoRolo)||1000);
+      var custoFil = custoG * peso;
+      pesoTotal  += peso;
+      custoTotal += custoFil;
+      if(lblC) lblC.textContent = 'R$' + custoFil.toFixed(2);
+    } else {
+      if(lblC) lblC.textContent = '';
+    }
+  });
+
+  if(custoWrap) custoWrap.style.display = pesoTotal > 0 ? 'block' : 'none';
+  if(pesoTotalEl) pesoTotalEl.textContent = pesoTotal.toFixed(0) + 'g';
+  if(custoEl) custoEl.textContent = fmt(custoTotal);
+
+  // Calcular margem
+  var preco = parseFloat((document.getElementById('mp-preco-unit')||{}).value||0) *
+              (parseFloat((document.getElementById('mp-qtd')||{}).value||1)||1);
+  if(margemEl) {
+    if(preco > 0 && custoTotal > 0) {
+      var margem = ((preco - custoTotal) / preco * 100).toFixed(1);
+      margemEl.textContent = margem + '%';
+      margemEl.style.color = parseFloat(margem) > 0 ? 'var(--neon)' : 'var(--red-text)';
+    } else {
+      margemEl.textContent = '--';
+    }
+  }
 }
 
 function atualizarTotalPedido() {
