@@ -5670,13 +5670,18 @@ function abrirEdicaoPedido(idx) {
   var stEl = document.getElementById('mp-status');
   if(stEl) stEl.value = p.status || 'pendente';
 
-  // Restaurar filamentos do pedido
+  // Restaurar filamentos do pedido  usar pesoUnit se disponivel
   var filsListaEl = document.getElementById('mp-fils-lista');
   if(filsListaEl) {
     filsListaEl.innerHTML = '';
     var fils = p.filsEstoque || [];
+    var qtdAtual = Math.max(1, parseInt(document.getElementById('mp-qtd').value)||1);
     if(fils.length > 0) {
-      fils.forEach(function(f){ addFilModal(f.filIdx, f.peso); });
+      fils.forEach(function(f){
+        // Se tem pesoUnit salvo, usar ele; senao calcular dividindo pelo qtd
+        var pUnit = f.pesoUnit || (f.peso && p.qtd && p.qtd > 0 ? Math.round((f.peso / p.qtd) * 100) / 100 : f.peso);
+        addFilModal(f.filIdx, pUnit, true); // true = modo pesoUnit
+      });
     } else {
       addFilModal();
     }
@@ -5692,10 +5697,27 @@ function calcTotalModal() {
   var total     = qtd * precoUnit;
   var totalEl   = document.getElementById('mp-total');
   if(totalEl) totalEl.textContent = fmt(total);
+  // Atualizar totais de filamento proporcional a qtd
+  atualizarTotaisFilamento();
   calcCustoModal();
 }
 
-function addFilModal(filIdx, pesoVal) {
+function atualizarTotaisFilamento() {
+  var qtd = Math.max(1, parseFloat(document.getElementById('mp-qtd').value)||1);
+  var container = document.getElementById('mp-fils-lista');
+  if(!container) return;
+  container.querySelectorAll('div').forEach(function(row){
+    var inp  = row.querySelector('input[type=number]');
+    var lblTotal = row.querySelector('.mp-fil-total');
+    if(!inp || !lblTotal) return;
+    var pesoUnit = parseFloat(inp.value)||0;
+    var total = pesoUnit * qtd;
+    lblTotal.textContent = total > 0 ? '= '+total.toFixed(0)+'g total' : '';
+    lblTotal.style.color = total > 0 ? 'var(--amber-text)' : '';
+  });
+}
+
+function addFilModal(filIdx, pesoVal, modoUnit) {
   var container = document.getElementById('mp-fils-lista');
   if(!container) return;
   var d = document.createElement('div');
@@ -5714,21 +5736,26 @@ function addFilModal(filIdx, pesoVal) {
   inp.type='number'; inp.placeholder='g'; inp.min='0'; inp.step='1';
   inp.style.cssText='width:65px;border:1px solid var(--border2);border-radius:var(--radius);padding:5px 8px;font-size:12px;background:var(--bg2);color:var(--text);text-align:center;';
   if(pesoVal !== undefined) inp.value = pesoVal;
-  inp.addEventListener('input', calcCustoModal);
+  inp.addEventListener('input', function(){ calcCustoModal(); atualizarTotaisFilamento(); });
 
   var lbl = document.createElement('span');
-  lbl.textContent='g'; lbl.style.cssText='font-size:12px;color:var(--text2);flex-shrink:0;';
+  lbl.textContent='g/un'; lbl.style.cssText='font-size:12px;color:var(--text2);flex-shrink:0;white-space:nowrap;';
 
   // Label custo estimado
   var lblCusto = document.createElement('span');
   lblCusto.className = 'mp-fil-custo';
   lblCusto.style.cssText='font-size:11px;color:var(--text3);flex-shrink:0;min-width:50px;';
 
+  // Label total = pesoUnit * qtd
+  var lblTotal = document.createElement('span');
+  lblTotal.className = 'mp-fil-total';
+  lblTotal.style.cssText='font-size:11px;color:var(--amber-text);flex-shrink:0;min-width:70px;white-space:nowrap;';
+
   var btn = document.createElement('button');
   btn.className='rm'; btn.innerHTML='<i class="ti ti-x"></i>';
-  btn.addEventListener('click', function(){ d.remove(); calcCustoModal(); });
+  btn.addEventListener('click', function(){ d.remove(); calcCustoModal(); atualizarTotaisFilamento(); });
 
-  d.appendChild(sel); d.appendChild(inp); d.appendChild(lbl); d.appendChild(lblCusto); d.appendChild(btn);
+  d.appendChild(sel); d.appendChild(inp); d.appendChild(lbl); d.appendChild(lblTotal); d.appendChild(lblCusto); d.appendChild(btn);
   container.appendChild(d);
   calcCustoModal();
 }
@@ -5805,7 +5832,7 @@ function salvarEdicaoPedido() {
   var hM = parseInt((document.getElementById('mp-horas-m')||{}).value)||0;
   var tempoStr = (hH>0||hM>0) ? ((hH>0?hH+'h':'')+( hM>0?' '+hM+'min':'')).trim() : (p.horas||'--');
 
-  // Coletar filamentos editados
+  // Coletar filamentos  salvar pesoUnit e calcular peso total
   var filsEstoque = [];
   var pesoTotal = 0;
   var container = document.getElementById('mp-fils-lista');
@@ -5814,14 +5841,22 @@ function salvarEdicaoPedido() {
       var sel  = row.querySelector('select');
       var inp  = row.querySelector('input[type=number]');
       var idxF = sel ? parseInt(sel.value) : -1;
-      var peso = parseFloat(inp ? inp.value : 0)||0;
-      if(!isNaN(idxF) && idxF >= 0 && filamentos[idxF] && peso > 0) {
-        filsEstoque.push({filIdx:idxF, filNome:filamentos[idxF].corNome+' '+filamentos[idxF].marca+' '+filamentos[idxF].modelo, peso:peso});
-        pesoTotal += peso;
+      var pesoUnit = parseFloat(inp ? inp.value : 0)||0;
+      if(!isNaN(idxF) && idxF >= 0 && filamentos[idxF] && pesoUnit > 0) {
+        var pesoTotalFil = Math.round(pesoUnit * qtd * 100) / 100;
+        filsEstoque.push({
+          filIdx: idxF,
+          filNome: filamentos[idxF].corNome+' '+filamentos[idxF].marca+' '+filamentos[idxF].modelo,
+          pesoUnit: pesoUnit,   // gramas por unidade  usado para recalcular
+          peso: pesoTotalFil    // total = pesoUnit * qtd
+        });
+        pesoTotal += pesoTotalFil;
       }
     });
   }
-  var filNomeStr = filsEstoque.length ? filsEstoque.map(function(f){ return f.filNome+' ('+f.peso+'g)'; }).join(', ') : (p.filNome||'--');
+  var filNomeStr = filsEstoque.length ? filsEstoque.map(function(f){
+    return f.filNome+' ('+f.pesoUnit+'g/un, '+f.peso+'g total)';
+  }).join(', ') : (p.filNome||'--');
 
   // Atualizar pedido mantendo flag estoquesBaixados
   pedidos[_pedidoEditIdx] = Object.assign({}, p, {
