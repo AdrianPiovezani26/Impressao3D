@@ -297,8 +297,26 @@
       try {
         for(var i=0;i<CHAVES.length;i++) {
           var k=CHAVES[i], fb=await fbCarregar(k);
-          if(fb!==null) { localStorage.setItem('akp3d_'+k,JSON.stringify(fb)); }
-          else { var loc=localStorage.getItem('akp3d_'+k); if(loc) await fbSalvar(k,JSON.parse(loc)); }
+          var loc = localStorage.getItem('akp3d_'+k);
+          var locDados = loc ? JSON.parse(loc) : null;
+          var locTam = Array.isArray(locDados) ? locDados.length : (locDados ? 1 : 0);
+          var fbTam  = Array.isArray(fb) ? fb.length : (fb ? 1 : 0);
+
+          if(fb !== null && fbTam > 0) {
+            // Firebase tem dados — só sobrescreve local se Firebase tiver MAIS dados
+            if(fbTam >= locTam) {
+              localStorage.setItem('akp3d_'+k, JSON.stringify(fb));
+            } else {
+              // Local tem mais dados — enviar local para Firebase
+              if(locDados) await fbSalvar(k, locDados);
+            }
+          } else if(fb !== null && fbTam === 0 && locTam > 0) {
+            // Firebase está vazio mas local tem dados — enviar local para Firebase
+            await fbSalvar(k, locDados);
+          } else if(fb === null) {
+            // Firebase não tem o documento — enviar local
+            if(locDados) await fbSalvar(k, locDados);
+          }
         }
       } catch(e) { ok=false; }
       if(ind) { ind.querySelector('span').textContent=ok?'Sincronizado':'Offline'; setTimeout(()=>ind.style.display='none',2000); }
