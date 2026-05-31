@@ -5397,7 +5397,7 @@ function coletarDadosCalc() {
   }
   return {
     id: Date.now(),
-    nome: document.getElementById('c-nome-peca').value || 'Sem nome',
+    nome: (document.getElementById('c-nome-peca').value || 'SEM NOME').toUpperCase().trim(),
     data: hoje(),
     hora: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
     qtd: parseInt(document.getElementById('c-qtd').value)||1,
@@ -5426,7 +5426,33 @@ function salvarNoHistorico() {
     return;
   }
   var dados = coletarDadosCalc();
-  _histCalc.unshift(dados);
+  // Padronizar nome em maiusculas
+  dados.nome = (dados.nome||'SEM NOME').toUpperCase().trim();
+
+  // Verificar duplicata pelo nome
+  var nomeUP = dados.nome;
+  var existeIdx = -1;
+  _histCalc.forEach(function(h, i){
+    if((h.nome||'').toUpperCase().trim() === nomeUP) existeIdx = i;
+  });
+
+  if(existeIdx >= 0) {
+    var resp = confirm(
+      'Ja existe uma precificacao com o nome:\n"' + nomeUP + '"\n\n' +
+      'Deseja SUBSTITUIR a precificacao existente?\n\n' +
+      'OK = Substituir | Cancelar = Salvar como nova'
+    );
+    if(resp) {
+      // Substituir a existente
+      _histCalc[existeIdx] = dados;
+    } else {
+      // Salvar como nova mesmo assim
+      _histCalc.unshift(dados);
+    }
+  } else {
+    _histCalc.unshift(dados);
+  }
+
   S.set('hist_calc', _histCalc);
   renderHistoricoCalc();
   alert('Salvo no historico: ' + dados.nome);
