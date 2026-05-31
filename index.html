@@ -2058,30 +2058,32 @@ function showTab(t){
 
 /* ---- FILAMENTOS ---- */
 function buildFilSelect(){
-  // Atualizar selects de filamento nos formularios que ainda usam select unico
-  // (formulario de compras, estoque/ajuste)
-  var selectsParaAtualizar = [
-    document.getElementById('cp-fil-estoque'),
-    document.getElementById('aj-fil')
-  ];
-  var opts = '<option value="">Selecionar filamento...</option>' +
-    filamentos.map(function(f,i){
-      return '<option value="'+i+'">'+f.corNome+' '+f.marca+' '+f.modelo+' ('+f.qtd+'g)</option>';
-    }).join('');
-  selectsParaAtualizar.forEach(function(s){ if(s) s.innerHTML = opts; });
-  // Atualizar selects dentro das linhas de multi-filamento (precificacao e produtos)
+  // Selects simples (compras, ajuste estoque)
+  [document.getElementById('cp-fil-estoque'), document.getElementById('aj-fil')].forEach(function(s){
+    if(!s) return;
+    var v = s.value;
+    s.innerHTML = getFilOpts('Selecionar filamento...');
+    s.value = v;
+  });
+  // Selects dentro das listas multi-filamento (precificacao e produtos)
   ['c-fils-lista','p-fils-lista'].forEach(function(listaId){
     var lista = document.getElementById(listaId);
     if(!lista) return;
     lista.querySelectorAll('select').forEach(function(sel){
-      var valAtual = sel.value;
-      sel.innerHTML = '<option value="">-- Manual --</option>' +
-        filamentos.map(function(f,i){
-          return '<option value="'+i+'">'+f.corNome+' '+f.marca+' '+f.modelo+' ('+f.qtd+'g)</option>';
-        }).join('');
-      sel.value = valAtual;
+      var v = sel.value;
+      sel.innerHTML = getFilOpts('-- Manual --');
+      sel.value = v;
     });
   });
+  // Selects no modal de pedido
+  var mpLista = document.getElementById('mp-fils-lista');
+  if(mpLista) {
+    mpLista.querySelectorAll('select').forEach(function(sel){
+      var v = sel.value;
+      sel.innerHTML = getFilOpts('-- Filamento --');
+      sel.value = v;
+    });
+  }
 }
 function preencherFilCalc(){
   // Funcao mantida para compatibilidade -- logica migrada para addFilCalc/syncDotCalc
@@ -5725,10 +5727,7 @@ function addFilModal(filIdx, pesoVal, modoUnit) {
 
   var sel = document.createElement('select');
   sel.style.cssText = 'flex:2;min-width:140px;border:1px solid var(--border2);border-radius:var(--radius);padding:5px 8px;font-size:12px;background:var(--bg2);color:var(--text);';
-  sel.innerHTML = '<option value="">-- Filamento --</option>' +
-    filamentos.map(function(f,i){
-      return '<option value="'+i+'">'+f.corNome+' '+f.marca+' '+f.modelo+'</option>';
-    }).join('');
+  sel.innerHTML = getFilOpts('-- Filamento --');
   if(filIdx !== undefined && filIdx >= 0) sel.value = filIdx;
   sel.addEventListener('change', calcCustoModal);
 
@@ -8841,6 +8840,28 @@ function carregarConfigPrecificacao() {
 /* ===================================================
    FIM MELHORIAS MODULOS EXISTENTES
    =================================================== */
+
+
+function getFilsOrdenados() {
+  // Retorna indices dos filamentos ordenados por Cor, Marca, Modelo
+  return filamentos.map(function(f, i){ return i; }).sort(function(a, b){
+    var fa = filamentos[a], fb = filamentos[b];
+    var cor  = (fa.corNome||'').localeCompare(fb.corNome||'', 'pt-BR');
+    if(cor !== 0) return cor;
+    var marc = (fa.marca||'').localeCompare(fb.marca||'', 'pt-BR');
+    if(marc !== 0) return marc;
+    return (fa.modelo||'').localeCompare(fb.modelo||'', 'pt-BR');
+  });
+}
+
+function getFilOpts(placeholder) {
+  var ph = placeholder || 'Selecionar filamento...';
+  return '<option value="">'+ph+'</option>' +
+    getFilsOrdenados().map(function(i){
+      var f = filamentos[i];
+      return '<option value="'+i+'">'+f.corNome+'  '+f.marca+' '+f.modelo+' ('+parseFloat(f.qtd||0).toFixed(0)+'g)</option>';
+    }).join('');
+}
 
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
