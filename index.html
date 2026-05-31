@@ -5878,7 +5878,6 @@ function importarPedidoVenda() {
   var p = pedidos[_pedidoEditIdx];
   var qtd       = parseInt(document.getElementById('mp-qtd').value) || p.qtd || 1;
   var precoUnit = parseFloat(document.getElementById('mp-preco-unit').value) || 0;
-  var total     = qtd * precoUnit;
   var nome      = (document.getElementById('mp-nome').value || '').trim() || p.nome || '';
   fecharModalPedido();
   showTab('vendas');
@@ -5886,60 +5885,54 @@ function importarPedidoVenda() {
     var formVenda = document.getElementById('form-venda');
     if(formVenda) formVenda.style.display = 'block';
 
-    // Preencher campos da venda
-    var vValor = document.getElementById('v-valor');
-    var vQtd   = document.getElementById('v-qtd');
-    var vTotal = document.getElementById('v-total');
-    var vObs   = document.getElementById('v-obs');
-    var vData  = document.getElementById('v-data');
-    if(vValor) vValor.value = precoUnit.toFixed(2);
-    if(vQtd)   vQtd.value   = qtd;
-    if(vTotal) vTotal.value  = total.toFixed(2);
-    if(vObs)   vObs.value    = 'Pedido: ' + nome;
-    if(vData)  vData.value   = hoje();
+    // Preencher data
+    var vData = document.getElementById('v-data');
+    if(vData) vData.value = hoje();
 
-    // Buscar produto pelo nome exato primeiro, depois parcial
-    buildProdOpts();
-    var selProd = document.getElementById('v-produto');
-    if(selProd && nome) {
-      var nomeUP = nome.toUpperCase();
-      var achouExato = false;
+    // Limpar itens anteriores e adicionar o item do pedido
+    var listaItens = document.getElementById('v-itens-lista');
+    if(listaItens) listaItens.innerHTML = '';
 
-      // Tentativa 1: nome exato
-      for(var i = 0; i < selProd.options.length; i++) {
-        if(selProd.options[i].text.toUpperCase() === nomeUP) {
-          selProd.selectedIndex = i;
-          achouExato = true;
-          break;
-        }
-      }
+    // Buscar indice do produto pelo nome
+    var prodIdx = -1;
+    var nomeUP  = nome.toUpperCase();
+    produtos.forEach(function(pr, i){
+      if((pr.nome||'').toUpperCase() === nomeUP) prodIdx = i;
+    });
+    // Busca parcial se nao achou exato
+    if(prodIdx < 0) {
+      produtos.forEach(function(pr, i){
+        if((pr.nome||'').toUpperCase().indexOf(nomeUP) >= 0 && prodIdx < 0) prodIdx = i;
+      });
+    }
+    // Busca pela primeira palavra
+    if(prodIdx < 0) {
+      var primeira = nomeUP.split(' ')[0];
+      produtos.forEach(function(pr, i){
+        if((pr.nome||'').toUpperCase().indexOf(primeira) >= 0 && prodIdx < 0) prodIdx = i;
+      });
+    }
 
-      // Tentativa 2: nome contido na opcao
-      if(!achouExato) {
-        for(var i = 0; i < selProd.options.length; i++) {
-          if(selProd.options[i].text.toUpperCase().indexOf(nomeUP) >= 0) {
-            selProd.selectedIndex = i;
-            achouExato = true;
-            break;
-          }
-        }
-      }
+    // Adicionar item da venda com produto encontrado
+    addItemVenda(prodIdx >= 0 ? prodIdx : undefined, qtd, precoUnit, nome);
 
-      // Tentativa 3: primeira palavra do nome
-      if(!achouExato) {
-        var primeira = nomeUP.split(' ')[0];
-        for(var i = 0; i < selProd.options.length; i++) {
-          if(selProd.options[i].text.toUpperCase().indexOf(primeira) >= 0) {
-            selProd.selectedIndex = i;
-            break;
-          }
+    // Se nao achou produto, preencher campo de texto manualmente
+    if(prodIdx < 0) {
+      var listaEl = document.getElementById('v-itens-lista');
+      if(listaEl) {
+        var sel = listaEl.querySelector('select');
+        if(sel) {
+          // Adicionar opcao manual com o nome do pedido
+          var opt = document.createElement('option');
+          opt.value = ''; opt.textContent = nome; opt.selected = true;
+          sel.insertBefore(opt, sel.firstChild);
         }
       }
     }
 
-    // Preencher campo de texto do produto caso exista
-    var vProdNome = document.getElementById('v-prod-nome');
-    if(vProdNome && !vProdNome.value) vProdNome.value = nome;
+    // Preencher obs com nome do pedido
+    var vObs = document.getElementById('v-obs');
+    if(vObs) vObs.value = 'Pedido: ' + nome;
 
     calcTotalVenda();
     formVenda && formVenda.scrollIntoView({behavior:'smooth', block:'nearest'});
