@@ -5875,36 +5875,75 @@ function salvarEdicaoPedido() {
 
 function importarPedidoVenda() {
   if(_pedidoEditIdx < 0) return;
-  var qtd = parseInt(document.getElementById('mp-qtd').value) || 1;
+  var p = pedidos[_pedidoEditIdx];
+  var qtd       = parseInt(document.getElementById('mp-qtd').value) || p.qtd || 1;
   var precoUnit = parseFloat(document.getElementById('mp-preco-unit').value) || 0;
-  var total = qtd * precoUnit;
-  var nome = document.getElementById('mp-nome').value.trim() || pedidos[_pedidoEditIdx].nome;
+  var total     = qtd * precoUnit;
+  var nome      = (document.getElementById('mp-nome').value || '').trim() || p.nome || '';
   fecharModalPedido();
   showTab('vendas');
   setTimeout(function() {
     var formVenda = document.getElementById('form-venda');
     if(formVenda) formVenda.style.display = 'block';
+
+    // Preencher campos da venda
     var vValor = document.getElementById('v-valor');
     var vQtd   = document.getElementById('v-qtd');
     var vTotal = document.getElementById('v-total');
     var vObs   = document.getElementById('v-obs');
     var vData  = document.getElementById('v-data');
     if(vValor) vValor.value = precoUnit.toFixed(2);
-    if(vQtd)   vQtd.value = qtd;
-    if(vTotal) vTotal.value = total.toFixed(2);
-    if(vObs)   vObs.value = 'Pedido: ' + nome;
-    if(vData)  vData.value = hoje();
+    if(vQtd)   vQtd.value   = qtd;
+    if(vTotal) vTotal.value  = total.toFixed(2);
+    if(vObs)   vObs.value    = 'Pedido: ' + nome;
+    if(vData)  vData.value   = hoje();
+
+    // Buscar produto pelo nome exato primeiro, depois parcial
     buildProdOpts();
     var selProd = document.getElementById('v-produto');
-    if(selProd) {
+    if(selProd && nome) {
+      var nomeUP = nome.toUpperCase();
+      var achouExato = false;
+
+      // Tentativa 1: nome exato
       for(var i = 0; i < selProd.options.length; i++) {
-        if(selProd.options[i].text.toLowerCase().includes(nome.toLowerCase().split(' ')[0])) {
-          selProd.selectedIndex = i; break;
+        if(selProd.options[i].text.toUpperCase() === nomeUP) {
+          selProd.selectedIndex = i;
+          achouExato = true;
+          break;
+        }
+      }
+
+      // Tentativa 2: nome contido na opcao
+      if(!achouExato) {
+        for(var i = 0; i < selProd.options.length; i++) {
+          if(selProd.options[i].text.toUpperCase().indexOf(nomeUP) >= 0) {
+            selProd.selectedIndex = i;
+            achouExato = true;
+            break;
+          }
+        }
+      }
+
+      // Tentativa 3: primeira palavra do nome
+      if(!achouExato) {
+        var primeira = nomeUP.split(' ')[0];
+        for(var i = 0; i < selProd.options.length; i++) {
+          if(selProd.options[i].text.toUpperCase().indexOf(primeira) >= 0) {
+            selProd.selectedIndex = i;
+            break;
+          }
         }
       }
     }
+
+    // Preencher campo de texto do produto caso exista
+    var vProdNome = document.getElementById('v-prod-nome');
+    if(vProdNome && !vProdNome.value) vProdNome.value = nome;
+
     calcTotalVenda();
-  }, 250);
+    formVenda && formVenda.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }, 300);
 }
 /* ===== FIM EDICAO PEDIDOS ===== */
 
