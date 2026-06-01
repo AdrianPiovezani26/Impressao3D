@@ -1663,7 +1663,12 @@
           <option value="anual">Anual</option>
         </select>
       </div>
-      <div class="field"><label>Fornecedor / Credor</label><input type="text" id="cp-credor" placeholder="Nome do credor"></div>
+      <div class="field"><label>Fornecedor / Credor</label>
+        <select id="cp-credor-sel" onchange="(function(){ var s=document.getElementById('cp-credor-sel'); var inp=document.getElementById('cp-credor'); if(s.value==='manual'){inp.style.display='block';inp.value='';inp.focus();}else{inp.style.display='none';inp.value=s.options[s.selectedIndex].text==='-- Selecionar --'?'':s.options[s.selectedIndex].text;} })()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);width:100%;">
+          <option value="">-- Selecionar --</option>
+        </select>
+        <input type="text" id="cp-credor" placeholder="Nome do credor (digitado)" style="margin-top:6px;display:none;border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);width:100%;">
+      </div>
     </div>
     <div class="field"><label>Observacoes</label><input type="text" id="cp-obs-cp" placeholder="Detalhes da despesa..."></div>
     <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
@@ -9034,11 +9039,51 @@ function showTab_contaspagar() {
 }
 
 /* ----- FORM ----- */
+function popularSelectCredor(valorAtual) {
+  var sel = document.getElementById('cp-credor-sel');
+  if(!sel) return;
+  var opts = '<option value="">-- Selecionar --</option>';
+  // Parceiros (fornecedores)
+  var forn = parceiros.filter(function(p){ return p.tipo==='fornecedor'||p.tipo==='ambos'; });
+  if(forn.length) {
+    opts += '<optgroup label="Fornecedores">' +
+      forn.map(function(p){ return '<option value="forn_'+p.id+'">'+(p.razao||p.fantasia||p.nome)+'</option>'; }).join('') +
+      '</optgroup>';
+  }
+  // Clientes
+  if(clientes.length) {
+    opts += '<optgroup label="Clientes">' +
+      clientes.slice(0,20).map(function(c){ return '<option value="cli_'+c.id+'">'+c.nome+'</option>'; }).join('') +
+      '</optgroup>';
+  }
+  opts += '<option value="manual">Outro (digitar)...</option>';
+  sel.innerHTML = opts;
+
+  // Selecionar valor atual
+  var inp = document.getElementById('cp-credor');
+  if(valorAtual) {
+    var encontrou = false;
+    for(var i=0;i<sel.options.length;i++){
+      if(sel.options[i].text === valorAtual){ sel.selectedIndex=i; encontrou=true; break; }
+    }
+    if(!encontrou) {
+      sel.value = 'manual';
+      if(inp) { inp.style.display='block'; inp.value=valorAtual; }
+    } else {
+      if(inp) { inp.style.display='none'; inp.value=valorAtual; }
+    }
+  } else {
+    sel.value = '';
+    if(inp) { inp.style.display='none'; inp.value=''; }
+  }
+}
+
 function abrirFormContaPagar(idx) {
   _cpEditIdx = idx;
   var form   = document.getElementById('form-conta-pagar');
   var titulo = document.getElementById('form-cp-titulo');
   if(!form) return;
+  form.style.display = 'block;';
   form.style.display = 'block';
 
   if(idx < 0) {
@@ -9048,8 +9093,8 @@ function abrirFormContaPagar(idx) {
     document.getElementById('cp-venc').value  = hoje();
     document.getElementById('cp-cat').value   = 'fixo';
     document.getElementById('cp-recorrencia').value = 'mensal';
-    document.getElementById('cp-credor').value= '';
     document.getElementById('cp-obs-cp').value= '';
+    popularSelectCredor('');
   } else {
     var c = contasPagar[idx];
     if(!c) return;
@@ -9059,8 +9104,8 @@ function abrirFormContaPagar(idx) {
     document.getElementById('cp-venc').value  = c.venc || hoje();
     document.getElementById('cp-cat').value   = c.cat || 'fixo';
     document.getElementById('cp-recorrencia').value = c.recorrencia || 'mensal';
-    document.getElementById('cp-credor').value= c.credor || '';
     document.getElementById('cp-obs-cp').value= c.obs || '';
+    popularSelectCredor(c.credor || '');
   }
   form.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
@@ -9079,7 +9124,14 @@ function salvarContaPagar() {
   var venc  = document.getElementById('cp-venc').value;
   var cat   = document.getElementById('cp-cat').value;
   var rec   = document.getElementById('cp-recorrencia').value;
-  var cred  = (document.getElementById('cp-credor').value||'').toUpperCase().trim();
+  var selCred = document.getElementById('cp-credor-sel');
+  var inpCred = document.getElementById('cp-credor');
+  var cred = '';
+  if(selCred && selCred.value && selCred.value !== 'manual') {
+    cred = (selCred.options[selCred.selectedIndex].text||'').toUpperCase().trim();
+  } else if(inpCred) {
+    cred = (inpCred.value||'').toUpperCase().trim();
+  }
   var obs   = (document.getElementById('cp-obs-cp').value||'').toUpperCase().trim();
 
   if(!desc) { alert('Informe a descricao da despesa.'); return; }
