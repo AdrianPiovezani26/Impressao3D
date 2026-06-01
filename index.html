@@ -1603,6 +1603,81 @@
 </div>
 
 
+<!-- CONTAS A PAGAR -->
+<div id="tab-contaspagar" class="tab">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
+    <span class="stitle" style="margin:0;"><i class="ti ti-file-invoice"></i> Contas a Pagar</span>
+    <button class="btn-ok" onclick="abrirFormContaPagar(-1)"><i class="ti ti-plus"></i> Nova Despesa</button>
+  </div>
+
+  <!-- KPIs -->
+  <div id="cp-kpis" style="margin-bottom:1rem;"></div>
+
+  <!-- Filtros -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;">
+    <select id="cp-filtro-status" onchange="renderContasPagar()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+      <option value="">Todos</option>
+      <option value="pendente">Pendentes</option>
+      <option value="paga">Pagas</option>
+      <option value="vencida">Vencidas</option>
+    </select>
+    <select id="cp-filtro-cat" onchange="renderContasPagar()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+      <option value="">Todas categorias</option>
+      <option value="fixo">Fixo</option>
+      <option value="variavel">Variavel</option>
+      <option value="imposto">Imposto</option>
+      <option value="manutencao">Manutencao</option>
+      <option value="marketing">Marketing</option>
+      <option value="outro">Outro</option>
+    </select>
+    <select id="cp-filtro-mes" onchange="renderContasPagar()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+      <option value="">Todos os meses</option>
+    </select>
+    <input type="text" id="cp-busca" placeholder="Buscar despesa..." oninput="renderContasPagar()"
+      style="flex:1;min-width:160px;border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+  </div>
+
+  <!-- Form nova despesa -->
+  <div id="form-conta-pagar" class="card" style="display:none;margin-bottom:1rem;">
+    <div class="stitle" style="font-size:12px;margin-bottom:1rem;" id="form-cp-titulo"><i class="ti ti-plus"></i> Nova Despesa</div>
+    <div class="grid2">
+      <div class="field"><label>Descricao *</label><input type="text" id="cp-desc" placeholder="Ex: Conta de energia, Aluguel..."></div>
+      <div class="field"><label>Categoria</label>
+        <select id="cp-cat" style="border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);width:100%;">
+          <option value="fixo">Fixo</option>
+          <option value="variavel">Variavel</option>
+          <option value="imposto">Imposto</option>
+          <option value="manutencao">Manutencao</option>
+          <option value="marketing">Marketing</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+      <div class="field"><label>Valor (R$) *</label><input type="number" id="cp-valor" placeholder="0,00" min="0" step="0.01"></div>
+      <div class="field"><label>Vencimento *</label><input type="date" id="cp-venc"></div>
+      <div class="field"><label>Recorrencia</label>
+        <select id="cp-recorrencia" style="border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);width:100%;">
+          <option value="unica">Unica</option>
+          <option value="mensal">Mensal</option>
+          <option value="trimestral">Trimestral</option>
+          <option value="anual">Anual</option>
+        </select>
+      </div>
+      <div class="field"><label>Fornecedor / Credor</label><input type="text" id="cp-credor" placeholder="Nome do credor"></div>
+    </div>
+    <div class="field"><label>Observacoes</label><input type="text" id="cp-obs-cp" placeholder="Detalhes da despesa..."></div>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+      <button class="btn-ok" onclick="salvarContaPagar()"><i class="ti ti-device-floppy"></i> Salvar</button>
+      <button class="btn" onclick="document.getElementById('form-conta-pagar').style.display='none'">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Lista de despesas pre-cadastradas (templates) -->
+  <div id="cp-templates" style="margin-bottom:1rem;"></div>
+
+  <!-- Lista de contas -->
+  <div id="lista-contas-pagar"></div>
+</div>
+
 <!-- FINANCEIRO -->
 <div id="tab-financeiro" class="tab">
   <!-- Header -->
@@ -2053,6 +2128,7 @@ function showTab(t){
   if(t==='relatorios')  { setRelPeriodo('mes'); showRelSubtab('vendas'); }
   if(t==='calc')        { carregarConfigPrecificacao(); }
   if(t==='consignacao') { renderKpisConsig(); showConsigSubtab('lotes'); }
+  if(t==='contaspagar') { showTab_contaspagar(); }
   if(t==='parceiros')   { showParcSubtab('clientes'); }
 }
 
@@ -3286,6 +3362,7 @@ function salvarVenda(){
   document.getElementById('form-venda').style.display='none';
   ['v-cliente','v-obs'].forEach(id=>{document.getElementById(id).value='';});
   document.getElementById('v-valor').value='';document.getElementById('v-total').value='';document.getElementById('v-qtd').value='1';
+  contasPagar = S.get('contas_pagar') || [];
   consignacoes = S.get('consignacoes') || [];
   migrarNomesConsignacao();
   converterDadosParaMaiusculas();
@@ -8920,6 +8997,280 @@ function getFilOpts(placeholder) {
     }).join('');
 }
 
+
+/* =====================================================
+   MODULO CONTAS A PAGAR
+   ===================================================== */
+var contasPagar = S.get('contas_pagar') || [];
+var _cpEditIdx = -1;
+
+// Despesas pre-cadastradas tipicas de impressao 3D
+var CP_TEMPLATES = [
+  {desc:'ENERGIA ELETRICA', cat:'fixo', recorrencia:'mensal', icone:'ti-bolt', cor:'var(--amber-text)'},
+  {desc:'INTERNET', cat:'fixo', recorrencia:'mensal', icone:'ti-wifi', cor:'var(--blue-text)'},
+  {desc:'MANUTENCAO IMPRESSORA', cat:'manutencao', recorrencia:'mensal', icone:'ti-tool', cor:'var(--neon)'},
+  {desc:'PLATAFORMAS (MERCADO LIVRE / SHOPEE)', cat:'variavel', recorrencia:'mensal', icone:'ti-device-laptop', cor:'var(--amber-text)'},
+  {desc:'EMBALAGENS E MATERIAIS', cat:'variavel', recorrencia:'mensal', icone:'ti-package', cor:'var(--blue-text)'},
+  {desc:'DOMINIO / HOSPEDAGEM SITE', cat:'fixo', recorrencia:'anual', icone:'ti-world', cor:'var(--text2)'},
+  {desc:'CONTADOR / SERVICOS CONTABEIS', cat:'fixo', recorrencia:'mensal', icone:'ti-calculator', cor:'var(--text2)'},
+  {desc:'IMPOSTO MEI / DAS', cat:'imposto', recorrencia:'mensal', icone:'ti-receipt', cor:'var(--red-text)'},
+  {desc:'MARKETING / PUBLICIDADE', cat:'marketing', recorrencia:'mensal', icone:'ti-speakerphone', cor:'var(--neon)'},
+  {desc:'FRETE / CORREIOS', cat:'variavel', recorrencia:'mensal', icone:'ti-truck', cor:'var(--text2)'},
+  {desc:'ALUGUEL ESPACO', cat:'fixo', recorrencia:'mensal', icone:'ti-building', cor:'var(--amber-text)'},
+  {desc:'TELEFONE / CELULAR', cat:'fixo', recorrencia:'mensal', icone:'ti-phone', cor:'var(--blue-text)'},
+];
+
+var CP_CAT_LABEL = {fixo:'Fixo', variavel:'Variavel', imposto:'Imposto', manutencao:'Manutencao', marketing:'Marketing', outro:'Outro'};
+var CP_CAT_COR   = {fixo:'var(--amber-text)', variavel:'var(--blue-text)', imposto:'var(--red-text)', manutencao:'var(--neon)', marketing:'var(--text)', outro:'var(--text2)'};
+var CP_CAT_TAG   = {fixo:'tag-amber', variavel:'tag-blue', imposto:'tag-red', manutencao:'tag-green', marketing:'tag-blue', outro:''};
+
+/* ----- NAVEGACAO ----- */
+function showTab_contaspagar() {
+  popularFiltroMes();
+  renderKpisCP();
+  renderTemplatesCP();
+  renderContasPagar();
+}
+
+/* ----- FORM ----- */
+function abrirFormContaPagar(idx) {
+  _cpEditIdx = idx;
+  var form   = document.getElementById('form-conta-pagar');
+  var titulo = document.getElementById('form-cp-titulo');
+  if(!form) return;
+  form.style.display = 'block';
+
+  if(idx < 0) {
+    if(titulo) titulo.innerHTML = '<i class="ti ti-plus"></i> Nova Despesa';
+    document.getElementById('cp-desc').value  = '';
+    document.getElementById('cp-valor').value = '';
+    document.getElementById('cp-venc').value  = hoje();
+    document.getElementById('cp-cat').value   = 'fixo';
+    document.getElementById('cp-recorrencia').value = 'mensal';
+    document.getElementById('cp-credor').value= '';
+    document.getElementById('cp-obs-cp').value= '';
+  } else {
+    var c = contasPagar[idx];
+    if(!c) return;
+    if(titulo) titulo.innerHTML = '<i class="ti ti-edit"></i> Editar: ' + c.desc;
+    document.getElementById('cp-desc').value  = c.desc || '';
+    document.getElementById('cp-valor').value = c.valor || '';
+    document.getElementById('cp-venc').value  = c.venc || hoje();
+    document.getElementById('cp-cat').value   = c.cat || 'fixo';
+    document.getElementById('cp-recorrencia').value = c.recorrencia || 'mensal';
+    document.getElementById('cp-credor').value= c.credor || '';
+    document.getElementById('cp-obs-cp').value= c.obs || '';
+  }
+  form.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function abrirFormTemplate(template) {
+  abrirFormContaPagar(-1);
+  document.getElementById('cp-desc').value = template.desc;
+  document.getElementById('cp-cat').value  = template.cat;
+  document.getElementById('cp-recorrencia').value = template.recorrencia;
+}
+
+/* ----- SALVAR ----- */
+function salvarContaPagar() {
+  var desc  = (document.getElementById('cp-desc').value||'').toUpperCase().trim();
+  var valor = parseFloat(document.getElementById('cp-valor').value)||0;
+  var venc  = document.getElementById('cp-venc').value;
+  var cat   = document.getElementById('cp-cat').value;
+  var rec   = document.getElementById('cp-recorrencia').value;
+  var cred  = (document.getElementById('cp-credor').value||'').toUpperCase().trim();
+  var obs   = (document.getElementById('cp-obs-cp').value||'').toUpperCase().trim();
+
+  if(!desc) { alert('Informe a descricao da despesa.'); return; }
+  if(!valor || valor <= 0) { alert('Informe um valor valido.'); return; }
+  if(!venc) { alert('Informe a data de vencimento.'); return; }
+
+  var hj = hoje();
+  var status = venc < hj ? 'vencida' : 'pendente';
+
+  var conta = {
+    id:     _cpEditIdx >= 0 ? contasPagar[_cpEditIdx].id : Date.now(),
+    desc, valor, venc, cat, recorrencia: rec, credor: cred, obs, status,
+    dataCadastro: _cpEditIdx >= 0 ? (contasPagar[_cpEditIdx].dataCadastro||hoje()) : hoje()
+  };
+
+  if(_cpEditIdx >= 0) {
+    conta.dataPagamento = contasPagar[_cpEditIdx].dataPagamento;
+    conta.status = contasPagar[_cpEditIdx].status === 'paga' ? 'paga' : status;
+    contasPagar[_cpEditIdx] = conta;
+  } else {
+    contasPagar.unshift(conta);
+  }
+
+  S.set('contas_pagar', contasPagar);
+  document.getElementById('form-conta-pagar').style.display = 'none';
+  renderContasPagar();
+  renderKpisCP();
+  alert('Despesa salva: ' + desc);
+}
+
+/* ----- PAGAR / ESTORNAR ----- */
+function pagarConta(idx) {
+  var c = contasPagar[idx];
+  if(!c || !confirm('Confirmar pagamento: ' + c.desc + ' | ' + fmt(c.valor))) 
+  contasPagar[idx].status = 'paga';
+  contasPagar[idx].dataPagamento = hoje();
+  S.set('contas_pagar', contasPagar);
+  renderContasPagar(); renderKpisCP();
+
+  // Se recorrente, gerar proxima parcela automaticamente
+  if(c.recorrencia && c.recorrencia !== 'unica') {
+    var d = new Date(c.venc+'T00:00:00');
+    if(c.recorrencia === 'mensal')     d.setMonth(d.getMonth()+1);
+    if(c.recorrencia === 'trimestral') d.setMonth(d.getMonth()+3);
+    if(c.recorrencia === 'anual')      d.setFullYear(d.getFullYear()+1);
+    var proxVenc = d.toISOString().slice(0,10);
+    if(confirm('Conta recorrente! Gerar proxima parcela para ' + fmtD(proxVenc) + '?')) {
+      var nova = Object.assign({}, c, {id:Date.now(), status:'pendente', dataPagamento:null, dataCadastro:hoje(), venc:proxVenc});
+      contasPagar.unshift(nova);
+      S.set('contas_pagar', contasPagar);
+      renderContasPagar(); renderKpisCP();
+    }
+  }
+}
+
+function estornarConta(idx) {
+  if(!confirm('Estornar pagamento?')) return;
+  contasPagar[idx].status = contasPagar[idx].venc < hoje() ? 'vencida' : 'pendente';
+  delete contasPagar[idx].dataPagamento;
+  S.set('contas_pagar', contasPagar);
+  renderContasPagar(); renderKpisCP();
+}
+
+function delContaPagar(idx) {
+  if(!confirm('Excluir despesa "' + contasPagar[idx].desc + '"?')) return;
+  contasPagar.splice(idx, 1);
+  S.set('contas_pagar', contasPagar);
+  renderContasPagar(); renderKpisCP();
+}
+
+/* ----- FILTRO MES ----- */
+function popularFiltroMes() {
+  var sel = document.getElementById('cp-filtro-mes');
+  if(!sel) return;
+  var meses = {};
+  contasPagar.forEach(function(c){ if(c.venc) meses[c.venc.slice(0,7)] = true; });
+  var lista = Object.keys(meses).sort().reverse();
+  var valAtual = sel.value;
+  sel.innerHTML = '<option value="">Todos os meses</option>' +
+    lista.map(function(m){
+      var d = new Date(m+'-01'); var nome = d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+      return '<option value="'+m+'">'+nome.charAt(0).toUpperCase()+nome.slice(1)+'</option>';
+    }).join('');
+  sel.value = valAtual;
+}
+
+/* ----- RENDER TEMPLATES ----- */
+function renderTemplatesCP() {
+  var el = document.getElementById('cp-templates');
+  if(!el) return;
+  el.innerHTML =
+    '<div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">Despesas Tipicas  Clique para cadastrar rapidamente:</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
+    CP_TEMPLATES.map(function(t){
+      var jaCad = contasPagar.some(function(c){ return c.desc === t.desc && c.status !== 'paga'; });
+      return '<button onclick="abrirFormTemplate('+JSON.stringify(t)+')" class="btn" style="font-size:11px;padding:4px 10px;'+(jaCad?'opacity:0.5;text-decoration:line-through;':'')+'">' +
+        '<i class="ti '+t.icone+'"></i> '+t.desc.split('/')[0].trim()+'</button>';
+    }).join('') + '</div>';
+}
+
+/* ----- RENDER LISTA ----- */
+function renderContasPagar() {
+  var el = document.getElementById('lista-contas-pagar');
+  if(!el) return;
+
+  var filtStatus = (document.getElementById('cp-filtro-status')||{}).value || '';
+  var filtCat    = (document.getElementById('cp-filtro-cat')||{}).value || '';
+  var filtMes    = (document.getElementById('cp-filtro-mes')||{}).value || '';
+  var busca      = ((document.getElementById('cp-busca')||{}).value||'').toUpperCase();
+  var hj = hoje();
+
+  // Atualizar status de vencidas
+  contasPagar.forEach(function(c){
+    if(c.status === 'pendente' && c.venc && c.venc < hj) c.status = 'vencida';
+  });
+
+  var lista = contasPagar.filter(function(c){
+    if(filtStatus && c.status !== filtStatus) return false;
+    if(filtCat    && c.cat !== filtCat)       return false;
+    if(filtMes    && (!c.venc || !c.venc.startsWith(filtMes))) return false;
+    if(busca && !(c.desc||'').toUpperCase().includes(busca) && !(c.credor||'').toUpperCase().includes(busca)) return false;
+    return true;
+  });
+
+  if(!lista.length) {
+    el.innerHTML = '<div class="empty"><i class="ti ti-file-invoice"></i>Nenhuma despesa encontrada.<br><span style="font-size:12px;">Cadastre uma despesa ou use os atalhos acima.</span></div>';
+    return;
+  }
+
+  // Ordenar: vencidas > pendentes > pagas, depois por vencimento
+  lista.sort(function(a,b){
+    var ord = {vencida:0, pendente:1, paga:2};
+    var oa = ord[a.status]||1, ob = ord[b.status]||1;
+    if(oa !== ob) return oa - ob;
+    return (a.venc||'').localeCompare(b.venc||'');
+  });
+
+  el.innerHTML = lista.map(function(c){
+    var idx = contasPagar.indexOf(c);
+    var corStatus = c.status==='paga'?'var(--neon)':c.status==='vencida'?'var(--red-text)':'var(--amber-text)';
+    var tagStatus = c.status==='paga'?'tag-green':c.status==='vencida'?'tag-red':'tag-amber';
+    var labelStatus = c.status==='paga'?'Paga':c.status==='vencida'?'Vencida':'Pendente';
+    var recLabel = {unica:'Unica',mensal:'Mensal',trimestral:'Trimestral',anual:'Anual'};
+
+    return '<div class="item-card" style="margin-bottom:8px;border-left:3px solid '+corStatus+';">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">' +
+        '<div>' +
+          '<strong style="font-size:14px;">'+c.desc+'</strong>' +
+          '<span class="tag '+tagStatus+'" style="margin-left:8px;font-size:10px;">'+labelStatus+'</span>' +
+          '<span class="tag '+(CP_CAT_TAG[c.cat]||'')+'" style="margin-left:4px;font-size:10px;">'+CP_CAT_LABEL[c.cat]+'</span>' +
+          '<br><span style="font-size:12px;color:var(--text3);">Venc: '+fmtD(c.venc)+' | '+recLabel[c.recorrencia||'unica']+(c.credor?' | '+c.credor:'')+'</span>' +
+          (c.dataPagamento ? '<br><span style="font-size:11px;color:var(--neon);">Pago em: '+fmtD(c.dataPagamento)+'</span>' : '') +
+        '</div>' +
+        '<div style="text-align:right;">' +
+          '<div style="font-size:20px;font-weight:700;color:'+corStatus+';">'+fmt(c.valor)+'</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">' +
+        (c.status !== 'paga' ? '<button class="btn-ok" onclick="pagarConta('+idx+')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-check"></i> Pagar</button>' : '') +
+        (c.status === 'paga' ? '<button class="btn" onclick="estornarConta('+idx+')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-arrow-back"></i> Estornar</button>' : '') +
+        '<button class="btn" onclick="abrirFormContaPagar('+idx+')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-edit"></i> Editar</button>' +
+        '<button class="btn-del" onclick="delContaPagar('+idx+')" style="font-size:11px;padding:5px 10px;margin-left:auto;"><i class="ti ti-trash"></i></button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+/* ----- KPIs ----- */
+function renderKpisCP() {
+  var el = document.getElementById('cp-kpis');
+  if(!el) return;
+  var hj = hoje();
+  var mes = hj.slice(0,7);
+
+  var totalPendente  = contasPagar.filter(function(c){return c.status!=='paga';}).reduce(function(s,c){return s+c.valor;},0);
+  var totalVencidas  = contasPagar.filter(function(c){return c.status==='vencida';}).reduce(function(s,c){return s+c.valor;},0);
+  var totalPagoMes   = contasPagar.filter(function(c){return c.status==='paga'&&(c.dataPagamento||'').startsWith(mes);}).reduce(function(s,c){return s+c.valor;},0);
+  var totalMes       = contasPagar.filter(function(c){return (c.venc||'').startsWith(mes);}).reduce(function(s,c){return s+c.valor;},0);
+  var qtdVencidas    = contasPagar.filter(function(c){return c.status==='vencida';}).length;
+
+  el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1rem;">' +
+    kpiRel('A Pagar', fmt(totalPendente), 'var(--amber-text)', 'ti-clock') +
+    kpiRel('Vencidas', fmt(totalVencidas), 'var(--red-text)', 'ti-alert-triangle') +
+    kpiRel('Pago no Mes', fmt(totalPagoMes), 'var(--neon)', 'ti-check') +
+    kpiRel('Previsto no Mes', fmt(totalMes), 'var(--text)', 'ti-calendar') +
+    (qtdVencidas > 0 ? kpiRel('Qtd Vencidas', qtdVencidas+' contas', 'var(--red-text)', 'ti-alert-circle') : '') +
+  '</div>';
+}
+/* =====================================================
+   FIM MODULO CONTAS A PAGAR
+   ===================================================== */
+
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
   if(verificarSessao()) {
@@ -8961,6 +9312,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var lancEl = document.getElementById('subtab-compras-lancamento');
   if(lancEl) { lancEl.style.cssText += ';display:block'; lancEl.classList.add('active'); }
   // Rotinas de inicializacao de dados
+  contasPagar = S.get('contas_pagar') || [];
   consignacoes = S.get('consignacoes') || [];
   migrarNomesConsignacao();
   converterDadosParaMaiusculas();
