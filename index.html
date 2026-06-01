@@ -454,6 +454,17 @@
     </div>
   </div>
 
+  <!-- Linha Contas a Pagar -->
+  <div class="dash-row">
+    <div class="dash-card" style="flex:1;">
+      <div class="dash-card-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span><i class="ti ti-file-invoice"></i> Contas a Pagar</span>
+        <button class="btn" onclick="showTab('contaspagar')" style="font-size:10px;padding:3px 8px;">Ver tudo</button>
+      </div>
+      <div id="dash-contas-pagar-lista"></div>
+    </div>
+  </div>
+
   <!-- Linha 3: Compras do periodo + Pedidos -->
   <div class="dash-row">
     <div class="dash-card">
@@ -5442,9 +5453,77 @@ function renderDashboard() {
   renderMetaMensal(totalVendasMesAtual);
   renderAlertasVencimento();
   renderGraficoVendas();
+  renderDashContasPagar();
 }
 /* ===== FIM DASHBOARD ===== */
 
+function renderDashContasPagar() {
+  var el = document.getElementById('dash-contas-pagar-lista');
+  if(!el) return;
+  var hj = hoje();
+  var d7 = new Date(); d7.setDate(d7.getDate()+7);
+  var d7s = d7.toISOString().slice(0,10);
+
+  // Atualizar status de vencidas
+  contasPagar.forEach(function(c){
+    if(c.status==='pendente' && c.venc && c.venc < hj) c.status = 'vencida';
+  });
+
+  var pendentes = contasPagar.filter(function(c){ return c.status !== 'paga'; })
+    .sort(function(a,b){
+      var ord = {vencida:0, pendente:1};
+      var oa = ord[a.status]||1, ob = ord[b.status]||1;
+      if(oa !== ob) return oa - ob;
+      return (a.venc||'').localeCompare(b.venc||'');
+    }).slice(0,8);
+
+  if(!contasPagar.length) {
+    el.innerHTML = '<div class="dash-empty"><i class="ti ti-file-invoice"></i>Nenhuma despesa cadastrada.<br><span style="font-size:11px;">Acesse Contas a Pagar para lancar.</span></div>';
+    return;
+  }
+
+  if(!pendentes.length) {
+    el.innerHTML = '<div class="dash-empty" style="color:var(--neon);"><i class="ti ti-check"></i>Todas as contas pagas!</div>';
+    return;
+  }
+
+  // Totais
+  var totalVenc  = contasPagar.filter(function(c){return c.status==='vencida';}).reduce(function(s,c){return s+c.valor;},0);
+  var totalPend  = contasPagar.filter(function(c){return c.status==='pendente';}).reduce(function(s,c){return s+c.valor;},0);
+  var vencendo7  = contasPagar.filter(function(c){return c.status==='pendente'&&c.venc&&c.venc<=d7s;}).reduce(function(s,c){return s+c.valor;},0);
+
+  el.innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;">' +
+      '<div style="background:rgba(255,50,50,0.08);border-radius:var(--radius);padding:6px;text-align:center;">' +
+        '<div style="font-size:9px;color:var(--text3);">Vencidas</div>' +
+        '<div style="font-size:13px;font-weight:700;color:var(--red-text);">'+fmt(totalVenc)+'</div></div>' +
+      '<div style="background:rgba(255,170,0,0.08);border-radius:var(--radius);padding:6px;text-align:center;">' +
+        '<div style="font-size:9px;color:var(--text3);">Prox. 7 dias</div>' +
+        '<div style="font-size:13px;font-weight:700;color:var(--amber-text);">'+fmt(vencendo7)+'</div></div>' +
+      '<div style="background:var(--bg3);border-radius:var(--radius);padding:6px;text-align:center;">' +
+        '<div style="font-size:9px;color:var(--text3);">Total Pendente</div>' +
+        '<div style="font-size:13px;font-weight:700;color:var(--text);">'+fmt(totalPend+totalVenc)+'</div></div>' +
+    '</div>' +
+    pendentes.map(function(c){
+      var idx = contasPagar.indexOf(c);
+      var corStatus = c.status==='vencida'?'var(--red-text)':'var(--amber-text)';
+      var icon = c.status==='vencida'?'ti-alert-circle':'ti-clock';
+      return '<div class="dash-item" style="border-left:3px solid '+corStatus+';padding-left:8px;">' +
+        '<div class="nome">' +
+          '<i class="ti '+icon+'" style="color:'+corStatus+';font-size:11px;margin-right:4px;"></i>' +
+          c.desc +
+          (c.credor?'<br><span style="font-size:10px;color:var(--text3);">'+c.credor+'</span>':'') +
+        '</div>' +
+        '<div style="text-align:right;">' +
+          '<span style="font-size:13px;font-weight:700;color:'+corStatus+';">'+fmt(c.valor)+'</span>' +
+          '<br><span style="font-size:10px;color:var(--text3);">'+fmtD(c.venc)+'</span>' +
+          '<br><button onclick="pagarConta('+idx+');renderDashboard();" class="btn-ok" style="font-size:9px;padding:2px 6px;margin-top:2px;"><i class="ti ti-check"></i> Pagar</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+
+}
 
 /* ===== HISTORICO DE PRECIFICACAO ===== */
 var _histCalc = S.get('hist_calc') || [];
