@@ -5302,6 +5302,7 @@ function renderDashboard() {
     { cor:'verde', icon:'ti-trending-up',    label:'Lucro Bruto', valor:fmt(lucroP), sub:'Vendas - Compras' },
     { cor:'azul',  icon:'ti-receipt',        label:'Ticket Medio', valor:fmt(ticketMedio), sub:'Por venda no periodo' },
     { cor:'amber', icon:'ti-clipboard-list', label:'Pedidos Abertos', valor: String(pedidosAbertos.length), sub: pedidosAbertos.filter(function(p){return p.status==='imprimindo';}).length + ' imprimindo' },
+    (function(){ var pend=contasPagar.filter(function(c){return c.status!=='paga';}); var tot=pend.reduce(function(s,c){return s+c.valor;},0); var venc=pend.filter(function(c){return c.status==='vencida';}).length; return { cor: venc>0?'vermelho':'amber', icon:'ti-file-invoice', label:'Contas a Pagar', valor:fmt(tot), sub: pend.length+' pendente(s)'+(venc>0?' | '+venc+' vencida(s)':'') }; })()
   ].map(function(k) {
     return '<div class="kpi ' + k.cor + '">' +
       '<div class="kpi-icon" style="color:' + (k.cor==='verde'?'var(--neon)':k.cor==='azul'?'var(--blue-text)':k.cor==='amber'?'var(--amber-text)':'var(--red-text)') + '"><i class="ti ' + k.icon + '"></i></div>' +
