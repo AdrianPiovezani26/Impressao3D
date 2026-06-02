@@ -3380,6 +3380,10 @@ function salvarVenda(){
   ['v-cliente','v-obs'].forEach(id=>{document.getElementById(id).value='';});
   document.getElementById('v-valor').value='';document.getElementById('v-total').value='';document.getElementById('v-qtd').value='1';
   contasPagar = S.get('contas_pagar') || [];
+  // Normalizar status 'pago' para 'paga' em faturas existentes
+  var normalizouFat = false;
+  faturas.forEach(function(f){ if(f.status==='pago'){ f.status='paga'; normalizouFat=true; } });
+  if(normalizouFat) S.set('faturas', faturas);
   consignacoes = S.get('consignacoes') || [];
   migrarNomesConsignacao();
   converterDadosParaMaiusculas();
@@ -8172,7 +8176,7 @@ function darBaixaVenda(i) {
   var baixadas = 0;
   faturas.forEach(function(f) {
     if(f.vendaId === v.id && f.status === 'pendente') {
-      f.status = 'pago';
+      f.status = 'paga';
       f.dataPagamento = hoje();
       baixadas++;
     }
@@ -9446,6 +9450,10 @@ document.addEventListener('DOMContentLoaded', function() {
   if(lancEl) { lancEl.style.cssText += ';display:block'; lancEl.classList.add('active'); }
   // Rotinas de inicializacao de dados
   contasPagar = S.get('contas_pagar') || [];
+  // Normalizar status 'pago' para 'paga' em faturas existentes
+  var normalizouFat = false;
+  faturas.forEach(function(f){ if(f.status==='pago'){ f.status='paga'; normalizouFat=true; } });
+  if(normalizouFat) S.set('faturas', faturas);
   consignacoes = S.get('consignacoes') || [];
   migrarNomesConsignacao();
   converterDadosParaMaiusculas();
