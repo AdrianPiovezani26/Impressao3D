@@ -3138,6 +3138,29 @@ function renderPedidos(){
     // Se precoUnit ficou igual ao total (pedido antigo), manter total e recalcular unit
     if(precoUnit === precoTotal && qtd > 1) precoUnit = precoTotal / qtd;
 
+    // Calcular custoUnit: usar salvo, ou calcular pelos filamentos, ou buscar no hist_calc
+    var custoUnit = parseFloat(p.custoUnit) || 0;
+    if(!custoUnit && p.filsEstoque && p.filsEstoque.length > 0) {
+      // Calcular pelo custo dos filamentos (preco/rolo * gramas usadas por unidade)
+      var custoFils = p.filsEstoque.reduce(function(s, f) {
+        var fil = filamentos[f.filIdx];
+        if(!fil) return s;
+        var pesoUnit = f.pesoUnit || (f.peso && qtd > 0 ? f.peso / qtd : f.peso || 0);
+        var custoG   = (parseFloat(fil.preco)||0) / (parseFloat(fil.pesoRolo)||1000);
+        return s + custoG * pesoUnit;
+      }, 0);
+      if(custoFils > 0) custoUnit = Math.round(custoFils * 100) / 100;
+    }
+    if(!custoUnit) {
+      // Buscar no historico de precificacao pelo nome do pedido
+      var histItem = _histCalc.find(function(h){
+        return (h.nome||'').toUpperCase() === (p.nome||'').toUpperCase();
+      });
+      if(histItem && histItem.custoTotal && histItem.qtd) {
+        custoUnit = Math.round((histItem.custoTotal / histItem.qtd) * 100) / 100;
+      }
+    }
+
     var obsInfo = p.obs ? '<div style="font-size:11px;color:var(--text3);font-style:italic;margin-top:4px;">'+p.obs+'</div>' : '';
 
     // Info de filamento e tempo
