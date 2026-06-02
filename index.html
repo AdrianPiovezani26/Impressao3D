@@ -5224,7 +5224,12 @@ function delParceiro(i) { if(confirm('Remover parceiro?')) { parceiros.splice(i,
 /* ===== DASHBOARD ===== */
 var _dashPeriodo = 'semana';
 
-function hoje() { return new Date().toISOString().slice(0,10); }
+function hoje() {
+  var d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
 
 function getPeriodoDatas(periodo) {
   var hj = new Date();
