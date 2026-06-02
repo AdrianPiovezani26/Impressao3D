@@ -6071,39 +6071,47 @@ function addFilModal(filIdx, pesoVal, modoUnit) {
 }
 
 function calcCustoModal() {
-  var container = document.getElementById('mp-fils-lista');
+  var container  = document.getElementById('mp-fils-lista');
   var custoWrap  = document.getElementById('mp-custo-fils');
   var pesoTotalEl= document.getElementById('mp-peso-total');
   var custoEl    = document.getElementById('mp-custo-material');
   var margemEl   = document.getElementById('mp-margem');
+  var custoUnitEl= document.getElementById('mp-custo-unit');
   if(!container) return;
 
+  var qtd = Math.max(1, parseFloat((document.getElementById('mp-qtd')||{}).value)||1);
   var pesoTotal = 0, custoTotal = 0;
+
   container.querySelectorAll('div').forEach(function(row){
-    var sel = row.querySelector('select');
-    var inp = row.querySelector('input[type=number]');
-    var lblC= row.querySelector('.mp-fil-custo');
-    var idxF= sel ? parseInt(sel.value) : -1;
-    var peso = parseFloat(inp ? inp.value : 0)||0;
-    if(!isNaN(idxF) && idxF >= 0 && filamentos[idxF] && peso > 0) {
+    var sel  = row.querySelector('select');
+    var inp  = row.querySelector('input[type=number]');
+    var lblC = row.querySelector('.mp-fil-custo');
+    var idxF = sel ? parseInt(sel.value) : -1;
+    var pesoUnitF = parseFloat(inp ? inp.value : 0)||0;
+    if(!isNaN(idxF) && idxF >= 0 && filamentos[idxF] && pesoUnitF > 0) {
       var f = filamentos[idxF];
-      var custoG = (parseFloat(f.preco)||0) / (parseFloat(f.pesoRolo)||1000);
-      var custoFil = custoG * peso;
-      pesoTotal  += peso;
+      var custoG   = (parseFloat(f.preco)||0) / (parseFloat(f.pesoRolo)||1000);
+      var custoFil = custoG * pesoUnitF;
+      pesoTotal  += pesoUnitF;
       custoTotal += custoFil;
-      if(lblC) lblC.textContent = 'R$' + custoFil.toFixed(2);
+      if(lblC) lblC.textContent = 'R$' + custoFil.toFixed(2) + '/un';
     } else {
       if(lblC) lblC.textContent = '';
     }
   });
 
   if(custoWrap) custoWrap.style.display = pesoTotal > 0 ? 'block' : 'none';
-  if(pesoTotalEl) pesoTotalEl.textContent = pesoTotal.toFixed(0) + 'g';
-  if(custoEl) custoEl.textContent = fmt(custoTotal);
+  if(pesoTotalEl) pesoTotalEl.textContent = pesoTotal.toFixed(0) + 'g/un (' + (pesoTotal*qtd).toFixed(0) + 'g total)';
+  if(custoEl) custoEl.textContent = fmt(custoTotal) + '/un (' + fmt(custoTotal*qtd) + ' total)';
+
+  // Atualizar campo custo unitario automaticamente
+  if(custoUnitEl && custoTotal > 0) {
+    custoUnitEl.value = custoTotal.toFixed(2);
+    custoUnitEl.style.borderColor = 'var(--neon)';
+  }
 
   // Calcular margem
-  var preco = parseFloat((document.getElementById('mp-preco-unit')||{}).value||0) *
-              (parseFloat((document.getElementById('mp-qtd')||{}).value||1)||1);
+  var preco = parseFloat((document.getElementById('mp-preco-unit')||{}).value||0);
   if(margemEl) {
     if(preco > 0 && custoTotal > 0) {
       var margem = ((preco - custoTotal) / preco * 100).toFixed(1);
