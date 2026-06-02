@@ -676,7 +676,7 @@
       <div style="font-size:11px;font-weight:700;color:var(--neon);text-transform:uppercase;letter-spacing:2px;margin-bottom:1rem;display:flex;align-items:center;gap:8px;">
         <i class="ti ti-chart-bar" style="font-size:16px;"></i> Resumo de Precos
       </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+      <div class="resultado-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
 
         <!-- Card 1: Custo Unitario -->
         <div style="background:linear-gradient(135deg,#0e1a0e 0%,#152015 100%);border:1px solid var(--border2);border-radius:12px;padding:1.5rem 1.25rem;position:relative;overflow:hidden;">
@@ -693,7 +693,7 @@
         </div>
 
         <!-- Card 2: Preco Consumidor (destaque) -->
-        <div style="background:linear-gradient(135deg,#0a1f3a 0%,#0d2a4f 100%);border:2px solid var(--blue-border);border-radius:12px;padding:1.5rem 1.25rem;position:relative;overflow:hidden;box-shadow:0 0 20px rgba(0,200,255,0.15);">
+        <div id="card-preco-consumidor" style="background:linear-gradient(135deg,#0a1f3a 0%,#0d2a4f 100%);border:2px solid var(--blue-border);border-radius:12px;padding:1.5rem 1.25rem;position:relative;overflow:hidden;box-shadow:0 0 20px rgba(0,200,255,0.15);">
           <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--blue-text),transparent);pointer-events:none;"></div>
           <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--blue-text);text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem;">
             <i class="ti ti-user"></i> Preco Consumidor
@@ -706,7 +706,7 @@
         </div>
 
         <!-- Card 3: Preco Lojista -->
-        <div style="background:linear-gradient(135deg,#1a1500 0%,#251e00 100%);border:1px solid var(--amber-border);border-radius:12px;padding:1.5rem 1.25rem;position:relative;overflow:hidden;">
+        <div id="card-preco-lojista" style="background:linear-gradient(135deg,#1a1500 0%,#251e00 100%);border:1px solid var(--amber-border);border-radius:12px;padding:1.5rem 1.25rem;position:relative;overflow:hidden;">
           <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--amber-text),transparent);opacity:0.6;pointer-events:none;"></div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
             <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--amber-text);text-transform:uppercase;letter-spacing:1px;">
@@ -2028,12 +2028,7 @@
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
       <button class="btn-ok" onclick="salvarEdicaoPedido()"><i class="ti ti-device-floppy"></i> Salvar</button>
       <button class="btn-ok" id="mp-btn-venda" onclick="importarPedidoVenda()" style="background:rgba(0,200,255,0.10);border-color:var(--blue-border);color:var(--blue-text);"><i class="ti ti-shopping-cart"></i> Importar para Venda</button>
-      <button class="btn" onclick="fecharModalPedido()"><i class="ti ti-x"></i> Cancelar</button>
-    </div>
-  </div>
-</div>
-
-<script>
+      <button class="btn" onclick="fecharModalPedido()"><i c
 // Converter texto para maiusculas padronizado
 function upper(str) {
   return str ? str.toString().toUpperCase().trim() : '';
@@ -2802,6 +2797,19 @@ function calcular(){
   var custoLoteInfoEl = document.getElementById('r-custo-lote-info');
   if(custoLoteInfoEl) custoLoteInfoEl.textContent = qtd > 1 ? 'Lote de ' + qtd + ' un: ' + fmt(cTotalLote) : 'Custo total de producao';
 
+  // ---- Card 2 e 3: mostrar somente quando markup > 0 ----
+  var cardCons = document.getElementById('card-preco-consumidor');
+  var cardLoj  = document.getElementById('card-preco-lojista');
+  var gridCols = document.querySelector('#resultado .resultado-grid');
+  if(markupVal > 0) {
+    if(cardCons) cardCons.style.display = 'block';
+    if(cardLoj)  cardLoj.style.display  = 'block';
+    if(gridCols) gridCols.style.gridTemplateColumns = 'repeat(3,1fr)';
+  } else {
+    if(cardCons) cardCons.style.display = 'none';
+    if(cardLoj)  cardLoj.style.display  = 'none';
+    if(gridCols) gridCols.style.gridTemplateColumns = '1fr';
+  }
   // ---- Card 2: Preco Consumidor ----
   document.getElementById('r-preco').textContent = fmt(pVendaUnit);
   var totalEl = document.getElementById('r-preco-total');
