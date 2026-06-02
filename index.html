@@ -8193,12 +8193,12 @@ function darBaixaFatura(id) {
   if(idx < 0) return;
   var f = faturas[idx];
   if(!confirm('Confirmar recebimento?\n\n' + f.cliente + '\n' + f.descricao + '\nValor: ' + fmt(f.valor))) return;
-  faturas[idx].status = 'pago';
+  faturas[idx].status = 'paga';
   faturas[idx].dataPagamento = hoje();
   S.set('faturas', faturas);
   if(f.vendaId) {
     var faturasVenda = faturas.filter(function(ff){ return ff.vendaId === f.vendaId; });
-    var todasPagas = faturasVenda.every(function(ff){ return ff.status === 'pago'; });
+    var todasPagas = faturasVenda.every(function(ff){ return ff.status === 'paga'; });
     if(todasPagas) {
       var vIdx = -1;
       for(var j=0; j<vendas.length; j++) { if(vendas[j].id === f.vendaId) { vIdx=j; break; } }
