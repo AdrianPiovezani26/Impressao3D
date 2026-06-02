@@ -3267,18 +3267,34 @@ function renderPedidos(){
 function updPedSt(i,v){
   var stAnterior = pedidos[i].status;
   pedidos[i].status = v;
-  // Baixar estoque APENAS ao concluir, uma unica vez
+  // Baixar estoque ao concluir
   if(v === 'concluido' && stAnterior !== 'concluido') {
     var p = pedidos[i];
     var fils = p.filsEstoque || [];
-    if(fils.length > 0 && !p.estoquesBaixados) {
-      var resumo = fils.map(function(f){ return '* '+f.filNome+': '+f.peso+'g'; }).join('\n');
-      if(confirm('Pedido CONCLUIDO!\nDeseja baixar o estoque?\n\n'+resumo)) {
-        baixarEstoqueProduto(fils, 'Pedido CONCLUIDO: '+p.nome+(p.qtd>1?' ('+p.qtd+' un)':''));
-        pedidos[i].estoquesBaixados = true;
-        buildFilSelect(); renderFils();
+    if(fils.length > 0) {
+      // Hash dos filamentos atuais para detectar mudancas
+      var filsHash = JSON.stringify(fils.map(function(f){ return {idx:f.filIdx,peso:f.peso}; }));
+      var jaBaixouMesmos = p.estoquesBaixados && (filsHash === (p.estoquesBaixadosHash||''));
+      if(!jaBaixouMesmos) {
+        var msg = p.estoquesBaixados
+          ? 'Pedido editado com novos filamentos!\nBaixar estoque dos novos filamentos?\n\n'
+          : 'Pedido CONCLUIDO!\nDeseja baixar o estoque?\n\n';
+        var resumo = fils.map(function(f){
+          return '* '+f.filNome+': '+(f.pesoUnit&&p.qtd>1 ? f.pesoUnit+'g/un x '+p.qtd+'un = '+f.peso+'g' : f.peso+'g');
+        }).join('\n');
+        if(confirm(msg + resumo)) {
+          baixarEstoqueProduto(fils, 'Pedido: '+p.nome+(p.qtd>1?' ('+p.qtd+' un)':''));
+          pedidos[i].estoquesBaixados = true;
+          pedidos[i].estoquesBaixadosHash = filsHash;
+          buildFilSelect(); renderFils();
+        }
       }
     }
+  }
+  // Ao voltar para pendente/imprimindo, resetar flag
+  if(v !== 'concluido' && stAnterior === 'concluido') {
+    pedidos[i].estoquesBaixados = false;
+    pedidos[i].estoquesBaixadosHash = '';
   }
   S.set('pedidos',pedidos);
   renderPedidos();
