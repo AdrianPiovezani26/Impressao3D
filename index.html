@@ -5965,8 +5965,7 @@ function abrirEdicaoPedido(idx) {
 function calcTotalModal() {
   var qtd       = parseFloat(document.getElementById('mp-qtd').value)||1;
   var precoUnit = parseFloat(document.getElementById('mp-preco-unit').value)||0;
-  v
-  var custoUnit = parseFloat((document.getElementById('mp-custo-unit')||{}).value) || p.custoUnit || 0;
+  var custoUnit = parseFloat((document.getElementById('mp-custo-unit')||{}).value)||0;
   var total     = qtd * precoUnit;
   var totalEl   = document.getElementById('mp-total');
   if(totalEl) totalEl.textContent = fmt(total);
