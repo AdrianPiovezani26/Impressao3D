@@ -3154,14 +3154,25 @@ function renderPedidos(){
 
     // Calcular custoUnit: usar salvo, ou calcular pelos filamentos, ou buscar no hist_calc
     var custoUnit = parseFloat(p.custoUnit) || 0;
+
+    // 1. Buscar no historico de precificacao (mais preciso  inclui energia, MDO, etc.)
+    if(!custoUnit) {
+      var histItem = _histCalc.find(function(h){
+        return (h.nome||'').toUpperCase() === (p.nome||'').toUpperCase();
+      });
+      if(histItem && histItem.custoUnit) {
+        custoUnit = parseFloat(histItem.custoUnit) || 0;
+      }
+    }
+
+    // 2. Calcular pelos filamentos se ainda nao tem custo
     if(!custoUnit && p.filsEstoque && p.filsEstoque.length > 0) {
-      // Calcular pelo custo dos filamentos (preco/rolo * gramas usadas por unidade)
       var custoFils = p.filsEstoque.reduce(function(s, f) {
         var fil = filamentos[f.filIdx];
         if(!fil) return s;
-        var pesoUnit = f.pesoUnit || (f.peso && qtd > 0 ? f.peso / qtd : f.peso || 0);
-        var custoG   = (parseFloat(fil.preco)||0) / (parseFloat(fil.pesoRolo)||1000);
-        return s + custoG * pesoUnit;
+        var pesoUnitF = f.pesoUnit || (f.peso && qtd > 0 ? f.peso / qtd : f.peso || 0);
+        var custoG    = (parseFloat(fil.preco)||0) / (parseFloat(fil.pesoRolo)||1000);
+        return s + custoG * pesoUnitF;
       }, 0);
       if(custoFils > 0) custoUnit = Math.round(custoFils * 100) / 100;
     }
@@ -6104,13 +6115,12 @@ function fecharModalPedido() {
 function salvarEdicaoPedido() {
   if(_pedidoEditIdx < 0) return;
   var p = pedidos[_pedidoEditIdx];
-  var nome  = upper(document.getElementById('mp-nome').value) || p.nome;
-  var qtd   = Math.max(1, parseInt(document.getElementById('mp-qtd').value)||1);
+  var nome      = upper(document.getElementById('mp-nome').value) || p.nome;
+  var qtd       = Math.max(1, parseInt(document.getElementById('mp-qtd').value)||1);
   var precoUnit = parseFloat(document.getElementById('mp-preco-unit').value)||0;
-  v
   var custoUnit = parseFloat((document.getElementById('mp-custo-unit')||{}).value) || p.custoUnit || 0;
-  var total = qtd * precoUnit;
-  var status = (document.getElementById('mp-status')||{}).value || p.status;
+  var total     = qtd * precoUnit;
+  var status    = (document.getElementById('mp-status')||{}).value || p.status;
 
   // Horas e minutos
   var hH = parseInt((document.getElementById('mp-horas-h')||{}).value)||0;
@@ -6146,6 +6156,7 @@ function salvarEdicaoPedido() {
   // Atualizar pedido mantendo flag estoquesBaixados
   pedidos[_pedidoEditIdx] = Object.assign({}, p, {
     nome: nome, qtd: qtd, precoUnit: precoUnit,
+    custoUnit: custoUnit,
     preco: precoUnit > 0 ? fmt(total) : p.preco,
     status: status, horas: tempoStr,
     filNome: filNomeStr,
