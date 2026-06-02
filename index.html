@@ -3156,8 +3156,8 @@ function renderPedidos(){
       var histItem = _histCalc.find(function(h){
         return (h.nome||'').toUpperCase() === (p.nome||'').toUpperCase();
       });
-      if(histItem && histItem.custoTotal && histItem.qtd) {
-        custoUnit = Math.round((histItem.custoTotal / histItem.qtd) * 100) / 100;
+      if(histItem && histItem.custoUnit) {
+        custoUnit = parseFloat(histItem.custoUnit) || 0;
       }
     }
 
