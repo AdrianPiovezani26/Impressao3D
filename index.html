@@ -412,6 +412,7 @@
   <!-- Periodo -->
   <div class="dash-periodo">
     <span style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-right:4px;">Periodo:</span>
+    <button id="dp-dia" onclick="setPeriodo('dia')">Dia</button>
     <button class="active" id="dp-semana" onclick="setPeriodo('semana')">Semana</button>
     <button id="dp-mes" onclick="setPeriodo('mes')">Mes</button>
     <button id="dp-ano" onclick="setPeriodo('ano')">Ano</button>
@@ -5229,7 +5230,9 @@ function getPeriodoDatas(periodo) {
   var hj = new Date();
   var ate = hoje();
   var de;
-  if(periodo === 'semana') {
+  if(periodo === 'dia') {
+    de = hoje();
+  } else if(periodo === 'semana') {
     var d = new Date(hj); d.setDate(hj.getDate() - 6);
     de = d.toISOString().slice(0,10);
   } else if(periodo === 'mes') {
