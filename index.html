@@ -814,6 +814,7 @@
       </div>
       <div class="field"><label>Quantidade de Unidades</label><input type="number" id="npm-qtd" placeholder="1" value="1" min="1" step="1" oninput="calcTotalPedidoManual()"></div>
       <div class="field"><label>Preco por Unidade (R$)</label><input type="number" id="npm-preco-unit" placeholder="0.00" step="0.01" min="0" oninput="calcTotalPedidoManual()"></div>
+      <div class="field"><label>Custo por Unidade (R$)</label><input type="number" id="npm-custo-unit" placeholder="0.00" step="0.01" min="0" oninput="calcTotalPedidoManual()"></div>
     </div>
     <!-- Tempo de impressao separado em horas e minutos -->
     <div class="field">
@@ -1981,6 +1982,9 @@
       <div class="field"><label>Quantidade de Unidades</label>
         <input type="number" id="mp-qtd" placeholder="1" min="1" step="1" value="1" oninput="calcTotalModal()">
       </div>
+      <div class="field"><label>Custo por Unidade (R$)</label>
+        <input type="number" id="mp-custo-unit" placeholder="0.00" step="0.01" min="0" oninput="calcTotalModal()">
+      </div>
       <div class="field"><label>Preco por Unidade (R$)</label>
         <input type="number" id="mp-preco-unit" placeholder="0.00" step="0.01" min="0" oninput="calcTotalModal()">
       </div>
@@ -3008,13 +3012,27 @@ function addFilPedidoManual(filIdx, pesoVal) {
 function calcTotalPedidoManual() {
   var qtd   = parseInt(document.getElementById('npm-qtd').value) || 1;
   var preco = parseFloat(document.getElementById('npm-preco-unit').value) || 0;
-  var total = qtd * preco;
+  var custo = parseFloat((document.getElementById('npm-custo-unit')||{}).value) || 0;
+  var totalVenda = qtd * preco;
+  var totalCusto = qtd * custo;
+  var lucro  = totalVenda - totalCusto;
+  var margem = totalVenda > 0 ? (lucro / totalVenda * 100) : 0;
+
   var box   = document.getElementById('npm-total-box');
   var val   = document.getElementById('npm-total-val');
   var info  = document.getElementById('npm-total-info');
   if(box)  box.style.display  = preco > 0 ? 'flex' : 'none';
-  if(val)  val.textContent    = fmt(total);
-  if(info) info.textContent   = qtd > 1 ? qtd + ' un x ' + fmt(preco) + ' cada' : '';
+  if(val)  val.textContent    = fmt(totalVenda);
+  if(info) {
+    var txt = qtd > 1 ? qtd + ' un x ' + fmt(preco) + ' = ' + fmt(totalVenda) : fmt(totalVenda);
+    if(custo > 0) {
+      txt += ' | Custo: ' + fmt(totalCusto);
+      txt += ' | Lucro: ' + fmt(lucro);
+      txt += ' | Margem: ' + margem.toFixed(1) + '%';
+    }
+    info.textContent = txt;
+    if(info.style !== undefined) info.style.color = custo > 0 ? (lucro >= 0 ? 'var(--neon)' : 'var(--red-text)') : 'var(--text3)';
+  }
 }
 
 function salvarPedidoManual() {
@@ -3027,6 +3045,7 @@ function salvarPedidoManual() {
 
   var qtd       = Math.max(1, parseInt(document.getElementById('npm-qtd').value)||1);
   var precoUnit = parseFloat(document.getElementById('npm-preco-unit').value)||0;
+  var custoUnit = parseFloat((document.getElementById('npm-custo-unit')||{}).value)||0;
   var total     = qtd * precoUnit;
   var status    = document.getElementById('npm-status').value;
   var dataVal   = document.getElementById('npm-data').value;
@@ -3061,6 +3080,7 @@ function salvarPedidoManual() {
     nome: nome,
     qtd: qtd,
     precoUnit: precoUnit,
+    custoUnit: custoUnit,
     preco: precoUnit > 0 ? fmt(total) : '--',
     data: dataFmt,
     status: status,
@@ -3133,6 +3153,11 @@ function renderPedidos(){
         '<div style="text-align:center;">' +
           '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Qtd</div>' +
           '<div style="font-size:16px;font-weight:700;color:var(--text);">'+qtd+'</div>' +
+        '</div>' +
+        '<div style="width:1px;height:30px;background:var(--border2);"></div>' +
+        '<div style="text-align:center;">' +
+          '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Custo Unit.</div>' +
+          '<div style="font-size:16px;font-weight:700;color:var(--red-text);">'+(p.custoUnit > 0 ? fmt(p.custoUnit) : '--')+'</div>' +
         '</div>' +
         '<div style="width:1px;height:30px;background:var(--border2);"></div>' +
         '<div style="text-align:center;">' +
@@ -5876,6 +5901,8 @@ function abrirEdicaoPedido(idx) {
   document.getElementById('mp-nome').value       = p.nome      || '';
   document.getElementById('mp-qtd').value        = p.qtd       || 1;
   document.getElementById('mp-preco-unit').value = p.precoUnit || 0;
+  var mpCusto = document.getElementById('mp-custo-unit');
+  if(mpCusto) mpCusto.value = p.custoUnit || 0;
 
   // Horas e minutos separados
   var horasStr = p.horas || '';
@@ -5915,6 +5942,8 @@ function abrirEdicaoPedido(idx) {
 function calcTotalModal() {
   var qtd       = parseFloat(document.getElementById('mp-qtd').value)||1;
   var precoUnit = parseFloat(document.getElementById('mp-preco-unit').value)||0;
+  v
+  var custoUnit = parseFloat((document.getElementById('mp-custo-unit')||{}).value) || p.custoUnit || 0;
   var total     = qtd * precoUnit;
   var totalEl   = document.getElementById('mp-total');
   if(totalEl) totalEl.textContent = fmt(total);
@@ -6042,6 +6071,8 @@ function salvarEdicaoPedido() {
   var nome  = upper(document.getElementById('mp-nome').value) || p.nome;
   var qtd   = Math.max(1, parseInt(document.getElementById('mp-qtd').value)||1);
   var precoUnit = parseFloat(document.getElementById('mp-preco-unit').value)||0;
+  v
+  var custoUnit = parseFloat((document.getElementById('mp-custo-unit')||{}).value) || p.custoUnit || 0;
   var total = qtd * precoUnit;
   var status = (document.getElementById('mp-status')||{}).value || p.status;
 
