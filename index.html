@@ -9468,14 +9468,26 @@ function renderTemplatesCP() {
   var el = document.getElementById('cp-templates');
   if(!el) return;
   el.innerHTML =
-    '<div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">Despesas Tipicas  Clique para cadastrar rapidamente:</div>' +
+    '<div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">Despesas Tipicas - Clique para cadastrar rapidamente:</div>' +
     '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
-    CP_TEMPLATES.map(function(t){
+    CP_TEMPLATES.map(function(t, i){
       var jaCad = contasPagar.some(function(c){ return c.desc === t.desc && c.status !== 'paga'; });
-      return '<button onclick="abrirFormTemplate('+JSON.stringify(t)+')" class="btn" style="font-size:11px;padding:4px 10px;'+(jaCad?'opacity:0.5;text-decoration:line-through;':'')+'">' +
+      return '<button onclick="abrirFormTemplateIdx('+i+')" class="btn" style="font-size:11px;padding:4px 10px;'+(jaCad?'opacity:0.5;text-decoration:line-through;':'')+'">'+
         '<i class="ti '+t.icone+'"></i> '+t.desc.split('/')[0].trim()+'</button>';
     }).join('') + '</div>';
 }
+
+function abrirFormTemplateIdx(i) {
+  var t = CP_TEMPLATES[i];
+  if(!t) return;
+  abrirFormContaPagar(-1);
+  setTimeout(function(){
+    var desc = document.getElementById('cp-desc'); if(desc) desc.value = t.desc;
+    var cat  = document.getElementById('cp-cat');  if(cat)  cat.value  = t.cat;
+    var rec  = document.getElementById('cp-recorrencia'); if(rec) rec.value = t.recorrencia;
+  }, 150);
+}
+
 
 /* ----- RENDER LISTA ----- */
 function renderContasPagar() {
