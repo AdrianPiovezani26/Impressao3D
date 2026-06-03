@@ -3625,8 +3625,13 @@ function aplicarCfg(){
   for(const[k,id] of Object.entries(m)){if(cfg[k]){var el2=document.getElementById(id);if(el2)el2.value=cfg[k];}}
 }
 function checkEstoque(){
-  const critico=filamentos.some(f=>(f.pesoRolo>0?(f.qtd/f.pesoRolo*100):0)<=15);
-  document.getElementById('header-alert').style.display=critico?'block':'none';
+  const critico = filamentos.some(function(f){
+    var qtd = parseFloat(f.qtd) || 0;
+    if(qtd <= 0) return false; // ignorar filamentos zerados
+    var pct = f.pesoRolo > 0 ? (qtd / f.pesoRolo * 100) : 0;
+    return pct <= 15;
+  });
+  document.getElementById('header-alert').style.display = critico ? 'block' : 'none';
 }
 function fazerBackup() {
   var dados = {};
