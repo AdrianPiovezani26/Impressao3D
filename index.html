@@ -2028,6 +2028,7 @@
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
       <button class="btn-ok" onclick="salvarEdicaoPedido()"><i class="ti ti-device-floppy"></i> Salvar</button>
       <button class="btn-ok" id="mp-btn-venda" onclick="importarPedidoVenda()" style="background:rgba(0,200,255,0.10);border-color:var(--blue-border);color:var(--blue-text);"><i class="ti ti-shopping-cart"></i> Importar para Venda</button>
+      <button class="btn" onclick="salvarPedidoComoProduto()" style="background:rgba(57,255,20,0.08);border-color:var(--neon-border);color:var(--neon);"><i class="ti ti-box"></i> Salvar nos Produtos</button>
       <button class="btn" onclick="fecharModalPedido()"><i class="ti ti-x"></i> Cancelar</button>
     </div>
   </div>
@@ -6199,6 +6200,57 @@ function salvarEdicaoPedido() {
   renderPedidos();
   renderDashboard();
   alert('Pedido atualizado: ' + nome);
+}
+
+function salvarPedidoComoProduto() {
+  if(_pedidoEditIdx < 0) return;
+  var p = pedidos[_pedidoEditIdx];
+  var nome      = upper((document.getElementById('mp-nome').value||'').trim() || p.nome || '');
+  var qtd       = parseInt(document.getElementById('mp-qtd').value)||1;
+  var precoUnit = parseFloat(document.getElementById('mp-preco-unit').value)||0;
+  var custoUnit = parseFloat((document.getElementById('mp-custo-unit')||{}).value)||p.custoUnit||0;
+
+  if(!nome) { alert('Informe o nome da peca antes de salvar.'); return; }
+
+  // Verificar se ja existe produto com esse nome
+  var jaExiste = produtos.find(function(pr){ return (pr.nome||'').toUpperCase() === nome; });
+  if(jaExiste) {
+    if(!confirm('Ja existe um produto com o nome "'+nome+'".\nDeseja atualizar os dados?')) return;
+    // Atualizar produto existente
+    var idx = produtos.indexOf(jaExiste);
+    produtos[idx] = Object.assign({}, jaExiste, {
+      nome: nome,
+      precoNum: precoUnit,
+      preco: precoUnit > 0 ? fmt(precoUnit * qtd) : jaExiste.preco,
+      custoNum: custoUnit,
+      horas: p.horas || jaExiste.horas,
+      filNome: p.filNome || jaExiste.filNome,
+      fils: p.filsEstoque ? p.filsEstoque.map(function(f){ return { filIdx: f.filIdx, filNome: f.filNome, peso: f.pesoUnit || f.peso }; }) : jaExiste.fils,
+      qtd: qtd
+    });
+    alert('Produto atualizado: ' + nome);
+  } else {
+    // Criar novo produto
+    var novoProd = {
+      id: Date.now(),
+      nome: nome,
+      cat: 'OUTRO',
+      precoNum: precoUnit,
+      preco: precoUnit > 0 ? fmt(precoUnit) : '--',
+      custoNum: custoUnit,
+      horas: p.horas || '--',
+      filNome: p.filNome || '--',
+      fils: p.filsEstoque ? p.filsEstoque.map(function(f){ return { filIdx: f.filIdx, filNome: f.filNome, peso: f.pesoUnit || f.peso }; }) : [],
+      qtd: qtd,
+      obs: ''
+    };
+    produtos.push(novoProd);
+    produtos.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||'','pt-BR'); });
+    alert('Produto salvo: ' + nome + '\n\nVoce pode ver e editar em Produtos!');
+  }
+
+  S.set('produtos', produtos);
+  sincronizarStatusProdutos();
 }
 
 function importarPedidoVenda() {
