@@ -6716,11 +6716,38 @@ function salvarContaPagar() {
 }
 
 function pagarConta(idx) {
+  var c = contasPagar[idx];
+  if(!c) return;
+  if(!confirm('Confirmar pagamento de:\n"' + c.desc + '"  -  ' + fmt(c.valor) + '\n\nData de pagamento: ' + hoje())) return;
+
   contasPagar[idx].status = 'paga';
   contasPagar[idx].dataPagamento = hoje();
   S.set('contas_pagar', contasPagar);
+
+  // Atualizar todas as telas que mostram contas a pagar
+  popularFiltroMes();
+  renderKpisCP();
   renderContasPagar();
-  renderFinKPIs();
+  renderDashboard();
+
+  // Se recorrente, oferecer gerar proxima parcela
+  if(c.recorrencia && c.recorrencia !== 'unica') {
+    var d = new Date(c.venc+'T00:00:00');
+    if(c.recorrencia === 'mensal')     d.setMonth(d.getMonth()+1);
+    if(c.recorrencia === 'trimestral') d.setMonth(d.getMonth()+3);
+    if(c.recorrencia === 'anual')      d.setFullYear(d.getFullYear()+1);
+    var proxVenc = d.toISOString().slice(0,10);
+    if(confirm('Conta recorrente!\nGerar proxima parcela para ' + fmtD(proxVenc) + '?')) {
+      var nova = Object.assign({}, c, {
+        id: Date.now(), status: 'pendente',
+        dataPagamento: null, dataCadastro: hoje(), venc: proxVenc
+      });
+      contasPagar.unshift(nova);
+      S.set('contas_pagar', contasPagar);
+      renderContasPagar();
+      renderKpisCP();
+    }
+  }
 }
 
 function delContaPagar(idx) {
