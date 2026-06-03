@@ -5590,9 +5590,10 @@ function renderDashContasPagar() {
   var d7 = new Date(); d7.setDate(d7.getDate()+7);
   var d7s = d7.toISOString().slice(0,10);
 
-  // Atualizar status de vencidas
+  // Atualizar status (nunca sobrescrever pagas)
   contasPagar.forEach(function(c){
-    if(c.status==='pendente' && c.venc && c.venc < hj) c.status = 'vencida';
+    if(c.status === 'pendente' && c.venc && c.venc < hj) c.status = 'vencida';
+    if(c.status === 'vencida' && c.dataPagamento) c.status = 'paga';
   });
 
   var pendentes = contasPagar.filter(function(c){ return c.status !== 'paga'; })
@@ -6766,9 +6767,10 @@ function renderContasPagar() {
   if(!el) return;
 
   var hj = hoje();
-  // Atualizar status de vencidas
+  // Atualizar status de vencidas (apenas pendentes, nunca pagas)
   contasPagar.forEach(function(cp) {
     if(cp.status === 'pendente' && cp.venc && cp.venc < hj) cp.status = 'vencida';
+    if(cp.status === 'vencida' && cp.dataPagamento) cp.status = 'paga'; // corrigir inconsistencia
   });
 
   var lista = contasPagar.filter(function(cp) {
