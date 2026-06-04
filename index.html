@@ -5938,17 +5938,36 @@ function editarHistCalc(id) {
 function pedidoHistCalc(id) {
   var h = _histCalc.find(function(x){ return x.id===id; });
   if(!h) return;
-  pedidos.unshift({
-    id: Date.now(), nome: h.nome,
-    preco: fmt(h.precoUnit),
-    data: new Date().toLocaleDateString('pt-BR'),
-    status: 'pendente',
-    horas: h.tempoStr || '--',
-    filNome: h.fils || '--',
-    peso: '--'
+
+  // Montar filsEstoque a partir dos detalhes da precificacao
+  var filsEstoque = (h.filsDetalhes||[]).map(function(f){
+    return {
+      filIdx:   f.filIdx,
+      filNome:  f.filNome,
+      peso:     f.peso,
+      pesoUnit: f.peso / (h.qtd||1)
+    };
   });
+
+  pedidos.unshift({
+    id:        Date.now(),
+    nome:      h.nome,
+    qtd:       h.qtd || 1,
+    precoUnit: h.precoUnit || 0,
+    custoUnit: h.custoUnit || 0,
+    preco:     fmt((h.precoUnit||0) * (h.qtd||1)),
+    data:      new Date().toLocaleDateString('pt-BR'),
+    status:    'pendente',
+    horas:     h.tempoStr || '--',
+    filNome:   h.fils || '--',
+    filsEstoque: filsEstoque,
+    peso:      filsEstoque.reduce(function(s,f){ return s+(f.peso||0); },0) || '--',
+    estoquesBaixados: false
+  });
+
   S.set('pedidos', pedidos);
-  alert('Pedido criado: ' + h.nome + ' - ' + fmt(h.precoUnit));
+  renderPedidos();
+  alert('Pedido criado: ' + h.nome + '\nPreco: ' + fmt(h.precoUnit) + '/un | Custo: ' + fmt(h.custoUnit) + '/un');
 }
 
 function produtoHistCalc(id) {
