@@ -5716,27 +5716,44 @@ function salvarNoHistorico() {
     return;
   }
   var dados = coletarDadosCalc();
-  // Padronizar nome em maiusculas
   dados.nome = (dados.nome||'SEM NOME').toUpperCase().trim();
 
-  // Verificar duplicata pelo nome
+  // Se estiver editando, atualizar direto sem perguntar
+  if(_histEditId !== null) {
+    var idxEdit = _histCalc.findIndex(function(h){ return h.id === _histEditId; });
+    if(idxEdit >= 0) {
+      dados.id = _histEditId; // manter o mesmo ID
+      _histCalc[idxEdit] = dados;
+      S.set('hist_calc', _histCalc);
+      renderHistoricoCalc();
+      _histEditId = null;
+      // Restaurar botao
+      var btnSalvar = document.querySelector('#tab-calc .btn-ok[onclick*="salvarNoHistorico"]');
+      if(btnSalvar) {
+        btnSalvar.innerHTML = '<i class="ti ti-device-floppy"></i> Salvar no Historico';
+        btnSalvar.style.background = '';
+        btnSalvar.style.borderColor = '';
+        btnSalvar.style.color = '';
+      }
+      alert('Precificacao atualizada: ' + dados.nome);
+      return;
+    }
+  }
+
+  // Verificar duplicata pelo nome (novo cadastro)
   var nomeUP = dados.nome;
-  var existeIdx = -1;
-  _histCalc.forEach(function(h, i){
-    if((h.nome||'').toUpperCase().trim() === nomeUP) existeIdx = i;
+  var existeIdx = _histCalc.findIndex(function(h){
+    return (h.nome||'').toUpperCase().trim() === nomeUP;
   });
 
   if(existeIdx >= 0) {
     var resp = confirm(
-      'Ja existe uma precificacao com o nome:\n"' + nomeUP + '"\n\n' +
-      'Deseja SUBSTITUIR a precificacao existente?\n\n' +
-      'OK = Substituir | Cancelar = Salvar como nova'
+      'Ja existe uma precificacao com o nome:\n"' + nomeUP + '"\n\nDeseja SUBSTITUIR?\n\nOK = Substituir | Cancelar = Salvar como nova'
     );
     if(resp) {
-      // Substituir a existente
+      dados.id = _histCalc[existeIdx].id;
       _histCalc[existeIdx] = dados;
     } else {
-      // Salvar como nova mesmo assim
       _histCalc.unshift(dados);
     }
   } else {
@@ -5865,9 +5882,13 @@ function renderHistoricoCalc() {
   }).join('');
 }
 
+var _histEditId = null; // ID da precificacao sendo editada
+
 function editarHistCalc(id) {
   var h = _histCalc.find(function(x){ return x.id===id; });
   if(!h) return;
+
+  _histEditId = id; // Marcar que estamos editando este ID
 
   showTab('calc');
   setTimeout(function(){
@@ -5892,7 +5913,6 @@ function editarHistCalc(id) {
       listaFils.innerHTML = '';
       var filsRest = h.filsDetalhes || [];
       if(filsRest.length === 0 && h.fils) {
-        // Fallback: adicionar 1 linha vazia
         addFilCalc();
       } else {
         filsRest.forEach(function(f){
@@ -5903,6 +5923,15 @@ function editarHistCalc(id) {
 
     calcular();
     document.getElementById('tab-calc').scrollIntoView({behavior:'smooth'});
+
+    // Indicar que esta editando
+    var btnSalvar = document.querySelector('#tab-calc .btn-ok[onclick*="salvarNoHistorico"]');
+    if(btnSalvar) {
+      btnSalvar.innerHTML = '<i class="ti ti-device-floppy"></i> Atualizar Precificacao';
+      btnSalvar.style.background = 'rgba(255,170,0,0.15)';
+      btnSalvar.style.borderColor = 'var(--amber-border)';
+      btnSalvar.style.color = 'var(--amber-text)';
+    }
   }, 150);
 }
 
