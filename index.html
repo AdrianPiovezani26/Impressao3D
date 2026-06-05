@@ -6910,11 +6910,16 @@ function renderContasPagar() {
   if(!el) return;
 
   var hj = hoje();
-  // Atualizar status de vencidas (apenas pendentes, nunca pagas)
+  // Atualizar status  nunca sobrescrever pagas
+  var alterou = false;
   contasPagar.forEach(function(cp) {
-    if(cp.status === 'pendente' && cp.venc && cp.venc < hj) cp.status = 'vencida';
-    if(cp.status === 'vencida' && cp.dataPagamento) cp.status = 'paga'; // corrigir inconsistencia
+    if(cp.dataPagamento && cp.status !== 'paga') {
+      cp.status = 'paga'; alterou = true;
+    } else if(cp.status === 'pendente' && cp.venc && cp.venc < hj) {
+      cp.status = 'vencida'; alterou = true;
+    }
   });
+  if(alterou) S.set('contas_pagar', contasPagar);
 
   var lista = contasPagar.filter(function(cp) {
     if(filtStatus && cp.status !== filtStatus) return false;
