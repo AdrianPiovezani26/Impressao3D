@@ -6232,7 +6232,12 @@ function salvarEdicaoPedido() {
     return f.filNome+' ('+f.pesoUnit+'g/un, '+f.peso+'g total)';
   }).join(', ') : (p.filNome||'--');
 
-  // Atualizar pedido mantendo flag estoquesBaixados
+  // Verificar se filamentos mudaram para resetar flag de baixa
+  var novoHash = JSON.stringify(filsEstoque.map(function(f){ return {idx:f.filIdx, peso:f.peso}; }));
+  var hashAnterior = p.estoquesBaixadosHash || '';
+  var filsMudaram = filsEstoque.length > 0 && novoHash !== hashAnterior;
+
+  // Atualizar pedido mantendo flag estoquesBaixados apenas se filamentos nao mudaram
   pedidos[_pedidoEditIdx] = Object.assign({}, p, {
     nome: nome, qtd: qtd, precoUnit: precoUnit,
     custoUnit: custoUnit,
@@ -6241,6 +6246,9 @@ function salvarEdicaoPedido() {
     filNome: filNomeStr,
     filsEstoque: filsEstoque.length > 0 ? filsEstoque : p.filsEstoque,
     peso: pesoTotal || p.peso,
+    // Se filamentos mudaram, resetar para perguntar ao concluir novamente
+    estoquesBaixados: filsMudaram ? false : (p.estoquesBaixados || false),
+    estoquesBaixadosHash: filsMudaram ? '' : hashAnterior,
   });
 
   S.set('pedidos', pedidos);
