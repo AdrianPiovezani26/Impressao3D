@@ -3472,6 +3472,12 @@ function salvarVenda(){
   ['v-cliente','v-obs'].forEach(id=>{document.getElementById(id).value='';});
   document.getElementById('v-valor').value='';document.getElementById('v-total').value='';document.getElementById('v-qtd').value='1';
   contasPagar = S.get('contas_pagar') || [];
+  // Migrar: contas com dataPagamento devem ter status 'paga'
+  var cpAlterou = false;
+  contasPagar.forEach(function(c){
+    if(c.dataPagamento && c.status !== 'paga') { c.status = 'paga'; cpAlterou = true; }
+  });
+  if(cpAlterou) S.set('contas_pagar', contasPagar);
   // Normalizar status 'pago' para 'paga' em faturas existentes
   var normalizouFat = false;
   faturas.forEach(function(f){ if(f.status==='pago'){ f.status='paga'; normalizouFat=true; } });
@@ -6862,10 +6868,14 @@ function salvarContaPagar() {
 function pagarConta(idx) {
   var c = contasPagar[idx];
   if(!c) return;
-  if(!confirm('Confirmar pagamento de:\n"' + c.desc + '"  -  ' + fmt(c.valor) + '\n\nData de pagamento: ' + hoje())) return;
+  if(!confirm('Confirmar pagamento: ' + c.desc + ' | ' + fmt(c.valor))) return;
 
-  contasPagar[idx].status = 'paga';
-  contasPagar[idx].dataPagamento = hoje();
+  // Usar ID para garantir que o item correto seja atualizado
+  var realIdx = contasPagar.findIndex(function(x){ return x.id === c.id; });
+  if(realIdx < 0) realIdx = idx;
+
+  contasPagar[realIdx].status = 'paga';
+  contasPagar[realIdx].dataPagamento = hoje();
   S.set('contas_pagar', contasPagar);
 
   // Atualizar todas as telas que mostram contas a pagar
@@ -9773,6 +9783,12 @@ document.addEventListener('DOMContentLoaded', function() {
   if(lancEl) { lancEl.style.cssText += ';display:block'; lancEl.classList.add('active'); }
   // Rotinas de inicializacao de dados
   contasPagar = S.get('contas_pagar') || [];
+  // Migrar: contas com dataPagamento devem ter status 'paga'
+  var cpAlterou = false;
+  contasPagar.forEach(function(c){
+    if(c.dataPagamento && c.status !== 'paga') { c.status = 'paga'; cpAlterou = true; }
+  });
+  if(cpAlterou) S.set('contas_pagar', contasPagar);
   // Normalizar status 'pago' para 'paga' em faturas existentes
   var normalizouFat = false;
   faturas.forEach(function(f){ if(f.status==='pago'){ f.status='paga'; normalizouFat=true; } });
