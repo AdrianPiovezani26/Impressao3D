@@ -6200,10 +6200,15 @@ function calcCustoModal() {
   if(pesoTotalEl) pesoTotalEl.textContent = pesoTotal.toFixed(0) + 'g/un (' + (pesoTotal*qtd).toFixed(0) + 'g total)';
   if(custoEl) custoEl.textContent = fmt(custoTotal) + '/un (' + fmt(custoTotal*qtd) + ' total)';
 
-  // Atualizar campo custo unitario automaticamente
+  // Atualizar campo custo unitario automaticamente APENAS se estiver vazio
   if(custoUnitEl && custoTotal > 0) {
-    custoUnitEl.value = custoTotal.toFixed(2);
-    custoUnitEl.style.borderColor = 'var(--neon)';
+    var custoAtual = parseFloat(custoUnitEl.value) || 0;
+    if(custoAtual === 0) {
+      // Sem custo definido  calcular pelos filamentos
+      custoUnitEl.value = custoTotal.toFixed(2);
+      custoUnitEl.style.borderColor = 'var(--neon)';
+    }
+    // Se ja tem custo (da precificacao), nao sobrescrever
   }
 
   // Calcular margem
