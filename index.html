@@ -303,18 +303,18 @@
           var fbTam  = Array.isArray(fb) ? fb.length : (fb ? 1 : 0);
 
           if(fb !== null && fbTam > 0) {
-            // Firebase tem dados — só sobrescreve local se Firebase tiver MAIS dados
+            // Firebase tem dados  so sobrescreve local se Firebase tiver MAIS dados
             if(fbTam >= locTam) {
               localStorage.setItem('akp3d_'+k, JSON.stringify(fb));
             } else {
-              // Local tem mais dados — enviar local para Firebase
+              // Local tem mais dados  enviar local para Firebase
               if(locDados) await fbSalvar(k, locDados);
             }
           } else if(fb !== null && fbTam === 0 && locTam > 0) {
-            // Firebase está vazio mas local tem dados — enviar local para Firebase
+            // Firebase esta vazio mas local tem dados  enviar local para Firebase
             await fbSalvar(k, locDados);
           } else if(fb === null) {
-            // Firebase não tem o documento — enviar local
+            // Firebase nao tem o documento  enviar local
             if(locDados) await fbSalvar(k, locDados);
           }
         }
@@ -404,7 +404,7 @@
   <button onclick="showTab('parceiros')" id="btn-parceiros"><i class="ti ti-users"></i> Parceiros</button>
   <button onclick="showTab('consignacao')" id="btn-consignacao"><i class="ti ti-transfer"></i> Consignacao</button>
   <button onclick="showTab('relatorios')" id="btn-relatorios"><i class="ti ti-report-analytics"></i> Relatorios</button>
-  <button onclick="showTab('config')" id="btn-config"><i class="ti ti-settings"></i> Configuracões</button>
+  <button onclick="showTab('config')" id="btn-config"><i class="ti ti-settings"></i> Configuracoes</button>
 </nav>
 
 <!-- DASHBOARD -->
@@ -922,15 +922,18 @@
           <option value="Boleto">Boleto</option>
           <option value="Transferencia">Transferencia</option>
           <option value="A prazo">A prazo</option>
+          <option value="Cheque">Cheque</option>
+          <option value="Permuta">Permuta</option>
+          <option value="A prazo">A prazo</option>
         </select>
       </div>
       <div class="field"><label>Status do Pagamento</label>
         <select id="v-status-pgto">
-          <option value="pago">Pago — pagamento ja recebido</option>
-          <option value="pendente">Pendente — gera fatura em Contas a Receber</option>
+          <option value="pago">Pago  pagamento ja recebido</option>
+          <option value="pendente">Pendente  gera fatura em Contas a Receber</option>
         </select>
       </div>
-      <!-- Parcelas — aparece para A prazo e Cartao de Credito -->
+      <!-- Parcelas  aparece para A prazo e Cartao de Credito -->
       <div id="v-parcelas-wrap" style="display:none;grid-column:1/-1;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:1rem;margin-top:4px;">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
           <label style="font-size:11px;font-weight:700;color:var(--amber-text);text-transform:uppercase;letter-spacing:1px;"><i class="ti ti-calendar-due"></i> Parcelamento</label>
@@ -947,7 +950,7 @@
               <option value="10">10x</option>
               <option value="12">12x</option>
             </select>
-            <span style="font-size:12px;color:var(--text3);">1º venc.:</span>
+            <span style="font-size:12px;color:var(--text3);">1 venc.:</span>
             <input type="date" id="v-venc-1a" onchange="gerarParcelas()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:5px 8px;font-size:12px;background:var(--bg2);color:var(--text);">
           </div>
         </div>
@@ -1563,7 +1566,7 @@
     <button class="btn-ok" onclick="showFormCliente(-1)"><i class="ti ti-plus"></i> Novo Cliente</button>
   </div>
 
-  <!-- Formulário -->
+  <!-- Formulario -->
   <div id="form-cliente" style="display:none;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1.25rem;position:relative;">
     <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--neon),transparent);opacity:0.5;border-radius:var(--radius-lg) var(--radius-lg) 0 0;pointer-events:none;"></div>
     <div class="stitle" style="font-size:12px;margin-bottom:1rem;" id="form-cliente-titulo"><i class="ti ti-user-plus"></i> Novo Cliente</div>
@@ -2051,11 +2054,7 @@
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
       <button class="btn-ok" onclick="salvarEdicaoPedido()"><i class="ti ti-device-floppy"></i> Salvar</button>
       <button class="btn-ok" id="mp-btn-venda" onclick="importarPedidoVenda()" style="background:rgba(0,200,255,0.10);border-color:var(--blue-border);color:var(--blue-text);"><i class="ti ti-shopping-cart"></i> Importar para Venda</button>
-      <button class="btn" onclick="salvarPedidoComoProduto()" style="background:rgba(57,255,20,0.08);border-color:var(--neon-border);color:var(--neon);"><i class="ti ti-box"></i> Salvar nos Produtos</button>
-      <button class="btn" onclick="fecharModalPedido()"><i class="ti ti-x"></i> Cancelar</button>
-    </div>
-  </div>
-</div>
+      <button class="btn" onclick="salvarPedidoComoProduto()" style="background:rgba(57,255,20,0.08);border-color:var(--neon-border);color:var(--neon);"><i class="ti ti-box"></i> Salvar nos P
 
 <script>
 
@@ -3164,7 +3163,31 @@ function renderPedidos(){
   var CR = {pendente:'tag-amber', imprimindo:'tag-blue', concluido:'tag-green'};
   var LABEL = {pendente:'Pendente', imprimindo:'Imprimindo', concluido:'Concluido'};
 
-  el.innerHTML = lista.map(function(p) {
+  // Agrupar por status com colunas clicaveis
+  var grupos = ['pendente','imprimindo','concluido'];
+  var agrupado = {pendente:[],imprimindo:[],concluido:[]};
+  lista.forEach(function(p){ var g = p.status||'pendente'; if(agrupado[g]) agrupado[g].push(p); });
+  if(!window._pedGrpCol) window._pedGrpCol = {pendente:false, imprimindo:false, concluido:true};
+  var ICON = {pendente:'ti-clock', imprimindo:'ti-printer', concluido:'ti-check'};
+  var COR  = {pendente:'var(--amber-text)', imprimindo:'var(--blue-text)', concluido:'var(--neon)'};
+
+  var htmlGrupos = '';
+  grupos.forEach(function(grupo){
+    var items = agrupado[grupo];
+    if(!items.length) return;
+    var col = window._pedGrpCol[grupo];
+    var tot = items.reduce(function(s,p){ return s+(parseFloat(p.precoUnit)||0)*(parseInt(p.qtd)||1); },0);
+    htmlGrupos +=
+      '<div style="margin-bottom:10px;">' +
+        '<div onclick="toggleGrupoPed(\'' + grupo + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius);cursor:pointer;border-left:3px solid '+COR[grupo]+';user-select:none;margin-bottom:6px;">' +
+          '<i class="ti '+ICON[grupo]+'" style="color:'+COR[grupo]+';font-size:16px;"></i>' +
+          '<strong style="color:'+COR[grupo]+';font-size:14px;">'+LABEL[grupo]+'</strong>' +
+          '<span class="tag '+CR[grupo]+'" style="font-size:11px;margin-left:4px;">'+items.length+' pedido'+(items.length>1?'s':'')+'</span>' +
+          '<span style="font-size:12px;color:var(--text3);margin-left:auto;">'+fmt(tot)+'</span>' +
+          '<i class="ti '+(col?'ti-chevron-down':'ti-chevron-up')+'" style="color:var(--text3);font-size:14px;margin-left:8px;"></i>' +
+        '</div>' +
+        '<div id="grp-ped-'+grupo+'" style="'+(col?'display:none;':'')+'">'+
+        items.map(function(p) {
     var idx = pedidos.indexOf(p);
     var editavel = p.status !== 'concluido';
 
@@ -3285,7 +3308,18 @@ function renderPedidos(){
         '<button class="btn-del" onclick="delPed('+idx+')"><i class="ti ti-trash"></i></button>' +
       '</div>' +
     '</div>';
-  }).join('');
+  }).join('') + '</div></div></div>';
+  });
+  el.innerHTML = htmlGrupos;
+}
+
+function toggleGrupoPed(grupo) {
+  if(!window._pedGrpCol) window._pedGrpCol = {};
+  window._pedGrpCol[grupo] = !window._pedGrpCol[grupo];
+  var div = document.getElementById('grp-ped-'+grupo);
+  if(div) div.style.display = window._pedGrpCol[grupo] ? 'none' : '';
+  // Atualizar icone
+  renderPedidos();
 }
 
 function updPedSt(i,v){
@@ -3531,11 +3565,12 @@ function renderVendas(){
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <strong style="font-size:18px;color:var(--neon);text-shadow:var(--neon-glow-sm);">${fmt(v.valor)}</strong>
-        <span class="tag ${v.statusPgto==='pago'?'tag-green':'tag-amber'}">${v.statusPgto==='pago'?'Pago':'Pendente'}</span>
+        <span class="tag ${v.statusPgto==='pago'||v.statusPgto==='paga'?'tag-green':v.recebido>0?'tag-amber':'tag-red'}">${v.statusPgto==='pago'||v.statusPgto==='paga'?'Pago':v.recebido>0?'Parcial':'Pendente'}</span>
+        ${v.recebido > 0 && v.statusPgto !== 'pago' && v.statusPgto !== 'paga' ? '<span style="font-size:11px;color:var(--text3);margin-left:6px;">Recebido: '+fmt(v.recebido)+' | Falta: '+fmt(v.valor - v.recebido)+'</span>' : ''}
       </div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-      ${v.statusPgto!=='pago' ? `<button class="btn-ok" onclick="darBaixaVenda(${i})" style="font-size:12px;padding:6px 12px;"><i class="ti ti-check"></i> Confirmar Recebimento</button>` : `<span style="font-size:12px;color:var(--neon);display:flex;align-items:center;gap:4px;"><i class="ti ti-circle-check"></i> Recebido em ${fmtD(v.dataPagamento||v.data)}</span>`}
+      ${v.statusPgto!=='pago'&&v.statusPgto!=='paga' ? `<button class="btn-ok" onclick="darBaixaVenda(${i})" style="font-size:12px;padding:6px 12px;"><i class="ti ti-check"></i> Confirmar Recebimento</button>` : `<span style="font-size:12px;color:var(--neon);display:flex;align-items:center;gap:4px;"><i class="ti ti-circle-check"></i> Recebido em ${fmtD(v.dataPagamento||v.data)}</span>`}
       <button class="btn-del" onclick="delVenda(${i})" style="margin-left:auto;"><i class="ti ti-trash"></i> Remover</button>
     </div>
   </div>`).join('');
