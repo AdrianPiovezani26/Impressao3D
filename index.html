@@ -965,6 +965,24 @@
     </div>
   </div>
   <div id="resumo-vendas" style="margin-bottom:1rem;"></div>
+
+  <!-- Filtros e busca -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;align-items:center;">
+    <input type="text" id="venda-busca" placeholder="Buscar cliente ou produto..." oninput="renderVendas()"
+      style="flex:1;min-width:200px;border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+    <select id="venda-filtro-status" onchange="renderVendas()"
+      style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+      <option value="">Todos</option>
+      <option value="pendente">Pendentes</option>
+      <option value="parcial">Parcial</option>
+      <option value="pago">Pagos</option>
+    </select>
+    <select id="venda-filtro-mes" onchange="renderVendas()"
+      style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+      <option value="">Todos os meses</option>
+    </select>
+  </div>
+
   <div id="lista-vendas"></div>
 </div>
 
@@ -3550,114 +3568,115 @@ function salvarVenda(){
   renderVendas();
 }
 function renderVendas(){
-  const totV=vendas.reduce((s,v)=>s+v.valor,0);
-  const hj=hoje().slice(0,7);
-  const totM=vendas.filter(v=>v.data&&v.data.slice(0,7)===hj).reduce((s,v)=>s+v.valor,0);
-  const qtdM=vendas.filter(v=>v.data&&v.data.slice(0,7)===hj).length;
-  document.getElementById('resumo-vendas').innerHTML=vendas.length?`<div class="grid4" style="margin-bottom:1rem;"><div class="metric"><div class="lbl">Total de vendas</div><div class="val">${vendas.length}</div></div><div class="metric"><div class="lbl">Faturamento total</div><div class="val">${fmt(totV)}</div></div><div class="metric"><div class="lbl">Vendas este mes</div><div class="val">${qtdM}</div></div><div class="metric"><div class="lbl">Faturamento do mes</div><div class="val" style="color:var(--neon);">${fmt(totM)}</div></div></div>`:'';
-  const el=document.getElementById('lista-vendas');
-  if(!vendas.length){el.innerHTML='<div class="empty"><i class="ti ti-shopping-cart"></i>Nenhuma venda registrada.<br><br>Clique em "Nova Venda" para comecar.</div>';return;}
-  el.innerHTML=vendas.map((v,i)=>`<div class="item-card">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-      <div><strong style="font-size:15px;">${v.cliente}</strong><br>
-        <span style="font-size:12px;color:var(--text2);">${fmtD(v.data)} - ${v.prodNome} (x${v.qtd}) - ${v.pgto}</span>
-        ${v.obs?`<br><span style="font-size:11px;color:var(--text3);">${v.obs}</span>`:''}
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <strong style="font-size:18px;color:var(--neon);text-shadow:var(--neon-glow-sm);">${fmt(v.valor)}</strong>
-        <span class="tag ${v.statusPgto==='pago'||v.statusPgto==='paga'?'tag-green':v.recebido>0?'tag-amber':'tag-red'}">${v.statusPgto==='pago'||v.statusPgto==='paga'?'Pago':v.recebido>0?'Parcial':'Pendente'}</span>
-        ${v.recebido > 0 && v.statusPgto !== 'pago' && v.statusPgto !== 'paga' ? '<span style="font-size:11px;color:var(--text3);margin-left:6px;">Recebido: '+fmt(v.recebido)+' | Falta: '+fmt(v.valor - v.recebido)+'</span>' : ''}
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-      ${v.statusPgto!=='pago'&&v.statusPgto!=='paga' ? `<button class="btn-ok" onclick="darBaixaVenda(${i})" style="font-size:12px;padding:6px 12px;"><i class="ti ti-check"></i> Confirmar Recebimento</button>` : `<span style="font-size:12px;color:var(--neon);display:flex;align-items:center;gap:4px;"><i class="ti ti-circle-check"></i> Recebido em ${fmtD(v.dataPagamento||v.data)}</span>`}
-      <button class="btn-del" onclick="delVenda(${i})" style="margin-left:auto;"><i class="ti ti-trash"></i> Remover</button>
-    </div>
-  </div>`).join('');
-}
-function delVenda(i) {
-  var v = vendas[i];
-  if(!v) return;
-  var numFaturas = faturas.filter(function(f){ return f.vendaId === v.id; }).length;
-  var msg = 'Remover esta venda?\n\nCliente: ' + v.cliente +
-    '\nValor: ' + fmt(v.valor) +
-    '\nData: ' + fmtD(v.data) +
-    (numFaturas > 0 ? '\n\n ' + numFaturas + ' fatura(s) em Contas a Receber tambem serao removidas.' : '');
-  if(!confirm(msg)) return;
+  var totV = vendas.reduce(function(s,v){ return s+v.valor; },0);
+  var hj = hoje().slice(0,7);
+  var totM = vendas.filter(function(v){ return v.data&&v.data.slice(0,7)===hj; }).reduce(function(s,v){ return s+v.valor; },0);
+  var qtdM = vendas.filter(function(v){ return v.data&&v.data.slice(0,7)===hj; }).length;
+  var totalPend = vendas.reduce(function(s,v){
+    if(v.statusPgto==='pago'||v.statusPgto==='paga') return s;
+    return s + (v.valor - (v.recebido||0));
+  },0);
+  document.getElementById('resumo-vendas').innerHTML = vendas.length ?
+    '<div class="grid4" style="margin-bottom:1rem;">' +
+      '<div class="metric"><div class="lbl">Total de vendas</div><div class="val">'+vendas.length+'</div></div>' +
+      '<div class="metric"><div class="lbl">Faturamento total</div><div class="val">'+fmt(totV)+'</div></div>' +
+      '<div class="metric"><div class="lbl">Vendas este mes</div><div class="val">'+qtdM+'</div></div>' +
+      '<div class="metric"><div class="lbl">Faturamento do mes</div><div class="val" style="color:var(--neon);">'+fmt(totM)+'</div></div>' +
+      '<div class="metric"><div class="lbl">A Receber</div><div class="val" style="color:var(--amber-text);">'+fmt(totalPend)+'</div></div>' +
+    '</div>' : '';
 
-  // Remover faturas associadas a esta venda
-  var antes = faturas.length;
-  faturas = faturas.filter(function(f){ return f.vendaId !== v.id; });
-  S.set('faturas', faturas);
+  // Popular filtro de mes
+  var selMes = document.getElementById('venda-filtro-mes');
+  if(selMes) {
+    var meses = {};
+    vendas.forEach(function(v){ if(v.data) meses[v.data.slice(0,7)]=true; });
+    var valMes = selMes.value;
+    selMes.innerHTML = '<option value="">Todos os meses</option>' +
+      Object.keys(meses).sort().reverse().map(function(m){
+        var d = new Date(m+'-01'); var n = d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+        return '<option value="'+m+'">'+n.charAt(0).toUpperCase()+n.slice(1)+'</option>';
+      }).join('');
+    selMes.value = valMes;
+  }
 
-  // Remover a venda
-  vendas.splice(i, 1);
-  S.set('vendas', vendas);
+  var el = document.getElementById('lista-vendas');
+  if(!vendas.length){ el.innerHTML='<div class="empty"><i class="ti ti-shopping-cart"></i>Nenhuma venda registrada.</div>'; return; }
 
-  // Reverter status do produto se foi marcado como vendido por esta venda
-  produtos.forEach(function(p) {
-    if(p.clienteVenda && p.clienteVenda.toUpperCase() === (v.cliente||'').toUpperCase() &&
-       p.dataVenda === v.data) {
-      // Verificar se ainda existe outra venda para este cliente/produto
-      var outraVenda = vendas.some(function(vv){
-        return (vv.cliente||'').toUpperCase() === (v.cliente||'').toUpperCase() &&
-               (vv.prodNome||'').toUpperCase() === (p.nome||'').toUpperCase();
-      });
-      if(!outraVenda) {
-        p.vendido = false;
-        p.dataVenda = '';
-        p.clienteVenda = '';
-      }
-    }
-  });
-  S.set('produtos', produtos);
+  // Aplicar filtros
+  var busca  = ((document.getElementById('venda-busca')||{}).value||'').toUpperCase();
+  var filtSt = (document.getElementById('venda-filtro-status')||{}).value||'';
+  var filtMs = (document.getElementById('venda-filtro-mes')||{}).value||'';
 
-  renderVendas();
-  renderDashboard();
-
-  var removidas = antes - faturas.length;
-  alert('Venda removida!' + (removidas > 0 ? '\n' + removidas + ' fatura(s) tambem removida(s) de Contas a Receber.' : ''));
-}
-
-/* ---- CONTAS A RECEBER ---- */
-function renderContas(){
-  const filtro=document.getElementById('filtro-fatura').value;
-  const hj=hoje();
-  const lista=faturas.filter(f=>{
-    if(filtro==='vencida')return f.status==='pendente'&&f.venc&&f.venc<hj;
-    if(filtro)return f.status===filtro;
+  var lista = vendas.filter(function(v, i){
+    if(busca && !(v.cliente||'').toUpperCase().includes(busca) && !(v.prodNome||'').toUpperCase().includes(busca)) return false;
+    if(filtMs && (v.data||'').slice(0,7) !== filtMs) return false;
+    var isPago = v.statusPgto==='pago'||v.statusPgto==='paga';
+    var isParcial = !isPago && (v.recebido||0) > 0;
+    if(filtSt==='pago' && !isPago) return false;
+    if(filtSt==='pendente' && (isPago||isParcial)) return false;
+    if(filtSt==='parcial' && !isParcial) return false;
     return true;
   });
-  const tot=faturas.filter(f=>f.status==='pendente').reduce((s,f)=>s+f.valor,0);
-  const venc=faturas.filter(f=>f.status==='pendente'&&f.venc&&f.venc<hj).reduce((s,f)=>s+f.valor,0);
-  const rec=faturas.filter(f=>f.status==='paga').reduce((s,f)=>s+f.valor,0);
-  document.getElementById('resumo-contas').innerHTML=faturas.length?`<div class="grid3" style="margin-bottom:1rem;"><div class="metric"><div class="lbl">A receber</div><div class="val" style="color:var(--amber-text);">${fmt(tot)}</div></div><div class="metric"><div class="lbl">Vencidas</div><div class="val" style="color:var(--red-text);">${fmt(venc)}</div></div><div class="metric"><div class="lbl">Recebido</div><div class="val">${fmt(rec)}</div></div></div>`:'' ;
-  const el=document.getElementById('lista-contas');
-  if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-coin"></i>Nenhuma fatura encontrada.<br><span style="font-size:12px;display:block;margin-top:8px;">As faturas sao criadas automaticamente ao registrar uma venda com pagamento pendente.</span></div>';return;}
-  el.innerHTML=lista.map(f=>{
-    const isVenc=f.status==='pendente'&&f.venc&&f.venc<hj;
-    return`<div class="item-card ${f.status==='paga'?'paga':isVenc?'vencida':''}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
-        <div>
-          <strong style="font-size:15px;">${f.cliente}</strong><br>
-          <span style="font-size:12px;color:var(--text2);">${f.descricao} - Emitida: ${fmtD(f.data)}</span>
-          ${f.venc?`<br><span style="font-size:12px;color:${isVenc?'var(--red-text)':'var(--text2)'};">Vencimento: ${fmtD(f.venc)}${isVenc?' -- VENCIDA':''}</span>`:''}
-          ${f.dataPagamento?`<br><span style="font-size:12px;color:var(--neon);"><i class="ti ti-circle-check"></i> Recebido em: ${fmtD(f.dataPagamento)}</span>`:''}
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <strong style="font-size:18px;color:${f.status==='paga'?'var(--neon)':'var(--amber-text)'};${f.status==='paga'?'text-shadow:var(--neon-glow-sm);':''};">${fmt(f.valor)}</strong>
-          <span class="tag ${f.status==='paga'?'tag-green':isVenc?'tag-red':'tag-amber'}">${f.status==='paga'?'Recebida':isVenc?'Vencida':'Pendente'}</span>
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        ${f.status==='pendente'
-          ?`<button class="btn-ok" onclick="darBaixaFatura(${f.id})" style="font-size:12px;padding:6px 12px;"><i class="ti ti-check"></i> Confirmar Recebimento</button>`
-          :''}
-        <button class="btn-del" onclick="delFatura(${faturas.indexOf(f)})" style="margin-left:auto;"><i class="ti ti-trash"></i> Remover</button>
-      </div>
-    </div>`;
+
+  if(!lista.length){ el.innerHTML='<div class="empty"><i class="ti ti-filter"></i>Nenhuma venda encontrada com estes filtros.</div>'; return; }
+
+  // Calcular recebido e pendente de cada venda considerando faturas
+  el.innerHTML = lista.map(function(v){
+    var i = vendas.indexOf(v);
+    var isPago = v.statusPgto==='pago'||v.statusPgto==='paga';
+
+    // Calcular recebido total pelas faturas vinculadas
+    var fatsV = faturas.filter(function(f){ return f.vendaId === v.id; });
+    var recFats = fatsV.filter(function(f){ return f.status==='paga'; }).reduce(function(s,f){ return s+f.valor; },0);
+    var pendFats = fatsV.filter(function(f){ return f.status!=='paga'; }).reduce(function(s,f){ return s+f.valor; },0);
+    var qtdParcFats = fatsV.filter(function(f){ return f.status!=='paga'; }).length;
+
+    // Usar faturas se existem, senao usar campo recebido da venda
+    var recebido = fatsV.length > 0 ? recFats : (v.recebido||0);
+    var pendente = fatsV.length > 0 ? pendFats : (isPago ? 0 : v.valor - recebido);
+    var isParcial = !isPago && recebido > 0 && pendente > 0;
+
+    var tagCor = isPago ? 'tag-green' : isParcial ? 'tag-amber' : 'tag-red';
+    var tagLabel = isPago ? 'Pago' : isParcial ? 'Parcial' : 'Pendente';
+    var parcInfo = '';
+    if(fatsV.length > 1) parcInfo = ' <span style="font-size:10px;color:var(--text3);">'+fatsV.length+' parcelas</span>';
+
+    return '<div class="item-card">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px;">' +
+        '<div style="flex:1;min-width:0;">' +
+          '<strong style="font-size:15px;">'+v.cliente+'</strong>' + parcInfo +
+          '<br><span style="font-size:12px;color:var(--text2);">'+fmtD(v.data)+' - '+v.prodNome+(v.qtd>1?' (x'+v.qtd+')':'')+' - '+v.pgto+'</span>' +
+          (v.obs ? '<br><span style="font-size:11px;color:var(--text3);">'+v.obs+'</span>' : '') +
+        '</div>' +
+        '<div style="text-align:right;flex-shrink:0;">' +
+          '<div style="font-size:18px;font-weight:700;color:var(--neon);">'+fmt(v.valor)+'</div>' +
+          '<span class="tag '+tagCor+'" style="font-size:10px;">'+tagLabel+'</span>' +
+        '</div>' +
+      '</div>' +
+
+      // Linha de recebido/pendente
+      (!isPago ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 10px;background:var(--bg3);border-radius:var(--radius);margin-bottom:8px;">' +
+        '<div style="text-align:center;">' +
+          '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Recebido</div>' +
+          '<div style="font-size:15px;font-weight:700;color:var(--neon);">'+(recebido > 0 ? fmt(recebido) : '--')+'</div>' +
+        '</div>' +
+        '<div style="text-align:center;">' +
+          '<div style="font-size:10px;color:var(--text3);text-transform:uppercase;">Pendente</div>' +
+          '<div style="font-size:15px;font-weight:700;color:var(--amber-text);">'+fmt(pendente)+'</div>' +
+          (qtdParcFats > 0 ? '<div style="font-size:10px;color:var(--text3);">'+qtdParcFats+' parcela(s) em aberto</div>' : '') +
+        '</div>' +
+      '</div>' : '') +
+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
+        (!isPago ? '<button class="btn-ok" onclick="darBaixaVenda('+i+')" style="font-size:12px;padding:6px 12px;"><i class="ti ti-check"></i> Confirmar Recebimento</button>' :
+          '<span style="font-size:12px;color:var(--neon);display:flex;align-items:center;gap:4px;"><i class="ti ti-circle-check"></i> Recebido em '+fmtD(v.dataPagamento||v.data)+'</span>') +
+        '<button class="btn-del" onclick="delVenda('+i+')" style="margin-left:auto;"><i class="ti ti-trash"></i> Remover</button>' +
+      '</div>' +
+    '</div>';
   }).join('');
 }
+
+
 
 function marcarPaga(i){faturas[i].status='paga';faturas[i].dataPagamento=hoje();S.set('faturas',faturas);renderContas();}
 function delFatura(i){if(confirm('Remover fatura?')){faturas.splice(i,1);S.set('faturas',faturas);renderContas();}}
