@@ -1961,6 +1961,28 @@
 </div><!-- fim tab-parceiros --></div><!-- /container -->
 </div><!-- /app-content -->
 
+<!-- MODAL SELETOR DE PEDIDOS -->
+<div id="modal-sel-pedidos" class="modal-overlay" style="display:none;" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal-box" style="max-width:520px;max-height:85vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <strong style="font-size:16px;color:var(--neon);"><i class="ti ti-clipboard-list"></i> Selecionar Pedidos</strong>
+      <button class="btn" onclick="document.getElementById('modal-sel-pedidos').style.display='none'"><i class="ti ti-x"></i></button>
+    </div>
+    <div id="sel-pedidos-lista" style="max-height:400px;overflow-y:auto;"></div>
+    <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+      <div>
+        <span style="font-size:12px;color:var(--text3);">Total selecionado:</span>
+        <strong id="sel-ped-total" style="color:var(--neon);margin-left:6px;">R$ 0,00</strong>
+        <span id="sel-ped-count" style="font-size:11px;color:var(--text3);margin-left:6px;"></span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" onclick="document.getElementById('modal-sel-pedidos').style.display='none'">Cancelar</button>
+        <button class="btn-ok" onclick="confirmarSeletorPedidos()"><i class="ti ti-check"></i> Importar Selecionados</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL EDICAO PEDIDO -->
 <div id="modal-pedido" class="modal-overlay" style="display:none;" onclick="if(event.target===this)fecharModalPedido()">
   <div class="modal-box" style="max-width:560px;max-height:90vh;overflow-y:auto;">
