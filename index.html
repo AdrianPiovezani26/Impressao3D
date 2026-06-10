@@ -699,9 +699,14 @@
           <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--blue-text);text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem;">
             <i class="ti ti-user"></i> Preco Consumidor
           </div>
-          <div style="font-size:28px;font-weight:700;color:var(--blue-text);text-shadow:0 0 10px rgba(0,200,255,0.4);margin-bottom:.75rem;" id="r-preco">R$ 0,00</div>
-          <div style="font-size:11px;color:var(--text3);" id="r-preco-total"></div>
-          <div style="margin-top:1rem;border-top:1px solid rgba(0,200,255,0.2);padding-top:.75rem;">
+          <div style="font-size:28px;font-weight:700;color:var(--blue-text);text-shadow:0 0 10px rgba(0,200,255,0.4);margin-bottom:.25rem;" id="r-preco">R$ 0,00</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:.5rem;" id="r-preco-label">preco unitario</div>
+          <div id="r-preco-total-box" style="display:none;background:rgba(0,200,255,0.08);border:1px solid rgba(0,200,255,0.2);border-radius:8px;padding:8px 12px;margin-bottom:.5rem;">
+            <div style="font-size:10px;color:var(--blue-text);opacity:0.7;text-transform:uppercase;letter-spacing:1px;">Total do lote</div>
+            <div style="font-size:22px;font-weight:700;color:var(--blue-text);" id="r-preco-total"></div>
+            <div style="font-size:11px;color:var(--text3);" id="r-preco-total-info"></div>
+          </div>
+          <div style="margin-top:.5rem;border-top:1px solid rgba(0,200,255,0.2);padding-top:.75rem;">
             <div style="font-size:11px;color:var(--blue-text);opacity:0.7;" id="r-lucro"></div>
           </div>
         </div>
@@ -2912,9 +2917,14 @@ function calcular(){
 
   // ---- Card 1: Custo Unitario ----
   var custoUnitEl = document.getElementById('r-custo-unit');
-  if(custoUnitEl) custoUnitEl.textContent = fmt(cUnit);
-  var custoLoteInfoEl = document.getElementById('r-custo-lote-info');
-  if(custoLoteInfoEl) custoLoteInfoEl.textContent = qtd > 1 ? 'Lote de ' + qtd + ' un: ' + fmt(cTotalLote) : 'Custo total de producao';
+  var custoInfoEl = document.getElementById('r-custo-lote-info');
+  if(qtd > 1) {
+    if(custoUnitEl) { custoUnitEl.textContent = fmt(cTotalLote); custoUnitEl.style.fontSize = '28px'; }
+    if(custoInfoEl) custoInfoEl.textContent = 'custo total lote | ' + fmt(cUnit) + '/un';
+  } else {
+    if(custoUnitEl) { custoUnitEl.textContent = fmt(cUnit); custoUnitEl.style.fontSize = '28px'; }
+    if(custoInfoEl) custoInfoEl.textContent = 'custo total de producao';
+  }
 
   // ---- Card 2 e 3: mostrar somente quando markup > 0 ----
   var cardCons = document.getElementById('card-preco-consumidor');
@@ -2930,14 +2940,32 @@ function calcular(){
     if(gridCols) gridCols.style.gridTemplateColumns = '1fr';
   }
   // ---- Card 2: Preco Consumidor ----
-  document.getElementById('r-preco').textContent = fmt(pVendaUnit);
-  var totalEl = document.getElementById('r-preco-total');
-  if(totalEl) {
-    if(qtd > 1) {
-      totalEl.textContent = 'Lote (' + qtd + ' un): ' + fmt(pVendaLote);
-    } else {
-      totalEl.textContent = '';
+  var precoEl      = document.getElementById('r-preco');
+  var precoLblEl   = document.getElementById('r-preco-label');
+  var precoTotalBox= document.getElementById('r-preco-total-box');
+  var precoTotalEl = document.getElementById('r-preco-total');
+  var precoTotalInfo=document.getElementById('r-preco-total-info');
+
+  if(qtd > 1) {
+    // Total em destaque grande, unitario menor
+    if(precoEl) {
+      precoEl.textContent = fmt(pVendaLote);
+      precoEl.style.fontSize = '32px';
+      precoEl.style.textShadow = '0 0 15px rgba(0,200,255,0.6)';
     }
+    if(precoLblEl) precoLblEl.textContent = 'total lote (' + qtd + ' unidades)';
+    if(precoTotalBox) precoTotalBox.style.display = 'block';
+    if(precoTotalEl) precoTotalEl.textContent = fmt(pVendaUnit);
+    if(precoTotalInfo) precoTotalInfo.textContent = 'preco unitario | ' + qtd + ' un x ' + fmt(pVendaUnit);
+  } else {
+    // Unitario em destaque (qty = 1)
+    if(precoEl) {
+      precoEl.textContent = fmt(pVendaUnit);
+      precoEl.style.fontSize = '28px';
+      precoEl.style.textShadow = '0 0 10px rgba(0,200,255,0.4)';
+    }
+    if(precoLblEl) precoLblEl.textContent = 'preco unitario';
+    if(precoTotalBox) precoTotalBox.style.display = 'none';
   }
   document.getElementById('r-lucro').textContent =
     'Lucro: ' + fmt(lucroUnit) + ' | Margem: ' + margemReal.toFixed(1) + '% | Markup: ' + markupReal.toFixed(1) + '%';
