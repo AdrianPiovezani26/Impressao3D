@@ -402,6 +402,7 @@
   <button onclick="showTab('contaspagar')" id="btn-contaspagar"><i class="ti ti-file-invoice"></i> Contas a Pagar</button>
   <button onclick="showTab('financeiro')" id="btn-financeiro"><i class="ti ti-chart-bar"></i> Financeiro</button>
   <button onclick="showTab('parceiros')" id="btn-parceiros"><i class="ti ti-users"></i> Parceiros</button>
+  <button onclick="showTab('oportunidades')" id="btn-oportunidades"><i class="ti ti-target"></i> Oportunidades</button>
   <button onclick="showTab('consignacao')" id="btn-consignacao"><i class="ti ti-transfer"></i> Consignacao</button>
   <button onclick="showTab('relatorios')" id="btn-relatorios"><i class="ti ti-report-analytics"></i> Relatorios</button>
   <button onclick="showTab('config')" id="btn-config"><i class="ti ti-settings"></i> Configuracoes</button>
@@ -1822,6 +1823,76 @@
   </div>
 </div>
 
+<!-- OPORTUNIDADES / PIPELINE CRM -->
+<div id="tab-oportunidades" class="tab">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
+    <span class="stitle" style="margin:0;"><i class="ti ti-target"></i> Oportunidades</span>
+    <button class="btn-ok" onclick="abrirFormOport(-1)"><i class="ti ti-plus"></i> Nova Oportunidade</button>
+  </div>
+
+  <!-- KPIs -->
+  <div id="oport-kpis" style="margin-bottom:1rem;"></div>
+
+  <!-- Alertas de retorno -->
+  <div id="oport-alertas" style="margin-bottom:1rem;"></div>
+
+  <!-- Form -->
+  <div id="form-oport" class="card" style="display:none;margin-bottom:1rem;">
+    <div class="stitle" id="form-oport-titulo" style="font-size:13px;margin-bottom:1rem;"><i class="ti ti-plus"></i> Nova Oportunidade</div>
+    <div class="grid2">
+      <div class="field"><label>Cliente / Contato *</label><input type="text" id="op-cliente" placeholder="Nome do cliente"></div>
+      <div class="field"><label>WhatsApp / Instagram</label><input type="text" id="op-contato" placeholder="(45) 9xxxx-xxxx ou @perfil"></div>
+      <div class="field"><label>Produto Solicitado *</label><input type="text" id="op-produto" placeholder="Ex: Funko Pop personalizado, suporte PS2..."></div>
+      <div class="field"><label>Valor Estimado (R$)</label><input type="number" id="op-valor" placeholder="0,00" min="0" step="0.01"></div>
+      <div class="field"><label>Data do Contato</label><input type="date" id="op-data"></div>
+      <div class="field"><label>Data de Retorno</label><input type="date" id="op-retorno" title="Quando voce precisa entrar em contato novamente"></div>
+      <div class="field"><label>Status</label>
+        <select id="op-status" style="border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);width:100%;">
+          <option value="aguardando">Aguardando</option>
+          <option value="desenvolvendo">Em Desenvolvimento</option>
+          <option value="orcamento">Orcamento Enviado</option>
+          <option value="convertido">Convertido em Pedido</option>
+          <option value="perdido">Perdido</option>
+        </select>
+      </div>
+      <div class="field"><label>Origem</label>
+        <select id="op-origem" style="border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);width:100%;">
+          <option value="whatsapp">WhatsApp</option>
+          <option value="instagram">Instagram</option>
+          <option value="indicacao">Indicacao</option>
+          <option value="loja">Loja Fisica</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Observacoes / Detalhes</label>
+      <textarea id="op-obs" placeholder="Detalhes do pedido, referencias, dificuldades, tamanho, cor..." rows="3"
+        style="width:100%;border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);resize:vertical;"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+      <button class="btn-ok" onclick="salvarOport()"><i class="ti ti-device-floppy"></i> Salvar</button>
+      <button class="btn" onclick="document.getElementById('form-oport').style.display='none'">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;">
+    <select id="op-filtro-status" onchange="renderOportunidades()" style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+      <option value="">Todos</option>
+      <option value="aguardando">Aguardando</option>
+      <option value="desenvolvendo">Em Desenvolvimento</option>
+      <option value="orcamento">Orcamento Enviado</option>
+      <option value="convertido">Convertido</option>
+      <option value="perdido">Perdido</option>
+    </select>
+    <input type="text" id="op-busca" placeholder="Buscar cliente ou produto..." oninput="renderOportunidades()"
+      style="flex:1;min-width:180px;border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+  </div>
+
+  <!-- Pipeline visual -->
+  <div id="lista-oportunidades"></div>
+</div>
+
 <!-- PARCEIROS -->
 <div id="tab-parceiros" class="tab">
   <!-- Header -->
@@ -2192,6 +2263,7 @@ function showTab(t){
   if(t==='relatorios')  { setRelPeriodo('mes'); showRelSubtab('vendas'); }
   if(t==='calc')        { carregarConfigPrecificacao(); }
   if(t==='consignacao') { renderKpisConsig(); showConsigSubtab('lotes'); }
+  if(t==='oportunidades') { renderKpisOport(); renderOportunidades(); }
   if(t==='contaspagar') { showTab_contaspagar(); }
   if(t==='parceiros')   { showParcSubtab('clientes'); }
 }
@@ -3587,6 +3659,7 @@ function salvarVenda(){
   document.getElementById('form-venda').style.display='none';
   ['v-cliente','v-obs'].forEach(id=>{document.getElementById(id).value='';});
   document.getElementById('v-valor').value='';document.getElementById('v-total').value='';document.getElementById('v-qtd').value='1';
+  oportunidades = S.get('oportunidades') || [];
   contasPagar = S.get('contas_pagar') || [];
   // Migrar: contas com dataPagamento devem ter status 'paga'
   var cpAlterou = false;
@@ -9872,6 +9945,239 @@ function renderKpisCP() {
    FIM MODULO CONTAS A PAGAR
    ===================================================== */
 
+
+/* =====================================================
+   MODULO OPORTUNIDADES / PIPELINE CRM
+   ===================================================== */
+var oportunidades = S.get('oportunidades') || [];
+var _oportEditIdx = -1;
+
+var OP_STATUS = {
+  aguardando:   {label:'Aguardando',     cor:'var(--amber-text)', tag:'tag-amber',  icon:'ti-clock'},
+  desenvolvendo:{label:'Desenvolvendo',  cor:'var(--blue-text)',  tag:'tag-blue',   icon:'ti-tools'},
+  orcamento:    {label:'Orc. Enviado',   cor:'var(--text)',       tag:'',           icon:'ti-send'},
+  convertido:   {label:'Convertido',     cor:'var(--neon)',       tag:'tag-green',  icon:'ti-check'},
+  perdido:      {label:'Perdido',        cor:'var(--red-text)',   tag:'tag-red',    icon:'ti-x'}
+};
+var OP_ORIGEM = {whatsapp:'WhatsApp', instagram:'Instagram', indicacao:'Indicacao', loja:'Loja', outro:'Outro'};
+
+function abrirFormOport(idx) {
+  _oportEditIdx = idx;
+  var form  = document.getElementById('form-oport');
+  var titulo = document.getElementById('form-oport-titulo');
+  if(!form) return;
+  form.style.display = 'block';
+  if(idx < 0) {
+    if(titulo) titulo.innerHTML = '<i class="ti ti-plus"></i> Nova Oportunidade';
+    document.getElementById('op-cliente').value  = '';
+    document.getElementById('op-contato').value  = '';
+    document.getElementById('op-produto').value  = '';
+    document.getElementById('op-valor').value    = '';
+    document.getElementById('op-data').value     = hoje();
+    document.getElementById('op-retorno').value  = '';
+    document.getElementById('op-status').value   = 'aguardando';
+    document.getElementById('op-origem').value   = 'whatsapp';
+    document.getElementById('op-obs').value      = '';
+  } else {
+    var o = oportunidades[idx];
+    if(!o) return;
+    if(titulo) titulo.innerHTML = '<i class="ti ti-edit"></i> Editar: ' + o.cliente;
+    document.getElementById('op-cliente').value  = o.cliente  || '';
+    document.getElementById('op-contato').value  = o.contato  || '';
+    document.getElementById('op-produto').value  = o.produto  || '';
+    document.getElementById('op-valor').value    = o.valor    || '';
+    document.getElementById('op-data').value     = o.data     || hoje();
+    document.getElementById('op-retorno').value  = o.retorno  || '';
+    document.getElementById('op-status').value   = o.status   || 'aguardando';
+    document.getElementById('op-origem').value   = o.origem   || 'whatsapp';
+    document.getElementById('op-obs').value      = o.obs      || '';
+  }
+  form.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function salvarOport() {
+  var cliente = upper(document.getElementById('op-cliente').value);
+  var produto = upper(document.getElementById('op-produto').value);
+  if(!cliente) { alert('Informe o nome do cliente.'); return; }
+  if(!produto) { alert('Informe o produto solicitado.'); return; }
+
+  var op = {
+    id:      _oportEditIdx >= 0 ? oportunidades[_oportEditIdx].id : Date.now(),
+    cliente, produto,
+    contato: upper(document.getElementById('op-contato').value),
+    valor:   parseFloat(document.getElementById('op-valor').value)||0,
+    data:    document.getElementById('op-data').value || hoje(),
+    retorno: document.getElementById('op-retorno').value,
+    status:  document.getElementById('op-status').value,
+    origem:  document.getElementById('op-origem').value,
+    obs:     document.getElementById('op-obs').value.toUpperCase().trim(),
+    atualizado: hoje()
+  };
+
+  if(_oportEditIdx >= 0) oportunidades[_oportEditIdx] = op;
+  else oportunidades.unshift(op);
+
+  S.set('oportunidades', oportunidades);
+  document.getElementById('form-oport').style.display = 'none';
+  renderOportunidades();
+  renderKpisOport();
+  alert('Oportunidade salva: ' + op.cliente);
+}
+
+function delOport(idx) {
+  if(!confirm('Excluir oportunidade de "' + oportunidades[idx].cliente + '"?')) return;
+  oportunidades.splice(idx, 1);
+  S.set('oportunidades', oportunidades);
+  renderOportunidades();
+  renderKpisOport();
+}
+
+function avancarStatus(idx) {
+  var ordem = ['aguardando','desenvolvendo','orcamento','convertido'];
+  var atual = oportunidades[idx].status;
+  var prox  = ordem[ordem.indexOf(atual)+1];
+  if(!prox) return;
+  oportunidades[idx].status = prox;
+  oportunidades[idx].atualizado = hoje();
+  S.set('oportunidades', oportunidades);
+  renderOportunidades();
+  renderKpisOport();
+}
+
+function renderKpisOport() {
+  var el = document.getElementById('oport-kpis');
+  if(!el) return;
+  var ativos   = oportunidades.filter(function(o){ return o.status!=='convertido'&&o.status!=='perdido'; });
+  var conv     = oportunidades.filter(function(o){ return o.status==='convertido'; });
+  var perdidos = oportunidades.filter(function(o){ return o.status==='perdido'; });
+  var valAtivo = ativos.reduce(function(s,o){ return s+(o.valor||0); },0);
+  var hj = hoje();
+  var retVenc  = ativos.filter(function(o){ return o.retorno && o.retorno <= hj; }).length;
+
+  el.innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:1rem;">' +
+    kpiRel('Em Aberto',    ativos.length+' contatos',   'var(--amber-text)', 'ti-target') +
+    kpiRel('Pot. Estimado',fmt(valAtivo),                'var(--blue-text)',  'ti-coin') +
+    kpiRel('Convertidos',  conv.length+' pedidos',       'var(--neon)',       'ti-check') +
+    kpiRel('Perdidos',     perdidos.length+' contatos',  'var(--red-text)',   'ti-x') +
+    (retVenc>0 ? kpiRel('Retorno Vencido', retVenc+' hoje!', 'var(--red-text)', 'ti-bell') : '') +
+    '</div>';
+}
+
+function renderAlertasOport() {
+  var el = document.getElementById('oport-alertas');
+  if(!el) return;
+  var hj = hoje();
+  var d7 = new Date(); d7.setDate(d7.getDate()+7);
+  var d7s = d7.toISOString().slice(0,10);
+  var alertas = oportunidades.filter(function(o){
+    return o.retorno && o.retorno <= d7s && o.status!=='convertido' && o.status!=='perdido';
+  }).sort(function(a,b){ return a.retorno.localeCompare(b.retorno); });
+
+  if(!alertas.length) { el.innerHTML=''; return; }
+
+  el.innerHTML =
+    '<div style="background:rgba(255,170,0,0.08);border:1px solid var(--amber-border);border-radius:var(--radius);padding:12px;margin-bottom:8px;">' +
+    '<div style="font-size:12px;font-weight:700;color:var(--amber-text);margin-bottom:8px;"><i class="ti ti-bell"></i> RETORNOS PENDENTES</div>' +
+    alertas.map(function(o){
+      var atrasado = o.retorno < hj;
+      var cor = atrasado ? 'var(--red-text)' : 'var(--amber-text)';
+      var idx = oportunidades.indexOf(o);
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border2);flex-wrap:wrap;gap:4px;">' +
+        '<div>' +
+          '<strong style="font-size:13px;color:'+cor+';">'+o.cliente+'</strong>' +
+          '<span style="font-size:11px;color:var(--text3);margin-left:8px;">'+o.produto+'</span>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+          '<span style="font-size:11px;color:'+cor+';">'+(atrasado?'Atrasado: ':'Retorno: ')+fmtD(o.retorno)+'</span>' +
+          '<button onclick="abrirFormOport('+idx+')" class="btn" style="font-size:10px;padding:3px 8px;"><i class="ti ti-edit"></i></button>' +
+        '</div>' +
+      '</div>';
+    }).join('') +
+    '</div>';
+}
+
+function renderOportunidades() {
+  var el = document.getElementById('lista-oportunidades');
+  if(!el) return;
+
+  var filtSt = (document.getElementById('op-filtro-status')||{}).value||'';
+  var busca  = ((document.getElementById('op-busca')||{}).value||'').toUpperCase();
+
+  var lista = oportunidades.filter(function(o){
+    if(filtSt && o.status !== filtSt) return false;
+    if(busca && !(o.cliente||'').toUpperCase().includes(busca) && !(o.produto||'').toUpperCase().includes(busca)) return false;
+    return true;
+  });
+
+  renderAlertasOport();
+
+  if(!lista.length) {
+    el.innerHTML = '<div class="empty"><i class="ti ti-target"></i>Nenhuma oportunidade encontrada.<br><span style="font-size:12px;">Clique em "+ Nova Oportunidade" para comecar.</span></div>';
+    return;
+  }
+
+  var hj = hoje();
+  el.innerHTML = lista.map(function(o){
+    var idx = oportunidades.indexOf(o);
+    var st  = OP_STATUS[o.status] || OP_STATUS.aguardando;
+    var atrasado = o.retorno && o.retorno < hj && o.status!=='convertido'&&o.status!=='perdido';
+    var ordem = ['aguardando','desenvolvendo','orcamento','convertido'];
+    var podeAvancar = ordem.indexOf(o.status) >= 0 && ordem.indexOf(o.status) < 3;
+
+    return '<div class="item-card" style="border-left:3px solid '+st.cor+';margin-bottom:8px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+            '<strong style="font-size:15px;">'+o.cliente+'</strong>' +
+            '<span class="tag '+st.tag+'" style="font-size:10px;"><i class="ti '+st.icon+'"></i> '+st.label+'</span>' +
+            (o.origem ? '<span class="tag" style="font-size:10px;">'+OP_ORIGEM[o.origem]+'</span>' : '') +
+          '</div>' +
+          '<div style="font-size:13px;color:var(--text2);margin-top:4px;"><i class="ti ti-3d-cube-sphere" style="font-size:11px;"></i> '+o.produto+'</div>' +
+          (o.contato ? '<div style="font-size:12px;color:var(--text3);margin-top:2px;"><i class="ti ti-phone" style="font-size:11px;"></i> '+o.contato+'</div>' : '') +
+          (o.obs ? '<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic;">'+o.obs+'</div>' : '') +
+        '</div>' +
+        '<div style="text-align:right;flex-shrink:0;">' +
+          (o.valor > 0 ? '<div style="font-size:16px;font-weight:700;color:var(--neon);">'+fmt(o.valor)+'</div>' : '') +
+          '<div style="font-size:11px;color:var(--text3);">Contato: '+fmtD(o.data)+'</div>' +
+          (o.retorno ? '<div style="font-size:11px;color:'+(atrasado?'var(--red-text)':'var(--amber-text)')+';">'+(atrasado?'ATRASADO: ':'Retorno: ')+fmtD(o.retorno)+'</div>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">' +
+        (podeAvancar ? '<button class="btn-ok" onclick="avancarStatus('+idx+')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-arrow-right"></i> Avancar Status</button>' : '') +
+        (o.status==='aguardando'||o.status==='desenvolvendo'||o.status==='orcamento' ?
+          '<button class="btn-ok" onclick="criarPedidoDeOportunidade('+idx+')" style="font-size:11px;padding:5px 10px;background:rgba(57,255,20,0.08);border-color:var(--neon-border);color:var(--neon);"><i class="ti ti-clipboard-list"></i> Criar Pedido</button>' : '') +
+        '<button class="btn" onclick="abrirFormOport('+idx+')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-edit"></i> Editar</button>' +
+        '<button class="btn-del" onclick="delOport('+idx+')" style="font-size:11px;padding:5px 10px;margin-left:auto;"><i class="ti ti-trash"></i></button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function criarPedidoDeOportunidade(idx) {
+  var o = oportunidades[idx];
+  if(!o) return;
+  // Marcar como convertido
+  oportunidades[idx].status = 'convertido';
+  oportunidades[idx].atualizado = hoje();
+  S.set('oportunidades', oportunidades);
+  // Ir para pedidos com dados preenchidos
+  showTab('pedidos');
+  setTimeout(function(){
+    var btnNovo = document.querySelector('#tab-pedidos .btn-ok');
+    if(btnNovo) btnNovo.click();
+    setTimeout(function(){
+      var npmNome = document.getElementById('npm-nome');
+      if(npmNome) npmNome.value = o.produto;
+      var npmObs = document.getElementById('npm-obs');
+      if(npmObs) npmObs.value = 'CLIENTE: ' + o.cliente + (o.contato ? ' | ' + o.contato : '');
+      var npmPreco = document.getElementById('npm-preco-unit');
+      if(npmPreco && o.valor > 0) npmPreco.value = o.valor.toFixed(2);
+    }, 200);
+  }, 300);
+}
+/* ===== FIM OPORTUNIDADES ===== */
+
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
   if(verificarSessao()) {
@@ -9913,6 +10219,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var lancEl = document.getElementById('subtab-compras-lancamento');
   if(lancEl) { lancEl.style.cssText += ';display:block'; lancEl.classList.add('active'); }
   // Rotinas de inicializacao de dados
+  oportunidades = S.get('oportunidades') || [];
   contasPagar = S.get('contas_pagar') || [];
   // Migrar: contas com dataPagamento devem ter status 'paga'
   var cpAlterou = false;
