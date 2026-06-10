@@ -7413,9 +7413,17 @@ function addItemVenda(prodIdx, qtd, precoUnit, nome) {
   // Select de produto
   var sel = document.createElement('select');
   sel.style.cssText = 'flex:2;min-width:180px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:13px;background:var(--bg2);color:var(--text);';
-  sel.innerHTML = '<option value="">-- Produto avulso --</option>' +
-    produtos.map(function(p,i){ return '<option value="'+i+'">'+p.nome+'</option>'; }).join('');
-  if(prodIdx !== undefined && prodIdx >= 0) sel.value = prodIdx;
+
+  // Se tem nome mas nao achou prodIdx, adicionar como opcao avulsa
+  var optsExtra = '';
+  if((prodIdx === undefined || prodIdx < 0) && nome) {
+    optsExtra = '<option value="" selected>'+nome+'</option>';
+  }
+  sel.innerHTML = '<option value="">-- Produto avulso --</option>' + optsExtra +
+    produtos.map(function(p,i){ return '<option value="'+i+'"'+(i===prodIdx?' selected':'')+'>'+p.nome+'</option>'; }).join('');
+
+  if(prodIdx !== undefined && prodIdx >= 0) sel.value = String(prodIdx);
+
   sel.addEventListener('change', function(){
     var idx = parseInt(sel.value);
     if(!isNaN(idx) && produtos[idx]) {
