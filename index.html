@@ -2918,12 +2918,18 @@ function calcular(){
   // ---- Card 1: Custo Unitario ----
   var custoUnitEl = document.getElementById('r-custo-unit');
   var custoInfoEl = document.getElementById('r-custo-lote-info');
-  if(qtd > 1) {
-    if(custoUnitEl) { custoUnitEl.textContent = fmt(cTotalLote); custoUnitEl.style.fontSize = '28px'; }
-    if(custoInfoEl) custoInfoEl.textContent = 'custo total lote | ' + fmt(cUnit) + '/un';
-  } else {
-    if(custoUnitEl) { custoUnitEl.textContent = fmt(cUnit); custoUnitEl.style.fontSize = '28px'; }
-    if(custoInfoEl) custoInfoEl.textContent = 'custo total de producao';
+  if(custoUnitEl) {
+    // Sempre guardar o valor UNITARIO no data-attribute (usado por coletarDadosCalc)
+    custoUnitEl.dataset.unitValue = cUnit.toFixed(2);
+    if(qtd > 1) {
+      custoUnitEl.textContent = fmt(cTotalLote);
+      custoUnitEl.style.fontSize = '28px';
+      if(custoInfoEl) custoInfoEl.textContent = 'custo total lote | ' + fmt(cUnit) + '/un';
+    } else {
+      custoUnitEl.textContent = fmt(cUnit);
+      custoUnitEl.style.fontSize = '28px';
+      if(custoInfoEl) custoInfoEl.textContent = 'custo total de producao';
+    }
   }
 
   // ---- Card 2 e 3: mostrar somente quando markup > 0 ----
@@ -2950,6 +2956,7 @@ function calcular(){
     // Total em destaque grande, unitario menor
     if(precoEl) {
       precoEl.textContent = fmt(pVendaLote);
+      precoEl.dataset.unitValue = pVendaUnit.toFixed(2); // sempre guardar unitario
       precoEl.style.fontSize = '32px';
       precoEl.style.textShadow = '0 0 15px rgba(0,200,255,0.6)';
     }
@@ -2961,6 +2968,7 @@ function calcular(){
     // Unitario em destaque (qty = 1)
     if(precoEl) {
       precoEl.textContent = fmt(pVendaUnit);
+      precoEl.dataset.unitValue = pVendaUnit.toFixed(2);
       precoEl.style.fontSize = '28px';
       precoEl.style.textShadow = '0 0 10px rgba(0,200,255,0.4)';
     }
@@ -5921,9 +5929,13 @@ function coletarDadosCalc() {
   var hH = parseInt(document.getElementById('c-horas-h').value)||0;
   var hM = parseInt(document.getElementById('c-horas-m').value)||0;
   var filsCalc = getFilsCalc();
-  var custo = parseFloat(document.getElementById('r-custo-unit').textContent.replace('R$ ','').replace(',','.')) || 0;
-  var precoUnit = parseFloat(document.getElementById('r-preco').textContent.replace('R$ ','').replace(',','.')) || 0;
-  var precoLoj = parseFloat(document.getElementById('r-preco-lojista').textContent.replace('R$ ','').replace(',','.')) || 0;
+  var custoEl2 = document.getElementById('r-custo-unit');
+  var precoEl2 = document.getElementById('r-preco');
+  var precoLojEl2 = document.getElementById('r-preco-lojista');
+  // Sempre usar data-attribute (valor unitario) se disponivel, senao ler textContent
+  var custo    = custoEl2 ? (parseFloat(custoEl2.dataset.unitValue) || parseFloat(custoEl2.textContent.replace('R$ ','').replace(',','.')) || 0) : 0;
+  var precoUnit= precoEl2 ? (parseFloat(precoEl2.dataset.unitValue) || parseFloat(precoEl2.textContent.replace('R$ ','').replace(',','.')) || 0) : 0;
+  var precoLoj = precoLojEl2 ? parseFloat(precoLojEl2.textContent.replace('R$ ','').replace(',','.')) || 0 : 0;
   // Coletar detalhes completos dos filamentos para restaurar depois
   var filsDetalhes = [];
   var listaFils = document.getElementById('c-fils-lista');
