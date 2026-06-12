@@ -994,13 +994,63 @@
 
 <!-- CONTAS A RECEBER -->
 <div id="tab-contas" class="tab">
+
+  <!-- Header -->
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
-    <span class="stitle" style="margin:0;">Contas a Receber</span>
-    <select id="filtro-fatura" onchange="renderContas()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);">
-      <option value="">Todas</option><option value="pendente">Pendentes</option><option value="vencida">Vencidas</option><option value="paga">Pagas</option>
-    </select>
+    <span class="stitle" style="margin:0;"><i class="ti ti-receipt"></i> Contas a Receber</span>
+    <button class="btn-ok" onclick="abrirFormFatura(-1)"><i class="ti ti-plus"></i> Nova Fatura</button>
   </div>
+
+  <!-- KPIs -->
   <div id="resumo-contas" style="margin-bottom:1rem;"></div>
+
+  <!-- Alertas vencidos -->
+  <div id="contas-alertas" style="margin-bottom:1rem;"></div>
+
+  <!-- Form nova fatura -->
+  <div id="form-fatura" class="card" style="display:none;margin-bottom:1rem;">
+    <div class="stitle" style="font-size:13px;margin-bottom:1rem;"><i class="ti ti-plus"></i> Nova Fatura</div>
+    <div class="grid2">
+      <div class="field"><label>Cliente *</label><input type="text" id="fat-cliente" placeholder="Nome do cliente"></div>
+      <div class="field"><label>Descricao *</label><input type="text" id="fat-desc" placeholder="Ex: Funko Pop, Suporte PS2..."></div>
+      <div class="field"><label>Valor (R$) *</label><input type="number" id="fat-valor" placeholder="0,00" min="0" step="0.01"></div>
+      <div class="field"><label>Data de Emissao</label><input type="date" id="fat-data"></div>
+      <div class="field"><label>Vencimento</label><input type="date" id="fat-venc"></div>
+      <div class="field"><label>Forma de Pagamento</label>
+        <select id="fat-pgto" style="width:100%;border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+          <option value="Pix">Pix</option>
+          <option value="Dinheiro">Dinheiro</option>
+          <option value="Cartao de Credito">Cartao de Credito</option>
+          <option value="Cartao de Debito">Cartao de Debito</option>
+          <option value="Transferencia">Transferencia</option>
+          <option value="A prazo">A prazo</option>
+          <option value="Boleto">Boleto</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn-ok" onclick="salvarFatura()"><i class="ti ti-device-floppy"></i> Salvar</button>
+      <button class="btn" onclick="document.getElementById('form-fatura').style.display='none'">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Filtros e busca -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;align-items:center;">
+    <select id="filtro-fatura" onchange="renderContas()"
+      style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+      <option value="">Todas</option>
+      <option value="pendente">Pendentes</option>
+      <option value="vencida">Vencidas</option>
+      <option value="paga">Pagas</option>
+    </select>
+    <select id="filtro-fatura-mes" onchange="renderContas()"
+      style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+      <option value="">Todos os meses</option>
+    </select>
+    <input type="text" id="filtro-fatura-busca" placeholder="Buscar cliente..." oninput="renderContas()"
+      style="flex:1;min-width:150px;border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+  </div>
+
   <div id="lista-contas"></div>
 </div>
 
@@ -3829,44 +3879,154 @@ function renderVendas(){
 
 
 
+function abrirFormFatura(idx) {
+  var form = document.getElementById('form-fatura');
+  if(!form) return;
+  form.style.display = 'block';
+  if(idx < 0) {
+    document.getElementById('fat-cliente').value = '';
+    document.getElementById('fat-desc').value    = '';
+    document.getElementById('fat-valor').value   = '';
+    document.getElementById('fat-data').value    = hoje();
+    document.getElementById('fat-venc').value    = '';
+    document.getElementById('fat-pgto').value    = 'Pix';
+  }
+  form.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function salvarFatura() {
+  var cliente = upper(document.getElementById('fat-cliente').value);
+  var desc    = upper(document.getElementById('fat-desc').value);
+  var valor   = parseFloat(document.getElementById('fat-valor').value)||0;
+  if(!cliente) { alert('Informe o cliente.'); return; }
+  if(!desc)    { alert('Informe a descricao.'); return; }
+  if(!valor)   { alert('Informe o valor.'); return; }
+
+  var fat = {
+    id:        Date.now(),
+    cliente:   cliente,
+    descricao: desc,
+    valor:     valor,
+    data:      document.getElementById('fat-data').value || hoje(),
+    venc:      document.getElementById('fat-venc').value || '',
+    pgto:      document.getElementById('fat-pgto').value || 'Pix',
+    status:    'pendente'
+  };
+  faturas.unshift(fat);
+  S.set('faturas', faturas);
+  document.getElementById('form-fatura').style.display = 'none';
+  renderContas();
+  alert('Fatura criada: ' + cliente + ' - ' + fmt(valor));
+}
+
 function renderContas() {
+  var hj     = hoje();
   var filtro = (document.getElementById('filtro-fatura')||{}).value || '';
-  var hj = hoje();
-  var lista = filtro ? faturas.filter(function(f){ return f.status === filtro; }) : faturas;
+  var filtMs = (document.getElementById('filtro-fatura-mes')||{}).value || '';
+  var busca  = ((document.getElementById('filtro-fatura-busca')||{}).value||'').toUpperCase();
 
-  var tot  = faturas.filter(function(f){ return f.status !== 'paga'; }).reduce(function(s,f){ return s+(f.valor||0); },0);
-  var venc = faturas.filter(function(f){ return f.status === 'pendente' && f.venc && f.venc < hj; }).reduce(function(s,f){ return s+(f.valor||0); },0);
-  var rec  = faturas.filter(function(f){ return f.status === 'paga'; }).reduce(function(s,f){ return s+(f.valor||0); },0);
+  // Popular filtro de mes
+  var selMes = document.getElementById('filtro-fatura-mes');
+  if(selMes) {
+    var meses = {};
+    faturas.forEach(function(f){ if(f.data) meses[f.data.slice(0,7)]=true; });
+    var valAtual = selMes.value;
+    selMes.innerHTML = '<option value="">Todos os meses</option>' +
+      Object.keys(meses).sort().reverse().map(function(m){
+        var d = new Date(m+'-01');
+        var n = d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+        return '<option value="'+m+'">'+n.charAt(0).toUpperCase()+n.slice(1)+'</option>';
+      }).join('');
+    selMes.value = valAtual;
+  }
 
-  document.getElementById('resumo-contas').innerHTML = faturas.length ?
-    '<div class="grid3" style="margin-bottom:1rem;"><div class="metric"><div class="lbl">A receber</div><div class="val" style="color:var(--amber-text);">'+fmt(tot)+'</div></div><div class="metric"><div class="lbl">Vencidas</div><div class="val" style="color:var(--red-text);">'+fmt(venc)+'</div></div><div class="metric"><div class="lbl">Recebido</div><div class="val">'+fmt(rec)+'</div></div></div>' : '';
+  // KPIs
+  var aReceber = faturas.filter(function(f){ return f.status!=='paga'; }).reduce(function(s,f){ return s+f.valor; },0);
+  var vencidas = faturas.filter(function(f){ return f.status!=='paga' && f.venc && f.venc < hj; });
+  var recebido = faturas.filter(function(f){ return f.status==='paga'; }).reduce(function(s,f){ return s+f.valor; },0);
+  var proximos = faturas.filter(function(f){
+    if(f.status==='paga' || !f.venc) return false;
+    var d7 = new Date(); d7.setDate(d7.getDate()+7);
+    return f.venc >= hj && f.venc <= d7.toISOString().slice(0,10);
+  });
+
+  var resumoEl = document.getElementById('resumo-contas');
+  if(resumoEl) resumoEl.innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1rem;">' +
+    kpiRel('A Receber',    fmt(aReceber),            'var(--amber-text)', 'ti-clock') +
+    kpiRel('Vencidas',     vencidas.length+' faturas', 'var(--red-text)',  'ti-alert-triangle') +
+    kpiRel('Recebido',     fmt(recebido),             'var(--neon)',       'ti-check') +
+    kpiRel('Total Faturas',faturas.length+' itens',   'var(--text2)',      'ti-receipt') +
+    '</div>';
+
+  // Alertas vencidas e proximos vencimentos
+  var alertasEl = document.getElementById('contas-alertas');
+  if(alertasEl) {
+    var urgentes = vencidas.concat(proximos).slice(0,5);
+    alertasEl.innerHTML = urgentes.length ?
+      '<div style="background:rgba(255,80,80,0.08);border:1px solid rgba(255,80,80,0.3);border-radius:var(--radius);padding:12px;margin-bottom:8px;">' +
+        '<div style="font-size:12px;font-weight:700;color:var(--red-text);margin-bottom:8px;"><i class="ti ti-bell"></i> ATENCAO  VENCIMENTOS</div>' +
+        urgentes.map(function(f){
+          var atrasado = f.venc < hj;
+          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border2);flex-wrap:wrap;gap:4px;">' +
+            '<div><strong style="font-size:13px;color:'+(atrasado?'var(--red-text)':'var(--amber-text)')+';">'+f.cliente+'</strong>' +
+            '<span style="font-size:11px;color:var(--text3);margin-left:6px;">'+f.descricao+'</span></div>' +
+            '<div style="display:flex;align-items:center;gap:8px;">' +
+              '<span style="font-weight:700;color:'+(atrasado?'var(--red-text)':'var(--amber-text)')+';">'+fmt(f.valor)+'</span>' +
+              '<span style="font-size:11px;color:var(--text3);">'+(atrasado?'Venceu ':'Vence ')+fmtD(f.venc)+'</span>' +
+            '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>' : '';
+  }
+
+  // Filtrar lista
+  var lista = faturas.filter(function(f){
+    if(filtro === 'vencida') return f.status !== 'paga' && f.venc && f.venc < hj;
+    if(filtro && f.status !== filtro) return false;
+    if(filtMs && (f.data||'').slice(0,7) !== filtMs) return false;
+    if(busca && !(f.cliente||'').toUpperCase().includes(busca) && !(f.descricao||'').toUpperCase().includes(busca)) return false;
+    return true;
+  });
 
   var el = document.getElementById('lista-contas');
   if(!el) return;
+
   if(!lista.length) {
     el.innerHTML = '<div class="empty"><i class="ti ti-receipt"></i>Nenhuma fatura encontrada.</div>';
     return;
   }
 
-  el.innerHTML = lista.map(function(f, i) {
+  el.innerHTML = lista.map(function(f) {
     var idx = faturas.indexOf(f);
-    var isVenc = f.status === 'pendente' && f.venc && f.venc < hj;
-    return '<div class="item-card ' + (f.status==='paga'?'paga':isVenc?'vencida':'') + '">' +
+    var isVenc = f.status !== 'paga' && f.venc && f.venc < hj;
+    var isPaga = f.status === 'paga';
+    var tagCor = isPaga ? 'tag-green' : isVenc ? 'tag-red' : 'tag-amber';
+    var tagLabel = isPaga ? 'Paga' : isVenc ? 'Vencida' : 'Pendente';
+    var corValor = isPaga ? 'var(--neon)' : isVenc ? 'var(--red-text)' : 'var(--amber-text)';
+
+    return '<div class="item-card" style="border-left:3px solid '+corValor+';margin-bottom:8px;">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
-        '<div>' +
-          '<strong style="font-size:15px;">' + f.cliente + '</strong><br>' +
-          '<span style="font-size:12px;color:var(--text2);">' + f.descricao + ' - Emitida: ' + fmtD(f.data) + '</span>' +
-          (f.venc ? '<br><span style="font-size:12px;color:' + (isVenc?'var(--red-text)':'var(--text2)') + ';">Venc: ' + fmtD(f.venc) + (isVenc?' - VENCIDA':'') + '</span>' : '') +
-          (f.dataPagamento ? '<br><span style="font-size:12px;color:var(--neon);">Pago em: ' + fmtD(f.dataPagamento) + '</span>' : '') +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">' +
+            '<strong style="font-size:15px;">'+f.cliente+'</strong>' +
+            '<span class="tag '+tagCor+'" style="font-size:10px;">'+tagLabel+'</span>' +
+            (f.pgto ? '<span class="tag" style="font-size:10px;">'+f.pgto+'</span>' : '') +
+          '</div>' +
+          '<div style="font-size:13px;color:var(--text2);">'+f.descricao+'</div>' +
+          '<div style="font-size:11px;color:var(--text3);margin-top:3px;display:flex;gap:12px;flex-wrap:wrap;">' +
+            '<span><i class="ti ti-calendar" style="font-size:10px;"></i> Emissao: '+fmtD(f.data)+'</span>' +
+            (f.venc ? '<span style="color:'+(isVenc?'var(--red-text)':'var(--text3)')+'"><i class="ti ti-calendar-due" style="font-size:10px;"></i> Venc: '+fmtD(f.venc)+(isVenc?' ':'')+'</span>' : '') +
+            (f.dataPagamento ? '<span style="color:var(--neon);"><i class="ti ti-check" style="font-size:10px;"></i> Pago: '+fmtD(f.dataPagamento)+'</span>' : '') +
+          '</div>' +
         '</div>' +
-        '<div style="text-align:right;">' +
-          '<strong style="font-size:20px;color:' + (f.status==='paga'?'var(--neon)':isVenc?'var(--red-text)':'var(--amber-text)') + ';">' + fmt(f.valor) + '</strong><br>' +
-          '<span class="tag ' + (f.status==='paga'?'tag-green':isVenc?'tag-red':'tag-amber') + '">' + (f.status==='paga'?'Paga':isVenc?'Vencida':'Pendente') + '</span>' +
+        '<div style="text-align:right;flex-shrink:0;">' +
+          '<div style="font-size:22px;font-weight:700;color:'+corValor+';">'+fmt(f.valor)+'</div>' +
         '</div>' +
       '</div>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-        (f.status !== 'paga' ? '<button class="btn-ok" onclick="marcarPaga(' + idx + ')" style="font-size:12px;padding:6px 12px;"><i class="ti ti-check"></i> Marcar como Paga</button>' : '') +
-        '<button class="btn-del" onclick="delFatura(' + idx + ')" style="margin-left:auto;"><i class="ti ti-trash"></i></button>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">' +
+        (!isPaga ? '<button class="btn-ok" onclick="marcarPaga('+idx+')" style="font-size:12px;padding:6px 12px;"><i class="ti ti-check"></i> Marcar como Paga</button>' : '') +
+        '<button class="btn-del" onclick="delFatura('+idx+')" style="margin-left:auto;font-size:12px;padding:6px 10px;"><i class="ti ti-trash"></i></button>' +
       '</div>' +
     '</div>';
   }).join('');
