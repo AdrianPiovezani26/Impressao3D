@@ -3680,7 +3680,9 @@ function salvarVenda(){
     var pIdx   = sel ? parseInt(sel.value) : -1;
     var qtdI   = parseInt(inputs[0].value)||1;
     var precoI = parseFloat(inputs[1].value)||0;
-    var nomeI  = (!isNaN(pIdx)&&produtos[pIdx]) ? produtos[pIdx].nome : 'PRODUTO AVULSO';
+    var nomeI = (!isNaN(pIdx) && produtos[pIdx]) ? produtos[pIdx].nome :
+                (sel && sel.options[sel.selectedIndex] && sel.options[sel.selectedIndex].text !== '-- Produto avulso --') ?
+                upper(sel.options[sel.selectedIndex].text) : 'PRODUTO AVULSO';
     if(precoI > 0) itensVenda.push({prodIdx:pIdx, nome:nomeI, qtd:qtdI, precoUnit:precoI, total:qtdI*precoI});
   });
   if(!itensVenda.length) { alert('Adicione ao menos um item na venda.'); return; }
