@@ -4032,6 +4032,15 @@ function renderContas() {
   }).join('');
 }
 
+function delVenda(i) {
+  var v = vendas[i];
+  if(!v) return;
+  if(!confirm('Remover venda de "' + v.cliente + '" - ' + fmt(v.valor) + '?')) return;
+  vendas.splice(i, 1);
+  S.set('vendas', vendas);
+  renderVendas();
+}
+
 function marcarPaga(i){faturas[i].status='paga';faturas[i].dataPagamento=hoje();S.set('faturas',faturas);renderContas();}
 function delFatura(i){if(confirm('Remover fatura?')){faturas.splice(i,1);S.set('faturas',faturas);renderContas();}}
 
