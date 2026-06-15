@@ -5897,11 +5897,11 @@ function renderDashboard() {
 
   var lucroP = totalVendas - custoPedidosP - totalComprasP;
 
-  // Ticket medio: media por venda no periodo
-  var ticketMedio    = qtdVendas > 0 ? totalVendas / qtdVendas : 0;
-
-  // Margem: lucro / faturamento
-  var margem         = totalVendas > 0 ? (lucroP / totalVendas * 100) : 0;
+  // Lucro Liquido = Faturamento - Custo Producao - Compras
+  var margemLiq = totalVendas > 0 ? (lucroP / totalVendas * 100) : 0;
+  // Lucro Bruto = Faturamento - apenas Compras (sem custo producao)
+  var lucroBruto = totalVendas - totalComprasP;
+  var margemBruta = totalVendas > 0 ? (lucroBruto / totalVendas * 100) : 0;
 
   // ALERTAS
   var alertasEl = document.getElementById('dash-alertas');
@@ -5923,7 +5923,9 @@ function renderDashboard() {
     { cor:'vermelho', icon:'ti-alert-circle', label:'Vencido', valor:fmt(totalVencido), sub: faturas.filter(function(f){return f.status==='pendente'&&f.venc&&f.venc<hoje();}).length + ' fatura(s) vencida(s)' },
     { cor:'verde', icon:'ti-check',          label:'Recebido', valor:fmt(totalPago), sub:'Faturas pagas no periodo' },
     { cor:'amber', icon:'ti-shopping-bag',   label:'Compras', valor:fmt(totalComprasP), sub: comprasP.length + ' compra(s) no periodo' },
-    { cor: lucroP >= 0 ? 'verde' : 'vermelho', icon:'ti-trending-up', label:'Lucro Bruto', valor:fmt(lucroP), sub: 'Margem: ' + margem.toFixed(1) + '%' },
+    { cor: lucroP >= 0 ? 'verde' : 'vermelho', icon:'ti-trending-up', label:'Lucro Bruto', valor:fmt(lucroBruto), sub: 'Margem: ' + margemBruta.toFixed(1) + '% (sem custo prod.)' },
+    { cor:'amber', icon:'ti-tool', label:'Custo Producao', valor:fmt(custoPedidosP), sub:'Filamento + energia + MDO' },
+    { cor: lucroP >= 0 ? 'verde' : 'vermelho', icon:'ti-trending-up', label:'Lucro Liquido', valor:fmt(lucroP), sub: 'Margem: ' + margemLiq.toFixed(1) + '% (com custo prod.)' },
     { cor:'azul',  icon:'ti-receipt',        label:'Ticket Medio', valor:fmt(ticketMedio), sub:'Por venda no periodo' },
     { cor:'amber', icon:'ti-clipboard-list', label:'Pedidos Abertos', valor: String(pedidosAbertos.length), sub: pedidosAbertos.filter(function(p){return p.status==='imprimindo';}).length + ' imprimindo' },
     (function(){ var pend=contasPagar.filter(function(c){return c.status!=='paga';}); var tot=pend.reduce(function(s,c){return s+c.valor;},0); var venc=pend.filter(function(c){return c.status==='vencida';}).length; return { cor: venc>0?'vermelho':'amber', icon:'ti-file-invoice', label:'Contas a Pagar', valor:fmt(tot), sub: pend.length+' pendente(s)'+(venc>0?' | '+venc+' vencida(s)':'') }; })()
