@@ -5878,8 +5878,24 @@ function renderDashboard() {
   // Compras: total investido no periodo
   var totalComprasP  = comprasP.reduce(function(s,c){ return s+(c.total||0); }, 0);
 
-  // Lucro Bruto: faturamento do periodo - compras do periodo
-  var lucroP         = totalVendas - totalComprasP;
+  // Lucro Real: faturamento - custo de producao dos pedidos concluidos no periodo - compras
+  // Custo de producao = custoUnit (inclui filamento + energia + MDO + depreciacao + impostos)
+  var custoPedidosP = pedidos.filter(function(p){
+    return p.status === 'concluido' && estaNoperiodo(p.data, de, ate);
+  }).reduce(function(s,p){
+    var custo = parseFloat(p.custoUnit)||0;
+    var qtd   = parseInt(p.qtd)||1;
+    // Se nao tem custoUnit, tentar buscar do histCalc pelo nome
+    if(!custo) {
+      var h = _histCalc.find(function(h){
+        return (h.nome||'').toUpperCase().trim() === (p.nome||'').toUpperCase().trim();
+      });
+      if(h && h.custoUnit) custo = parseFloat(h.custoUnit)||0;
+    }
+    return s + custo * qtd;
+  }, 0);
+
+  var lucroP = totalVendas - custoPedidosP - totalComprasP;
 
   // Ticket medio: media por venda no periodo
   var ticketMedio    = qtdVendas > 0 ? totalVendas / qtdVendas : 0;
@@ -6425,23 +6441,47 @@ function pedidoHistCalc(id) {
   var h = _histCalc.find(function(x){ return x.id===id; });
   if(!h) return;
 
+  var qtd = parseInt(h.qtd)||1;
+
+  // Garantir que custoUnit e precoUnit sao UNITARIOS (nao o total do lote)
+  // O dataset.unitValue garante isso para novas precificacoes
+  // Para precificacoes antigas, verificamos: se custo > preco, provavelmente e total
+  var custoUnit = parseFloat(h.custoUnit)||0;
+  var precoUnit = parseFloat(h.precoUnit)||0;
+
+  // Se qtd > 1 e custo parece ser o total (custo > preco ou custo * qtd bate com preco)
+  if(qtd > 1 && custoUnit > 0 && precoUnit > 0) {
+    // Checar se sao totais: total/qtd deve ser menor que o total
+    var custoPorUn = custoUnit / qtd;
+    var precoPorUn = precoUnit / qtd;
+    // Se dividindo por qtd o custo fica menor que o preco (logico), usar dividido
+    if(custoPorUn < precoUnit && custoPorUn < custoUnit) {
+      // Verificar se o valor original parece ser total (muito alto para unitario)
+      // Heuristica: se custo unitario > preco unitario, e total
+      if(custoUnit > precoUnit) {
+        custoUnit = custoPorUn;
+        precoUnit = precoPorUn;
+      }
+    }
+  }
+
   // Montar filsEstoque a partir dos detalhes da precificacao
   var filsEstoque = (h.filsDetalhes||[]).map(function(f){
     return {
       filIdx:   f.filIdx,
       filNome:  f.filNome,
       peso:     f.peso,
-      pesoUnit: f.peso / (h.qtd||1)
+      pesoUnit: f.peso / qtd
     };
   });
 
   pedidos.unshift({
     id:        Date.now(),
     nome:      h.nome,
-    qtd:       h.qtd || 1,
-    precoUnit: h.precoUnit || 0,
-    custoUnit: h.custoUnit || 0,
-    preco:     fmt((h.precoUnit||0) * (h.qtd||1)),
+    qtd:       qtd,
+    precoUnit: precoUnit,
+    custoUnit: custoUnit,
+    preco:     fmt(precoUnit * qtd),
     data:      new Date().toLocaleDateString('pt-BR'),
     status:    'pendente',
     horas:     h.tempoStr || '--',
@@ -6453,7 +6493,7 @@ function pedidoHistCalc(id) {
 
   S.set('pedidos', pedidos);
   renderPedidos();
-  alert('Pedido criado: ' + h.nome + '\nPreco: ' + fmt(h.precoUnit) + '/un | Custo: ' + fmt(h.custoUnit) + '/un');
+  alert('Pedido criado: ' + h.nome + '\nPreco: ' + fmt(precoUnit) + '/un x ' + qtd + ' = ' + fmt(precoUnit*qtd) + '\nCusto: ' + fmt(custoUnit) + '/un');
 }
 
 function produtoHistCalc(id) {
