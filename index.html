@@ -2378,6 +2378,18 @@ function showTab(t){
 }
 
 /* ---- FILAMENTOS ---- */
+function buildFilSelectNpm() {
+  // Atualizar selects no form de novo pedido manual (npm-fils-lista)
+  var npmLista = document.getElementById('npm-fils-lista');
+  if(npmLista) {
+    npmLista.querySelectorAll('select').forEach(function(sel){
+      var v = sel.value;
+      sel.innerHTML = getFilOpts('-- Sem filamento --');
+      sel.value = v;
+    });
+  }
+}
+
 function buildFilSelect(){
   // Selects simples (compras, ajuste estoque)
   [document.getElementById('cp-fil-estoque'), document.getElementById('aj-fil')].forEach(function(s){
@@ -2405,6 +2417,8 @@ function buildFilSelect(){
       sel.value = v;
     });
   }
+  // Atualizar tambem npm-fils-lista
+  buildFilSelectNpm();
 }
 function preencherFilCalc(){
   // Funcao mantida para compatibilidade -- logica migrada para addFilCalc/syncDotCalc
@@ -4467,7 +4481,7 @@ function registrarMovimentacao(filIdx, tipo, qtd, motivo, referencia) {
   let depois = antes;
   if(tipo === 'entrada') depois = antes + qtd;
   else if(tipo === 'saida') depois = Math.max(0, antes - qtd);
-  else if(tipo === 'ajuste') depois = qtd; // ajuste = valor absoluto
+  else if(tipo === 'ajuste') depois = qtd;
   filamentos[filIdx].qtd = depois;
   S.set('filamentos', filamentos);
   movimentacoes.unshift({
@@ -4481,6 +4495,13 @@ function registrarMovimentacao(filIdx, tipo, qtd, motivo, referencia) {
   });
   S.set('movimentacoes', movimentacoes);
   checkEstoque();
+  // Atualizar modulo de filamentos e todos os selects
+  if(document.getElementById('tab-filamentos') &&
+     document.getElementById('tab-filamentos').classList.contains('active')) {
+    renderFils();
+  }
+  buildFilSelect();
+  buildFilSelectNpm();
 }
 
 function baixarEstoqueProduto(fils, referencia) {
