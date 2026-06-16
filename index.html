@@ -5882,7 +5882,14 @@ function renderDashboard() {
   var custoPedidosP = 0;
   try {
     custoPedidosP = pedidos.filter(function(p){
-      return p.status === 'concluido' && estaNoperiodo(p.data, de, ate);
+      if(p.status !== 'concluido') return false;
+      // Converter data brasileira dd/mm/yyyy para yyyy-mm-dd se necessario
+      var dataPed = p.data || '';
+      if(dataPed.indexOf('/') >= 0) {
+        var partes = dataPed.split('/');
+        if(partes.length === 3) dataPed = partes[2] + '-' + partes[1] + '-' + partes[0];
+      }
+      return estaNoperiodo(dataPed, de, ate);
     }).reduce(function(s,p){
       var custo = parseFloat(p.custoUnit)||0;
       var qtd   = parseInt(p.qtd)||1;
