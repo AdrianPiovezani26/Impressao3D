@@ -751,6 +751,7 @@
       <button class="btn-ok" onclick="salvarComoPedido()"><i class="ti ti-plus"></i> Salvar como Pedido</button>
       <button class="btn" onclick="salvarComoProduto()"><i class="ti ti-box"></i> Salvar nos Produtos</button>
       <button class="btn" onclick="salvarNoHistorico()"><i class="ti ti-history"></i> Salvar no Historico</button>
+      <button class="btn-ok" onclick="abrirModalOrcamento()" style="background:rgba(255,170,0,0.12);border-color:var(--amber-border);color:var(--amber-text);"><i class="ti ti-file-invoice"></i> Gerar Orcamento PDF</button>
       <button class="btn-del" onclick="limparCalc()" style="margin-left:auto;"><i class="ti ti-refresh"></i> Limpar</button>
     </div>
   </div>
@@ -2107,6 +2108,59 @@
   </div>
 </div><!-- fim tab-parceiros --></div><!-- /container -->
 </div><!-- /app-content -->
+
+<!-- MODAL ORCAMENTO PDF -->
+<div id="modal-orcamento" class="modal-overlay" style="display:none;" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal-box" style="max-width:560px;max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+      <strong style="font-size:16px;color:var(--amber-text);"><i class="ti ti-file-invoice"></i> Gerar Orcamento PDF</strong>
+      <button class="btn" onclick="document.getElementById('modal-orcamento').style.display='none'"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Nome do Cliente *</label><input type="text" id="orc-cliente" placeholder="Ex: Joao Silva"></div>
+      <div class="field"><label>Validade do Orcamento</label>
+        <select id="orc-validade" style="width:100%;border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+          <option value="7">7 dias</option>
+          <option value="15">15 dias</option>
+          <option value="30">30 dias</option>
+        </select>
+      </div>
+      <div class="field"><label>Prazo de Entrega</label><input type="text" id="orc-prazo" placeholder="Ex: 5 a 7 dias uteis"></div>
+      <div class="field"><label>Condicao de Pagamento</label>
+        <select id="orc-condicao" style="width:100%;border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+          <option value="A vista">A vista</option>
+          <option value="50% entrada, 50% na entrega">50% entrada, 50% entrega</option>
+          <option value="Pix / Dinheiro">Pix / Dinheiro</option>
+          <option value="Cartao de credito">Cartao de credito</option>
+          <option value="A combinar">A combinar</option>
+        </select>
+      </div>
+    </div>
+    <div class="field" style="margin-top:8px;"><label>Observacoes (opcional)</label>
+      <textarea id="orc-obs" rows="2" placeholder="Ex: Produto personalizado conforme referencia enviada..."
+        style="width:100%;border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);resize:vertical;"></textarea>
+    </div>
+    <div class="field" style="margin-top:8px;">
+      <label>Imagem do Produto (opcional)</label>
+      <div style="border:2px dashed var(--border2);border-radius:var(--radius);padding:16px;text-align:center;cursor:pointer;background:var(--bg2);"
+        onclick="document.getElementById('orc-img-input').click()">
+        <img id="orc-img-preview" src="" style="display:none;max-width:100%;max-height:180px;border-radius:8px;margin-bottom:8px;">
+        <div id="orc-img-placeholder" style="color:var(--text3);font-size:13px;">
+          <i class="ti ti-photo" style="font-size:32px;display:block;margin-bottom:6px;"></i>
+          Clique para adicionar imagem do produto<br>
+          <span style="font-size:11px;">(print do fatiador ou foto de referencia)</span>
+        </div>
+      </div>
+      <input type="file" id="orc-img-input" accept="image/*" style="display:none;" onchange="previewImgOrcamento(this)">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap;">
+      <button class="btn-ok" onclick="gerarOrcamentoPDF()" style="background:rgba(255,170,0,0.12);border-color:var(--amber-border);color:var(--amber-text);flex:1;">
+        <i class="ti ti-download"></i> Baixar PDF
+      </button>
+      <button class="btn" onclick="document.getElementById('modal-orcamento').style.display='none'">Cancelar</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL SELETOR DE PEDIDOS -->
 <div id="modal-sel-pedidos" class="modal-overlay" style="display:none;" onclick="if(event.target===this)this.style.display='none'">
@@ -10487,6 +10541,247 @@ function criarPedidoDeOportunidade(idx) {
   }, 300);
 }
 /* ===== FIM OPORTUNIDADES ===== */
+
+
+/* =====================================================
+   MODULO ORCAMENTO PDF
+   ===================================================== */
+var _orcImgData = null;
+
+function abrirModalOrcamento() {
+  var res = document.getElementById('resultado');
+  if(!res || res.style.display === 'none') {
+    alert('Calcule o preco primeiro antes de gerar o orcamento.');
+    return;
+  }
+  document.getElementById('orc-cliente').value  = '';
+  document.getElementById('orc-prazo').value    = '5 a 7 dias uteis';
+  document.getElementById('orc-obs').value      = '';
+  document.getElementById('orc-validade').value = '7';
+  _orcImgData = null;
+  document.getElementById('orc-img-preview').style.display = 'none';
+  document.getElementById('orc-img-placeholder').style.display = 'block';
+  document.getElementById('modal-orcamento').style.display = 'flex';
+}
+
+function previewImgOrcamento(input) {
+  if(!input.files || !input.files[0]) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    _orcImgData = e.target.result;
+    var preview = document.getElementById('orc-img-preview');
+    var placeholder = document.getElementById('orc-img-placeholder');
+    preview.src = _orcImgData;
+    preview.style.display = 'block';
+    placeholder.style.display = 'none';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function gerarOrcamentoPDF() {
+  var cliente = document.getElementById('orc-cliente').value.trim();
+  if(!cliente) { alert('Informe o nome do cliente.'); return; }
+
+  // Coletar dados da precificacao
+  var dados = coletarDadosCalc();
+  var nome     = dados.nome || 'Produto Personalizado';
+  var qtd      = dados.qtd  || 1;
+  var preco    = parseFloat((document.getElementById('r-preco')||{}).dataset.unitValue || dados.precoUnit) || 0;
+  var total    = preco * qtd;
+  var prazo    = document.getElementById('orc-prazo').value  || '5 a 7 dias uteis';
+  var cond     = document.getElementById('orc-condicao').value || 'A vista';
+  var obs      = document.getElementById('orc-obs').value || '';
+  var valDias  = parseInt(document.getElementById('orc-validade').value) || 7;
+
+  // Data de validade
+  var hoje_d = new Date();
+  var validade = new Date(hoje_d);
+  validade.setDate(validade.getDate() + valDias);
+  var fmtData = function(d){ return d.toLocaleDateString('pt-BR'); };
+
+  // Numero do orcamento
+  var numOrc = String(Date.now()).slice(-6);
+
+  // Iniciar PDF
+  var doc = new window.jspdf.jsPDF({ orientation:'p', unit:'mm', format:'a4' });
+  var W = 210, H = 297;
+  var marginL = 15, marginR = 15, marginT = 15;
+  var y = marginT;
+
+  // ---- FUNDO BRANCO ----
+  doc.setFillColor(255,255,255);
+  doc.rect(0,0,W,H,'F');
+
+  // ---- HEADER VERDE ESCURO ----
+  doc.setFillColor(18,36,18);
+  doc.rect(0,0,W,42,'F');
+
+  // Logo / Nome empresa
+  doc.setTextColor(57,255,20);
+  doc.setFontSize(22);
+  doc.setFont('helvetica','bold');
+  doc.text('AKP 3D', marginL, 18);
+  doc.setFontSize(9);
+  doc.setFont('helvetica','normal');
+  doc.setTextColor(180,255,180);
+  doc.text('Impressao 3D Personalizada', marginL, 25);
+  doc.text('@akp3d.oficial  |  Cascavel - PR', marginL, 31);
+
+  // Numero e data
+  doc.setTextColor(57,255,20);
+  doc.setFontSize(10);
+  doc.setFont('helvetica','bold');
+  doc.text('ORCAMENTO N ' + numOrc, W - marginR, 18, {align:'right'});
+  doc.setFont('helvetica','normal');
+  doc.setTextColor(180,255,180);
+  doc.setFontSize(8);
+  doc.text('Emitido em: ' + fmtData(hoje_d), W - marginR, 25, {align:'right'});
+  doc.text('Valido ate: ' + fmtData(validade), W - marginR, 31, {align:'right'});
+
+  y = 50;
+
+  // ---- DADOS DO CLIENTE ----
+  doc.setFillColor(245,250,245);
+  doc.roundedRect(marginL, y, W-marginL-marginR, 16, 2, 2, 'F');
+  doc.setTextColor(40,40,40);
+  doc.setFontSize(8);
+  doc.setFont('helvetica','bold');
+  doc.text('CLIENTE:', marginL+4, y+6);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(11);
+  doc.text(cliente.toUpperCase(), marginL+4, y+13);
+  y += 22;
+
+  // ---- IMAGEM DO PRODUTO (se houver) ----
+  var colImgW = 70, colInfoW = W - marginL - marginR - colImgW - 6;
+
+  if(_orcImgData) {
+    try {
+      var imgType = _orcImgData.split(';')[0].split('/')[1].toUpperCase();
+      if(imgType === 'JPEG') imgType = 'JPEG';
+      doc.addImage(_orcImgData, imgType, marginL, y, colImgW, 60);
+    } catch(e) {
+      // Ignorar erro de imagem
+    }
+  }
+
+  // ---- DADOS DO PRODUTO ----
+  var xInfo = _orcImgData ? (marginL + colImgW + 6) : marginL;
+  var wInfo = _orcImgData ? colInfoW : (W - marginL - marginR);
+
+  doc.setTextColor(18,100,18);
+  doc.setFontSize(8);
+  doc.setFont('helvetica','bold');
+  doc.text('PRODUTO / SERVICO', xInfo, y+5);
+
+  doc.setTextColor(30,30,30);
+  doc.setFontSize(13);
+  doc.setFont('helvetica','bold');
+  var nomeLines = doc.splitTextToSize(nome, wInfo - 4);
+  doc.text(nomeLines, xInfo, y+12);
+
+  var yInfo = y + 12 + (nomeLines.length * 6);
+
+  if(qtd > 1) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica','normal');
+    doc.setTextColor(80,80,80);
+    doc.text('Quantidade: ' + qtd + ' unidades', xInfo, yInfo + 6);
+    yInfo += 6;
+  }
+
+  if(prazo) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica','normal');
+    doc.setTextColor(80,80,80);
+    doc.text('Prazo estimado: ' + prazo, xInfo, yInfo + 6);
+    yInfo += 6;
+  }
+
+  y = (_orcImgData ? Math.max(y + 64, yInfo + 8) : yInfo + 8);
+  y += 6;
+
+  // ---- BLOCO DE PRECO ----
+  doc.setFillColor(18,36,18);
+  doc.roundedRect(marginL, y, W-marginL-marginR, qtd > 1 ? 32 : 22, 3, 3, 'F');
+
+  doc.setTextColor(180,220,180);
+  doc.setFontSize(8);
+  doc.setFont('helvetica','normal');
+  if(qtd > 1) {
+    doc.text('Preco unitario:', marginL+6, y+9);
+    doc.setTextColor(57,255,20);
+    doc.setFontSize(11);
+    doc.setFont('helvetica','bold');
+    doc.text('R$ ' + preco.toFixed(2).replace('.',','), marginL+6, y+16);
+    doc.setTextColor(180,220,180);
+    doc.setFontSize(8);
+    doc.setFont('helvetica','normal');
+    doc.text('TOTAL (' + qtd + ' unidades):', W/2, y+9, {align:'center'});
+    doc.setTextColor(57,255,20);
+    doc.setFontSize(16);
+    doc.setFont('helvetica','bold');
+    doc.text('R$ ' + total.toFixed(2).replace('.',','), W/2, y+20, {align:'center'});
+    doc.setTextColor(180,220,180);
+    doc.setFontSize(8);
+    doc.setFont('helvetica','normal');
+    doc.text('Pagamento: ' + cond, W-marginR-4, y+16, {align:'right'});
+  } else {
+    doc.text('VALOR TOTAL:', marginL+6, y+9);
+    doc.setTextColor(57,255,20);
+    doc.setFontSize(18);
+    doc.setFont('helvetica','bold');
+    doc.text('R$ ' + total.toFixed(2).replace('.',','), marginL+6, y+18);
+    doc.setTextColor(180,220,180);
+    doc.setFontSize(8);
+    doc.setFont('helvetica','normal');
+    doc.text('Pagamento: ' + cond, W-marginR-4, y+14, {align:'right'});
+  }
+
+  y += (qtd > 1 ? 32 : 22) + 8;
+
+  // ---- OBSERVACOES ----
+  if(obs) {
+    doc.setFillColor(250,255,250);
+    doc.setDrawColor(180,220,180);
+    doc.roundedRect(marginL, y, W-marginL-marginR, 20, 2, 2, 'FD');
+    doc.setTextColor(40,40,40);
+    doc.setFontSize(8);
+    doc.setFont('helvetica','bold');
+    doc.text('OBSERVACOES:', marginL+4, y+6);
+    doc.setFont('helvetica','normal');
+    var obsLines = doc.splitTextToSize(obs, W-marginL-marginR-8);
+    doc.text(obsLines, marginL+4, y+12);
+    y += 26;
+  }
+
+  // ---- VALIDADE ----
+  doc.setTextColor(150,150,150);
+  doc.setFontSize(8);
+  doc.setFont('helvetica','italic');
+  doc.text('* Este orcamento e valido por ' + valDias + ' dias a partir da data de emissao.', marginL, y+6);
+  y += 12;
+
+  // ---- RODAPE ----
+  doc.setFillColor(18,36,18);
+  doc.rect(0, H-22, W, 22, 'F');
+  doc.setTextColor(57,255,20);
+  doc.setFontSize(9);
+  doc.setFont('helvetica','bold');
+  doc.text('AKP 3D - Impressao 3D Personalizada', W/2, H-14, {align:'center'});
+  doc.setTextColor(180,220,180);
+  doc.setFontSize(8);
+  doc.setFont('helvetica','normal');
+  doc.text('@akp3d.oficial  |  Cascavel - PR', W/2, H-8, {align:'center'});
+
+  // Baixar
+  var nomeArq = 'Orcamento_' + nome.replace(/[^a-zA-Z0-9]/g,'_').slice(0,20) + '_' + numOrc + '.pdf';
+  doc.save(nomeArq);
+
+  document.getElementById('modal-orcamento').style.display = 'none';
+  alert('PDF gerado com sucesso!\n' + nomeArq);
+}
+/* ===== FIM ORCAMENTO PDF ===== */
 
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
