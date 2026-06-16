@@ -5879,23 +5879,30 @@ function renderDashboard() {
   var totalComprasP  = comprasP.reduce(function(s,c){ return s+(c.total||0); }, 0);
 
   // Lucro Real: faturamento - custo de producao dos pedidos concluidos no periodo - compras
-  // Custo de producao = custoUnit (inclui filamento + energia + MDO + depreciacao + impostos)
-  var custoPedidosP = pedidos.filter(function(p){
-    return p.status === 'concluido' && estaNoperiodo(p.data, de, ate);
-  }).reduce(function(s,p){
-    var custo = parseFloat(p.custoUnit)||0;
-    var qtd   = parseInt(p.qtd)||1;
-    // Se nao tem custoUnit, tentar buscar do histCalc pelo nome
-    if(!custo) {
-      var h = _histCalc.find(function(h){
-        return (h.nome||'').toUpperCase().trim() === (p.nome||'').toUpperCase().trim();
-      });
-      if(h && h.custoUnit) custo = parseFloat(h.custoUnit)||0;
-    }
-    return s + custo * qtd;
-  }, 0);
+  var custoPedidosP = 0;
+  try {
+    custoPedidosP = pedidos.filter(function(p){
+      return p.status === 'concluido' && estaNoperiodo(p.data, de, ate);
+    }).reduce(function(s,p){
+      var custo = parseFloat(p.custoUnit)||0;
+      var qtd   = parseInt(p.qtd)||1;
+      if(!custo && _histCalc) {
+        var h = _histCalc.find(function(h){
+          return (h.nome||'').toUpperCase().trim() === (p.nome||'').toUpperCase().trim();
+        });
+        if(h && h.custoUnit) custo = parseFloat(h.custoUnit)||0;
+      }
+      return s + custo * qtd;
+    }, 0);
+  } catch(e) { custoPedidosP = 0; }
 
-  var lucroP = totalVendas - custoPedidosP - totalComprasP;
+  var lucroP    = totalVendas - custoPedidosP - totalComprasP;
+  var lucroBruto= totalVendas - totalComprasP;
+  var margemLiq  = totalVendas > 0 ? (lucroP / totalVendas * 100) : 0;
+  var margemBruta= totalVendas > 0 ? (lucroBruto / totalVendas * 100) : 0;
+
+  // Ticket medio
+  var ticketMedio = qtdVendas > 0 ? totalVendas / qtdVendas : 0;
 
   // Lucro Liquido = Faturamento - Custo Producao - Compras
   var margemLiq = totalVendas > 0 ? (lucroP / totalVendas * 100) : 0;
