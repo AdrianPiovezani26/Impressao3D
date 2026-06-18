@@ -10522,9 +10522,11 @@ function renderAlertasOport() {
       var atrasado = o.retorno < hj;
       var cor = atrasado ? 'var(--red-text)' : 'var(--amber-text)';
       var idx = oportunidades.indexOf(o);
+      var st = OP_STATUS[o.status] || OP_STATUS.aguardando;
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border2);flex-wrap:wrap;gap:4px;">' +
         '<div>' +
           '<strong style="font-size:13px;color:'+cor+';">'+o.cliente+'</strong>' +
+          '<span class="tag '+st.tag+'" style="font-size:9px;margin-left:8px;"><i class="ti '+st.icon+'" style="font-size:9px;"></i> '+st.label+'</span>' +
           '<span style="font-size:11px;color:var(--text3);margin-left:8px;">'+o.produto+'</span>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:8px;">' +
