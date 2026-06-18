@@ -3899,8 +3899,8 @@ function renderVendas(){
 
     // Calcular recebido total pelas faturas vinculadas
     var fatsV = faturas.filter(function(f){ return f.vendaId === v.id; });
-    var recFats = fatsV.filter(function(f){ return f.status==='paga'; }).reduce(function(s,f){ return s+f.valor; },0);
-    var pendFats = fatsV.filter(function(f){ return f.status!=='paga'; }).reduce(function(s,f){ return s+f.valor; },0);
+    var recFats = fatsV.reduce(function(s,f){ return s + (f.status==='paga' ? f.valor : (parseFloat(f.recebido)||0)); },0);
+    var pendFats = fatsV.reduce(function(s,f){ return s + (f.status==='paga' ? 0 : (f.valor - (parseFloat(f.recebido)||0))); },0);
     var qtdParcFats = fatsV.filter(function(f){ return f.status!=='paga'; }).length;
 
     // Usar faturas se existem, senao usar campo recebido da venda
@@ -4124,6 +4124,20 @@ function delVenda(i) {
   renderVendas();
 }
 
+function sincronizarVendaDaFatura(f) {
+  if(!f || !f.vendaId) return;
+  var faturasVenda = faturas.filter(function(ff){ return ff.vendaId === f.vendaId; });
+  var todasPagas = faturasVenda.length > 0 && faturasVenda.every(function(ff){ return ff.status === 'paga'; });
+  if(todasPagas) {
+    var vIdx = vendas.findIndex(function(v){ return v.id === f.vendaId; });
+    if(vIdx >= 0 && vendas[vIdx].statusPgto !== 'pago') {
+      vendas[vIdx].statusPgto = 'pago';
+      vendas[vIdx].dataPagamento = hoje();
+      S.set('vendas', vendas);
+    }
+  }
+}
+
 function darBaixaFatura(i) {
   var f = faturas[i];
   if(!f) return;
@@ -4152,12 +4166,15 @@ function darBaixaFatura(i) {
     f.recebido = f.valor;
     f.dataPagamento = hoje();
     S.set('faturas', faturas);
+    sincronizarVendaDaFatura(f);
     renderContas();
+    renderDashboard();
     alert('Fatura paga integralmente!\nTotal recebido: ' + fmt(f.valor));
   } else {
     f.status = 'parcial';
     S.set('faturas', faturas);
     renderContas();
+    renderDashboard();
     alert('Pagamento parcial registrado!\nRecebido: ' + fmt(f.recebido) + '\nRestante: ' + fmt(f.valor - f.recebido));
   }
 }
@@ -4167,7 +4184,9 @@ function marcarPaga(i){
   faturas[i].dataPagamento=hoje();
   faturas[i].recebido=faturas[i].valor;
   S.set('faturas',faturas);
+  sincronizarVendaDaFatura(faturas[i]);
   renderContas();
+  renderDashboard();
 }
 function delFatura(i){if(confirm('Remover fatura?')){faturas.splice(i,1);S.set('faturas',faturas);renderContas();}}
 
@@ -9152,28 +9171,6 @@ function darBaixaVenda(i) {
   renderVendas();
   renderDashboard();
   alert('Recebimento confirmado!' + (baixadas > 0 ? '\n' + baixadas + ' fatura(s) baixada(s) em Contas a Receber.' : ''));
-}
-
-function darBaixaFatura(id) {
-  var idx = -1;
-  for(var i=0; i<faturas.length; i++) { if(faturas[i].id === id) { idx=i; break; } }
-  if(idx < 0) return;
-  var f = faturas[idx];
-  if(!confirm('Confirmar recebimento?\n\n' + f.cliente + '\n' + f.descricao + '\nValor: ' + fmt(f.valor))) return;
-  faturas[idx].status = 'paga';
-  faturas[idx].dataPagamento = hoje();
-  S.set('faturas', faturas);
-  if(f.vendaId) {
-    var faturasVenda = faturas.filter(function(ff){ return ff.vendaId === f.vendaId; });
-    var todasPagas = faturasVenda.every(function(ff){ return ff.status === 'paga'; });
-    if(todasPagas) {
-      var vIdx = -1;
-      for(var j=0; j<vendas.length; j++) { if(vendas[j].id === f.vendaId) { vIdx=j; break; } }
-      if(vIdx >= 0) { vendas[vIdx].statusPgto = 'pago'; vendas[vIdx].dataPagamento = hoje(); S.set('vendas', vendas); }
-    }
-  }
-  renderContas();
-  renderDashboard();
 }
 
 /* ===== FIM BAIXA DE PAGAMENTO ===== */
