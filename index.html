@@ -1041,6 +1041,7 @@
       style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
       <option value="">Todas</option>
       <option value="pendente">Pendentes</option>
+      <option value="parcial">Parciais</option>
       <option value="vencida">Vencidas</option>
       <option value="paga">Pagas</option>
     </select>
@@ -3977,6 +3978,7 @@ function salvarFatura() {
     cliente:   cliente,
     descricao: desc,
     valor:     valor,
+    recebido:  0,
     data:      document.getElementById('fat-data').value || hoje(),
     venc:      document.getElementById('fat-venc').value || '',
     pgto:      document.getElementById('fat-pgto').value || 'Pix',
@@ -4011,9 +4013,10 @@ function renderContas() {
   }
 
   // KPIs
-  var aReceber = faturas.filter(function(f){ return f.status!=='paga'; }).reduce(function(s,f){ return s+f.valor; },0);
+  var aReceber = faturas.filter(function(f){ return f.status!=='paga'; }).reduce(function(s,f){ return s+(f.valor-(parseFloat(f.recebido)||0)); },0);
   var vencidas = faturas.filter(function(f){ return f.status!=='paga' && f.venc && f.venc < hj; });
-  var recebido = faturas.filter(function(f){ return f.status==='paga'; }).reduce(function(s,f){ return s+f.valor; },0);
+  var recebido = faturas.reduce(function(s,f){ return s+(parseFloat(f.recebido)||0); },0);
+  var parciais = faturas.filter(function(f){ return f.status==='parcial'; });
   var proximos = faturas.filter(function(f){
     if(f.status==='paga' || !f.venc) return false;
     var d7 = new Date(); d7.setDate(d7.getDate()+7);
@@ -4025,6 +4028,7 @@ function renderContas() {
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1rem;">' +
     kpiRel('A Receber',    fmt(aReceber),            'var(--amber-text)', 'ti-clock') +
     kpiRel('Vencidas',     vencidas.length+' faturas', 'var(--red-text)',  'ti-alert-triangle') +
+    kpiRel('Parciais',     parciais.length+' faturas', 'var(--blue-text)', 'ti-cash') +
     kpiRel('Recebido',     fmt(recebido),             'var(--neon)',       'ti-check') +
     kpiRel('Total Faturas',faturas.length+' itens',   'var(--text2)',      'ti-receipt') +
     '</div>';
@@ -4071,9 +4075,12 @@ function renderContas() {
     var idx = faturas.indexOf(f);
     var isVenc = f.status !== 'paga' && f.venc && f.venc < hj;
     var isPaga = f.status === 'paga';
-    var tagCor = isPaga ? 'tag-green' : isVenc ? 'tag-red' : 'tag-amber';
-    var tagLabel = isPaga ? 'Paga' : isVenc ? 'Vencida' : 'Pendente';
-    var corValor = isPaga ? 'var(--neon)' : isVenc ? 'var(--red-text)' : 'var(--amber-text)';
+    var isParcial = f.status === 'parcial';
+    var recebidoVal = parseFloat(f.recebido)||0;
+    var restanteVal = parseFloat((f.valor - recebidoVal).toFixed(2));
+    var tagCor = isPaga ? 'tag-green' : isParcial ? 'tag-blue' : isVenc ? 'tag-red' : 'tag-amber';
+    var tagLabel = isPaga ? 'Paga' : isParcial ? 'Parcial' : isVenc ? 'Vencida' : 'Pendente';
+    var corValor = isPaga ? 'var(--neon)' : isParcial ? 'var(--blue-text)' : isVenc ? 'var(--red-text)' : 'var(--amber-text)';
 
     return '<div class="item-card" style="border-left:3px solid '+corValor+';margin-bottom:8px;">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
@@ -4089,13 +4096,19 @@ function renderContas() {
             (f.venc ? '<span style="color:'+(isVenc?'var(--red-text)':'var(--text3)')+'"><i class="ti ti-calendar-due" style="font-size:10px;"></i> Venc: '+fmtD(f.venc)+(isVenc?' ':'')+'</span>' : '') +
             (f.dataPagamento ? '<span style="color:var(--neon);"><i class="ti ti-check" style="font-size:10px;"></i> Pago: '+fmtD(f.dataPagamento)+'</span>' : '') +
           '</div>' +
+          (isParcial ?
+            '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">' +
+              '<div style="background:rgba(57,255,20,0.08);border:1px solid var(--neon-border);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--neon);">Recebido: '+fmt(recebidoVal)+'</div>' +
+              '<div style="background:rgba(255,170,0,0.08);border:1px solid var(--amber-border);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--amber-text);">Restante: '+fmt(restanteVal)+'</div>' +
+            '</div>' : '') +
         '</div>' +
         '<div style="text-align:right;flex-shrink:0;">' +
           '<div style="font-size:22px;font-weight:700;color:'+corValor+';">'+fmt(f.valor)+'</div>' +
         '</div>' +
       '</div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">' +
-        (!isPaga ? '<button class="btn-ok" onclick="marcarPaga('+idx+')" style="font-size:12px;padding:6px 12px;"><i class="ti ti-check"></i> Marcar como Paga</button>' : '') +
+        (!isPaga ? '<button class="btn-ok" onclick="darBaixaFatura('+idx+')" style="font-size:12px;padding:6px 12px;background:rgba(0,170,255,0.1);border-color:var(--blue-border);color:var(--blue-text);"><i class="ti ti-cash"></i> '+(isParcial?'Receber Mais':'Pagamento Parcial')+'</button>' : '') +
+        (!isPaga ? '<button class="btn-ok" onclick="marcarPaga('+idx+')" style="font-size:12px;padding:6px 12px;"><i class="ti ti-check"></i> Marcar Tudo Pago</button>' : '') +
         '<button class="btn-del" onclick="delFatura('+idx+')" style="margin-left:auto;font-size:12px;padding:6px 10px;"><i class="ti ti-trash"></i></button>' +
       '</div>' +
     '</div>';
@@ -4111,7 +4124,51 @@ function delVenda(i) {
   renderVendas();
 }
 
-function marcarPaga(i){faturas[i].status='paga';faturas[i].dataPagamento=hoje();S.set('faturas',faturas);renderContas();}
+function darBaixaFatura(i) {
+  var f = faturas[i];
+  if(!f) return;
+  var recebidoAtual = parseFloat(f.recebido)||0;
+  var restante = parseFloat((f.valor - recebidoAtual).toFixed(2));
+  var valorStr = prompt(
+    'Pagamento parcial - ' + f.cliente + ' (' + f.descricao + ')\n' +
+    'Valor total: ' + fmt(f.valor) +
+    (recebidoAtual > 0 ? '\nJa recebido: ' + fmt(recebidoAtual) : '') +
+    '\nRestante: ' + fmt(restante) +
+    '\n\nInforme o valor recebido agora:',
+    restante.toFixed(2)
+  );
+  if(valorStr === null) return;
+  var valorPago = parseFloat(String(valorStr).replace(',','.'))||0;
+  if(valorPago <= 0) { alert('Informe um valor valido.'); return; }
+  if(valorPago > restante + 0.01) {
+    if(!confirm('O valor informado (' + fmt(valorPago) + ') e maior que o restante (' + fmt(restante) + ').\nDeseja continuar mesmo assim?')) return;
+  }
+
+  recebidoAtual = parseFloat((recebidoAtual + valorPago).toFixed(2));
+  f.recebido = recebidoAtual;
+
+  if(recebidoAtual >= f.valor - 0.01) {
+    f.status = 'paga';
+    f.recebido = f.valor;
+    f.dataPagamento = hoje();
+    S.set('faturas', faturas);
+    renderContas();
+    alert('Fatura paga integralmente!\nTotal recebido: ' + fmt(f.valor));
+  } else {
+    f.status = 'parcial';
+    S.set('faturas', faturas);
+    renderContas();
+    alert('Pagamento parcial registrado!\nRecebido: ' + fmt(f.recebido) + '\nRestante: ' + fmt(f.valor - f.recebido));
+  }
+}
+
+function marcarPaga(i){
+  faturas[i].status='paga';
+  faturas[i].dataPagamento=hoje();
+  faturas[i].recebido=faturas[i].valor;
+  S.set('faturas',faturas);
+  renderContas();
+}
 function delFatura(i){if(confirm('Remover fatura?')){faturas.splice(i,1);S.set('faturas',faturas);renderContas();}}
 
 /* ---- CONFIG ---- */
@@ -10874,6 +10931,15 @@ document.addEventListener('DOMContentLoaded', function() {
   var normalizouFat = false;
   faturas.forEach(function(f){ if(f.status==='pago'){ f.status='paga'; normalizouFat=true; } });
   if(normalizouFat) S.set('faturas', faturas);
+  // Migrar: garantir campo "recebido" em todas as faturas
+  var migrouRecebido = false;
+  faturas.forEach(function(f){
+    if(typeof f.recebido === 'undefined') {
+      f.recebido = (f.status === 'paga') ? f.valor : 0;
+      migrouRecebido = true;
+    }
+  });
+  if(migrouRecebido) S.set('faturas', faturas);
   consignacoes = S.get('consignacoes') || [];
   migrarNomesConsignacao();
   converterDadosParaMaiusculas();
