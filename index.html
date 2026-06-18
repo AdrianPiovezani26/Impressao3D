@@ -10553,13 +10553,19 @@ function renderOportunidades() {
 
   renderAlertasOport();
 
-  if(!lista.length) {
+  if(!oportunidades.length) {
     el.innerHTML = '<div class="empty"><i class="ti ti-target"></i>Nenhuma oportunidade encontrada.<br><span style="font-size:12px;">Clique em "+ Nova Oportunidade" para comecar.</span></div>';
     return;
   }
 
   var hj = hoje();
-  el.innerHTML = lista.map(function(o){
+  var COL_BORDER = {
+    aguardando:'var(--amber-border)', desenvolvendo:'var(--blue-border)',
+    orcamento:'var(--border2)', convertido:'var(--green-border)', perdido:'var(--red-border)'
+  };
+  var ordemColunas = filtSt ? [filtSt] : ['aguardando','desenvolvendo','orcamento','convertido','perdido'];
+
+  function cardHtml(o) {
     var idx = oportunidades.indexOf(o);
     var st  = OP_STATUS[o.status] || OP_STATUS.aguardando;
     var atrasado = o.retorno && o.retorno < hj && o.status!=='convertido'&&o.status!=='perdido';
@@ -10567,32 +10573,50 @@ function renderOportunidades() {
     var podeAvancar = ordem.indexOf(o.status) >= 0 && ordem.indexOf(o.status) < 3;
 
     return '<div class="item-card" style="border-left:3px solid '+st.cor+';margin-bottom:8px;">' +
-      '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">' +
-        '<div style="flex:1;min-width:0;">' +
-          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
-            '<strong style="font-size:15px;">'+o.cliente+'</strong>' +
-            '<span class="tag '+st.tag+'" style="font-size:10px;"><i class="ti '+st.icon+'"></i> '+st.label+'</span>' +
-            (o.origem ? '<span class="tag" style="font-size:10px;">'+OP_ORIGEM[o.origem]+'</span>' : '') +
-          '</div>' +
-          '<div style="font-size:13px;color:var(--text2);margin-top:4px;"><i class="ti ti-3d-cube-sphere" style="font-size:11px;"></i> '+o.produto+'</div>' +
-          (o.contato ? '<div style="font-size:12px;color:var(--text3);margin-top:2px;"><i class="ti ti-phone" style="font-size:11px;"></i> '+o.contato+'</div>' : '') +
-          (o.obs ? '<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic;">'+o.obs+'</div>' : '') +
-        '</div>' +
-        '<div style="text-align:right;flex-shrink:0;">' +
-          (o.valor > 0 ? '<div style="font-size:16px;font-weight:700;color:var(--neon);">'+fmt(o.valor)+'</div>' : '') +
-          '<div style="font-size:11px;color:var(--text3);">Contato: '+fmtD(o.data)+'</div>' +
-          (o.retorno ? '<div style="font-size:11px;color:'+(atrasado?'var(--red-text)':'var(--amber-text)')+';">'+(atrasado?'ATRASADO: ':'Retorno: ')+fmtD(o.retorno)+'</div>' : '') +
-        '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">' +
+        '<strong style="font-size:14px;">'+o.cliente+'</strong>' +
+        (o.origem ? '<span class="tag" style="font-size:9px;">'+OP_ORIGEM[o.origem]+'</span>' : '') +
       '</div>' +
-      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">' +
-        (podeAvancar ? '<button class="btn-ok" onclick="avancarStatus('+idx+')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-arrow-right"></i> Avancar Status</button>' : '') +
+      '<div style="font-size:12px;color:var(--text2);"><i class="ti ti-3d-cube-sphere" style="font-size:11px;"></i> '+o.produto+'</div>' +
+      (o.contato ? '<div style="font-size:11px;color:var(--text3);margin-top:2px;"><i class="ti ti-phone" style="font-size:10px;"></i> '+o.contato+'</div>' : '') +
+      (o.obs ? '<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic;">'+o.obs+'</div>' : '') +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px;flex-wrap:wrap;gap:4px;">' +
+        '<div style="font-size:10px;color:var(--text3);">' +
+          'Contato: '+fmtD(o.data) +
+          (o.retorno ? '<br><span style="color:'+(atrasado?'var(--red-text)':'var(--amber-text)')+';">'+(atrasado?'ATRASADO: ':'Retorno: ')+fmtD(o.retorno)+'</span>' : '') +
+        '</div>' +
+        (o.valor > 0 ? '<div style="font-size:15px;font-weight:700;color:var(--neon);">'+fmt(o.valor)+'</div>' : '') +
+      '</div>' +
+      '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px;">' +
+        (podeAvancar ? '<button class="btn-ok" onclick="avancarStatus('+idx+')" style="font-size:10px;padding:4px 8px;"><i class="ti ti-arrow-right"></i></button>' : '') +
         (o.status==='aguardando'||o.status==='desenvolvendo'||o.status==='orcamento' ?
-          '<button class="btn-ok" onclick="criarPedidoDeOportunidade('+idx+')" style="font-size:11px;padding:5px 10px;background:rgba(57,255,20,0.08);border-color:var(--neon-border);color:var(--neon);"><i class="ti ti-clipboard-list"></i> Criar Pedido</button>' : '') +
-        '<button class="btn" onclick="abrirFormOport('+idx+')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-edit"></i> Editar</button>' +
-        '<button class="btn-del" onclick="delOport('+idx+')" style="font-size:11px;padding:5px 10px;margin-left:auto;"><i class="ti ti-trash"></i></button>' +
+          '<button class="btn-ok" onclick="criarPedidoDeOportunidade('+idx+')" style="font-size:10px;padding:4px 8px;background:rgba(57,255,20,0.08);border-color:var(--neon-border);color:var(--neon);"><i class="ti ti-clipboard-list"></i></button>' : '') +
+        '<button class="btn" onclick="abrirFormOport('+idx+')" style="font-size:10px;padding:4px 8px;"><i class="ti ti-edit"></i></button>' +
+        '<button class="btn-del" onclick="delOport('+idx+')" style="font-size:10px;padding:4px 8px;margin-left:auto;"><i class="ti ti-trash"></i></button>' +
       '</div>' +
     '</div>';
-  }).join('');
+  }
+
+  el.innerHTML = '<div style="display:grid;grid-template-columns:repeat('+ordemColunas.length+',minmax(240px,1fr));gap:12px;align-items:start;overflow-x:auto;">' +
+    ordemColunas.map(function(statusKey){
+      var st = OP_STATUS[statusKey];
+      var itensCol = lista.filter(function(o){ return o.status === statusKey; });
+      var valorCol = itensCol.reduce(function(s,o){ return s+(o.valor||0); },0);
+      return '<div style="min-width:0;">' +
+        '<div style="border-top:3px solid '+COL_BORDER[statusKey]+';background:var(--bg2);border-radius:0 0 var(--radius) var(--radius);padding:8px 10px;margin-bottom:8px;">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+            '<span style="font-size:12px;font-weight:700;color:'+st.cor+';"><i class="ti '+st.icon+'"></i> '+st.label+'</span>' +
+            '<span class="tag" style="font-size:10px;">'+itensCol.length+'</span>' +
+          '</div>' +
+          (valorCol > 0 ? '<div style="font-size:11px;color:var(--text3);margin-top:2px;">'+fmt(valorCol)+'</div>' : '') +
+        '</div>' +
+        '<div>' +
+          (itensCol.length ? itensCol.map(cardHtml).join('') :
+            '<div style="font-size:11px;color:var(--text3);text-align:center;padding:16px 4px;border:1px dashed var(--border2);border-radius:var(--radius);">Vazio</div>') +
+        '</div>' +
+      '</div>';
+    }).join('') +
+  '</div>';
 }
 
 function criarPedidoDeOportunidade(idx) {
