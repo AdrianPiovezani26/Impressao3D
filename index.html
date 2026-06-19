@@ -4654,7 +4654,7 @@ function renderEstoque() {
         var pct = f.pesoRolo>0?((parseFloat(f.qtd||0)/parseFloat(f.pesoRolo||1000))*100).toFixed(0):0;
         return '<div class="alerta-box"><i class="ti ti-alert-triangle"></i><span>' +
           '<strong>'+f.corNome+' '+f.marca+' '+f.modelo+'</strong> -- estoque critico: ' +
-          '<strong>'+f.qtd+'g</strong> restantes ('+pct+'% do rolo)</span></div>';
+          '<strong>'+parseFloat(f.qtd||0).toFixed(2)+'g</strong> restantes ('+pct+'% do rolo)</span></div>';
       }).join('') : '';
 
   // Resumo geral
@@ -4665,9 +4665,9 @@ function renderEstoque() {
   if(resumoEl) resumoEl.innerHTML =
     '<div class="grid4" style="margin-bottom:1rem;">' +
       '<div class="metric"><div class="lbl">Filamentos em estoque</div><div class="val">'+filamentos.length+'</div></div>' +
-      '<div class="metric"><div class="lbl">Total disponivel</div><div class="val">'+totalG.toFixed(0)+'g</div></div>' +
+      '<div class="metric"><div class="lbl">Total disponivel</div><div class="val">'+totalG.toFixed(2)+'g</div></div>' +
       '<div class="metric"><div class="lbl">Valor em estoque</div><div class="val">'+fmt(totalV)+'</div></div>' +
-      '<div class="metric"><div class="lbl">Total consumido</div><div class="val" style="color:var(--amber-text);">'+totalSaida.toFixed(0)+'g</div></div>' +
+      '<div class="metric"><div class="lbl">Total consumido</div><div class="val" style="color:var(--amber-text);">'+totalSaida.toFixed(2)+'g</div></div>' +
     '</div>';
 
   var cardsEl = document.getElementById('estoque-cards');
@@ -4696,7 +4696,7 @@ function renderEstoque() {
         var cor = pct > 50 ? '#39ff14' : pct > 15 ? '#ffaa00' : '#ff4444';
         var stLabel = pct > 50 ? 'Ok' : pct > 15 ? 'Baixo' : 'Critico';
         var stClass = pct > 50 ? 'tag-green' : pct > 15 ? 'tag-amber' : 'tag-red';
-        var custoG = f.preco > 0 && f.pesoRolo > 0 ? (parseFloat(f.preco)/parseFloat(f.pesoRolo)).toFixed(3) : '--';
+        var custoG = f.preco > 0 && f.pesoRolo > 0 ? (parseFloat(f.preco)/parseFloat(f.pesoRolo)).toFixed(2) : '--';
         var movsFil = movimentacoes.filter(function(m){ return m.filIdx === idx; });
         var totalEnt = movsFil.filter(function(m){return m.tipo==='entrada';}).reduce(function(s,m){return s+parseFloat(m.qtd||0);},0);
         var totalSai = movsFil.filter(function(m){return m.tipo==='saida';}).reduce(function(s,m){return s+parseFloat(m.qtd||0);},0);
@@ -4711,7 +4711,7 @@ function renderEstoque() {
               '</div>' +
             '</div>' +
             '<div style="text-align:right;">' +
-              '<div style="font-size:22px;font-weight:700;color:'+cor+';text-shadow:0 0 8px '+cor+';">'+f.qtd+'g</div>' +
+              '<div style="font-size:22px;font-weight:700;color:'+cor+';text-shadow:0 0 8px '+cor+';">'+parseFloat(f.qtd||0).toFixed(2)+'g</div>' +
               '<div style="font-size:11px;color:var(--text3);">'+pct.toFixed(0)+'% do rolo ('+f.pesoRolo+'g)</div>' +
             '</div>' +
           '</div>' +
@@ -4725,8 +4725,8 @@ function renderEstoque() {
           })() +
           '</div>' +
           '<div class="grid3" style="margin-top:10px;">' +
-            '<div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--neon);font-weight:700;">+'+totalEnt.toFixed(0)+'g</span><br>entradas</div>' +
-            '<div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--red-text);font-weight:700;">-'+totalSai.toFixed(0)+'g</span><br>consumido</div>' +
+            '<div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--neon);font-weight:700;">+'+totalEnt.toFixed(2)+'g</span><br>entradas</div>' +
+            '<div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--red-text);font-weight:700;">-'+totalSai.toFixed(2)+'g</span><br>consumido</div>' +
             '<div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--amber-text);font-weight:700;">'+movsFil.length+'</span><br>movimentacoes</div>' +
           '</div>' +
         '</div>';
