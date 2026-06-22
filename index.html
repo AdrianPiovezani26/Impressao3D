@@ -3139,8 +3139,13 @@ function salvarComoPedido(){
   var tempoStr = hH>0||hM>0?(hH>0?hH+'h':'')+(hM>0?' '+hM+'min':''):'--';
   var qtd = Math.max(1, parseInt(document.getElementById('c-qtd').value)||1);
   var precoUnitEl = document.getElementById('r-preco');
-  var precoUnitStr = precoUnitEl ? precoUnitEl.textContent : 'R$ 0,00';
-  var precoUnitNum = parseFloat(precoUnitStr.replace('R$','').replace(/\./g,'').replace(',','.').trim())||0;
+  var custoUnitEl = document.getElementById('r-custo-unit');
+  var precoUnitNum = precoUnitEl && precoUnitEl.dataset.unitValue
+    ? parseFloat(precoUnitEl.dataset.unitValue)||0
+    : parseFloat((precoUnitEl?precoUnitEl.textContent:'R$ 0,00').replace('R$','').replace(/\./g,'').replace(',','.').trim())||0;
+  var custoUnitNum = custoUnitEl && custoUnitEl.dataset.unitValue
+    ? parseFloat(custoUnitEl.dataset.unitValue)||0
+    : parseFloat((custoUnitEl?custoUnitEl.textContent:'R$ 0,00').replace('R$','').replace(/\./g,'').replace(',','.').trim())||0;
   var precoTotalNum = precoUnitNum * qtd;
   var precoTotalStr = fmt(precoTotalNum);
 
@@ -3156,7 +3161,7 @@ function salvarComoPedido(){
 
   // Salvar pedido  baixa so ocorre ao mudar status para CONCLUIDO
   pedidos.unshift({
-    id:Date.now(), nome:nome, qtd:qtd, precoUnit:precoUnitNum,
+    id:Date.now(), nome:nome, qtd:qtd, precoUnit:precoUnitNum, custoUnit:custoUnitNum,
     preco:precoTotalStr, data:new Date().toLocaleDateString('pt-BR'),
     status:'pendente', horas:tempoStr, filNome:filNome, peso:pesoTotal2||'--',
     filsEstoque: filsComIdx,
