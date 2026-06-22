@@ -827,9 +827,9 @@
     <div class="field">
       <label>Tempo de Impressao</label>
       <div style="display:flex;gap:8px;align-items:center;">
-        <input type="number" id="npm-horas-h" placeholder="0" min="0" step="1" style="width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+        <input type="number" id="npm-horas-h" placeholder="0" min="0" step="1" oninput="calcCustoPedidoManual()" style="width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
         <span style="font-size:13px;color:var(--text2);">h</span>
-        <input type="number" id="npm-horas-m" placeholder="0" min="0" max="59" step="1" style="width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+        <input type="number" id="npm-horas-m" placeholder="0" min="0" max="59" step="1" oninput="calcCustoPedidoManual()" style="width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
         <span style="font-size:13px;color:var(--text2);">min</span>
       </div>
     </div>
@@ -3268,7 +3268,7 @@ function calcCustoPedidoManual() {
   var container = document.getElementById('npm-fils-lista');
   if(!container) return;
   var qtd = Math.max(1, parseInt((document.getElementById('npm-qtd')||{}).value)||1);
-  var custoTotal = 0;
+  var cFil = 0;
 
   container.querySelectorAll('div').forEach(function(row){
     var sel  = row.querySelector('select');
@@ -3280,20 +3280,49 @@ function calcCustoPedidoManual() {
       var f = filamentos[idxF];
       var custoG = (parseFloat(f.preco)||0) / (parseFloat(f.pesoRolo)||1000);
       var custoFil = custoG * peso;
-      custoTotal += custoFil;
+      cFil += custoFil;
       if(lblC) { lblC.textContent = 'R$'+custoFil.toFixed(2); lblC.style.color='var(--text3)'; }
     } else {
       if(lblC) lblC.textContent = '';
     }
   });
 
-  // Atualizar campo custo unitario apenas se estiver vazio
+  // Tempo de impressao (horas decimais)
+  var hH = parseInt((document.getElementById('npm-horas-h')||{}).value)||0;
+  var hM = parseInt((document.getElementById('npm-horas-m')||{}).value)||0;
+  var horas = hH + (hM/60);
+
+  // Parametros operacionais (mesmos da Precificacao -- aba c-*)
+  var watts   = parseFloat((document.getElementById('c-watts')||{}).value)||0;
+  var kwh     = parseFloat((document.getElementById('c-kwh')||{}).value)||0;
+  var mdo     = parseFloat((document.getElementById('c-mdo')||{}).value)||0;
+  var vi      = parseFloat((document.getElementById('c-val-imp')||{}).value)||0;
+  var vida    = parseFloat((document.getElementById('c-vida')||{}).value)||5000;
+  var manut   = parseFloat((document.getElementById('c-manut')||{}).value)||0;
+  var hmes    = parseFloat((document.getElementById('c-hmes')||{}).value)||160;
+  var embal   = parseFloat((document.getElementById('c-embal')||{}).value)||0;
+  var insumos = parseFloat((document.getElementById('c-insumos')||{}).value)||0;
+  var impostos= parseFloat((document.getElementById('c-impostos')||{}).value)||0;
+  var pctFalhas=parseFloat((document.getElementById('c-falhas')||{}).value)||0;
+
+  var cFalhas = cFil * (pctFalhas/100);
+  var cFilComFalhas = cFil + cFalhas;
+  var cEn  = (watts/1000)*horas*kwh;
+  var cMdo = mdo*horas;
+  var cDep = (vi/vida)*horas;
+  var cMt  = (manut/hmes)*horas;
+
+  // Custo total do LOTE (qtd unidades)
+  var cTotalLote = cFilComFalhas + cEn + cMdo + cDep + cMt + insumos + embal;
+  var cUnit = cTotalLote / qtd;
+  var cUnitComImp = impostos > 0 ? cUnit / (1 - impostos/100) : cUnit;
+
+  // Atualizar campo custo unitario com o custo COMPLETO (filamento + energia + MDO + depreciacao + manutencao + insumos + embalagem + impostos)
   var custoEl = document.getElementById('npm-custo-unit');
-  if(custoEl && custoTotal > 0) {
-    var custoAtual = parseFloat(custoEl.value)||0;
-    if(custoAtual === 0) custoEl.value = custoTotal.toFixed(2);
-    else custoEl.value = custoTotal.toFixed(2); // sempre atualizar pelo filamento no form manual
+  if(custoEl && cUnitComImp > 0) {
+    custoEl.value = cUnitComImp.toFixed(2);
     custoEl.style.borderColor = 'var(--neon)';
+    custoEl.title = 'Filamento: '+fmt(cFilComFalhas/qtd)+' | Energia: '+fmt(cEn/qtd)+' | MDO: '+fmt(cMdo/qtd)+' | Deprec.+Manut: '+fmt((cDep+cMt)/qtd)+' | Insumos+Embal: '+fmt((insumos+embal)/qtd);
   }
   calcTotalPedidoManual();
 }
