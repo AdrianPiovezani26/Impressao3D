@@ -403,6 +403,7 @@
   <button onclick="showTab('financeiro')" id="btn-financeiro"><i class="ti ti-chart-bar"></i> Financeiro</button>
   <button onclick="showTab('parceiros')" id="btn-parceiros"><i class="ti ti-users"></i> Parceiros</button>
   <button onclick="showTab('oportunidades')" id="btn-oportunidades"><i class="ti ti-target"></i> Oportunidades</button>
+  <button onclick="showTab('impressoes')" id="btn-impressoes"><i class="ti ti-flask"></i> Impressoes Internas</button>
   <button onclick="showTab('consignacao')" id="btn-consignacao"><i class="ti ti-transfer"></i> Consignacao</button>
   <button onclick="showTab('relatorios')" id="btn-relatorios"><i class="ti ti-report-analytics"></i> Relatorios</button>
   <button onclick="showTab('config')" id="btn-config"><i class="ti ti-settings"></i> Configuracoes</button>
@@ -1092,6 +1093,62 @@
   </div>
 </div>
 
+
+<!-- IMPRESSOES INTERNAS -->
+<div id="tab-impressoes" class="tab">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
+    <span class="stitle" style="margin:0;"><i class="ti ti-flask"></i> Impressoes Internas (Testes / Protetipos)</span>
+    <button class="btn-ok" onclick="abrirFormImpressao(-1)"><i class="ti ti-plus"></i> Nova Impressao</button>
+  </div>
+
+  <div id="imp-kpis" style="margin-bottom:1rem;"></div>
+
+  <div id="form-impressao" class="card" style="display:none;margin-bottom:1rem;">
+    <div class="stitle" id="form-impressao-titulo" style="font-size:13px;margin-bottom:1rem;"><i class="ti ti-plus"></i> Nova Impressao Interna</div>
+    <div class="grid2">
+      <div class="field"><label>Nome / Motivo *</label><input type="text" id="imp-nome" placeholder="Ex: Teste novo modelo Funko, Protetipo suporte..."></div>
+      <div class="field"><label>Quantidade</label><input type="number" id="imp-qtd" placeholder="1" value="1" min="1" step="1"></div>
+      <div class="field"><label>Data</label><input type="date" id="imp-data"></div>
+      <div class="field"><label>Resultado</label>
+        <select id="imp-resultado" style="border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);width:100%;">
+          <option value="bom">Ficou bom</option>
+          <option value="refazer">Precisa refazer</option>
+          <option value="descartado">Descartado</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Tempo de Impressao</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="number" id="imp-horas-h" placeholder="0" min="0" step="1" oninput="calcCustoImpressao()" style="width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+        <span style="font-size:13px;color:var(--text2);">h</span>
+        <input type="number" id="imp-horas-m" placeholder="0" min="0" max="59" step="1" oninput="calcCustoImpressao()" style="width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
+        <span style="font-size:13px;color:var(--text2);">min</span>
+      </div>
+    </div>
+    <div class="field">
+      <label>Filamentos Utilizados</label>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:6px;">
+        <button class="btn" onclick="addFilImpressao()" style="font-size:11px;padding:4px 10px;"><i class="ti ti-plus"></i> Add Filamento</button>
+      </div>
+      <div id="imp-fils-lista" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+    <div class="field"><label>Observacao</label><input type="text" id="imp-obs" placeholder="Informacoes adicionais..."></div>
+
+    <div id="imp-custo-box" style="display:none;background:var(--neon-dim);border:1px solid var(--border2);border-radius:var(--radius);padding:10px 14px;margin-bottom:1rem;">
+      <span style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Custo Total Calculado</span><br>
+      <span id="imp-custo-val" style="font-size:22px;font-weight:700;color:var(--neon);text-shadow:var(--neon-glow-sm);">R$ 0,00</span>
+      <div id="imp-custo-info" style="font-size:11px;color:var(--text3);margin-top:4px;"></div>
+    </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn-ok" onclick="salvarImpressao()"><i class="ti ti-device-floppy"></i> Salvar e Baixar Estoque</button>
+      <button class="btn" onclick="document.getElementById('form-impressao').style.display='none'"><i class="ti ti-x"></i> Cancelar</button>
+    </div>
+  </div>
+
+  <div id="lista-impressoes"></div>
+</div>
 
 <!-- CONSIGNACAO -->
 <div id="tab-consignacao" class="tab">
@@ -2374,6 +2431,7 @@ function showTab(t){
   if(t==='calc')        { carregarConfigPrecificacao(); }
   if(t==='consignacao') { renderKpisConsig(); showConsigSubtab('lotes'); }
   if(t==='oportunidades') { renderKpisOport(); renderOportunidades(); }
+  if(t==='impressoes')    { renderImpressoes(); }
   if(t==='contaspagar') { showTab_contaspagar(); }
   if(t==='parceiros')   { showParcSubtab('clientes'); }
 }
@@ -4249,7 +4307,7 @@ async function sincronizarFirebaseManual() {
 
   var chaves = ['filamentos','produtos','pedidos','vendas','faturas','compras',
                 'parceiros','clientes','contas_pagar','movimentacoes','hist_calc',
-                'cfg','consignacoes','oportunidades'];
+                'cfg','consignacoes','oportunidades','impressoes_internas'];
   var ok = [], erro = [];
 
   for(var i = 0; i < chaves.length; i++) {
@@ -10425,6 +10483,9 @@ function renderKpisCP() {
 var oportunidades = S.get('oportunidades') || [];
 var _oportEditIdx = -1;
 
+var impressoesInternas = S.get('impressoes_internas') || [];
+var _impEditIdx = -1;
+
 var OP_STATUS = {
   aguardando:   {label:'Aguardando',     cor:'var(--amber-text)', tag:'tag-amber',  icon:'ti-clock'},
   desenvolvendo:{label:'Desenvolvendo',  cor:'var(--blue-text)',  tag:'tag-blue',   icon:'ti-tools'},
@@ -10934,6 +10995,314 @@ function gerarOrcamentoPDF() {
   alert('PDF gerado com sucesso!\n' + nomeArq);
 }
 /* ===== FIM ORCAMENTO PDF ===== */
+/* =====================================================
+   MODULO IMPRESSOES INTERNAS (testes / prototipos / uso pessoal)
+   ===================================================== */
+
+function renderImpKpis() {
+  var el = document.getElementById('imp-kpis');
+  if(!el) return;
+  var total = impressoesInternas.length;
+  var gastoTotal = impressoesInternas.reduce(function(s,i){ return s+((i.custoUnit||0)*(i.qtd||1)); },0);
+  var bons = impressoesInternas.filter(function(i){ return i.resultado==='bom'; }).length;
+  var descartados = impressoesInternas.filter(function(i){ return i.resultado==='descartado'; }).length;
+  var convertidos = impressoesInternas.filter(function(i){ return i.produtoCriado; }).length;
+
+  el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">' +
+    kpiRel('Total Testes',    String(total),              'var(--text2)',     'ti-flask') +
+    kpiRel('Gasto Total',     fmt(gastoTotal),             'var(--amber-text)','ti-coin') +
+    kpiRel('Ficaram Bons',    String(bons),                'var(--neon)',      'ti-check') +
+    kpiRel('Descartados',     String(descartados),         'var(--red-text)',  'ti-trash') +
+    kpiRel('Virou Produto',   String(convertidos),         'var(--blue-text)', 'ti-package') +
+  '</div>';
+}
+
+function abrirFormImpressao(idx) {
+  _impEditIdx = idx;
+  var form = document.getElementById('form-impressao');
+  var titulo = document.getElementById('form-impressao-titulo');
+  document.getElementById('imp-fils-lista').innerHTML = '';
+
+  if(idx >= 0) {
+    var imp = impressoesInternas[idx];
+    titulo.innerHTML = '<i class="ti ti-edit"></i> Editar Impressao';
+    document.getElementById('imp-nome').value = imp.nome || '';
+    document.getElementById('imp-qtd').value = imp.qtd || 1;
+    document.getElementById('imp-data').value = imp.dataIso || '';
+    document.getElementById('imp-resultado').value = imp.resultado || 'bom';
+    document.getElementById('imp-obs').value = imp.obs || '';
+    document.getElementById('imp-horas-h').value = imp.horasH || '';
+    document.getElementById('imp-horas-m').value = imp.horasM || '';
+    (imp.filsEstoque||[]).forEach(function(f){ addFilImpressao(f.filIdx, f.peso); });
+  } else {
+    titulo.innerHTML = '<i class="ti ti-plus"></i> Nova Impressao Interna';
+    document.getElementById('imp-nome').value = '';
+    document.getElementById('imp-qtd').value = 1;
+    document.getElementById('imp-data').value = hoje();
+    document.getElementById('imp-resultado').value = 'bom';
+    document.getElementById('imp-obs').value = '';
+    document.getElementById('imp-horas-h').value = '';
+    document.getElementById('imp-horas-m').value = '';
+  }
+  form.style.display = 'block';
+  form.scrollIntoView({behavior:'smooth', block:'start'});
+  calcCustoImpressao();
+}
+
+function addFilImpressao(filIdx, pesoVal) {
+  var container = document.getElementById('imp-fils-lista');
+  if(!container) return;
+  var d = document.createElement('div');
+  d.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap;';
+
+  var sel = document.createElement('select');
+  sel.style.cssText = 'flex:2;min-width:160px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:12px;background:var(--bg2);color:var(--text);';
+  sel.innerHTML = getFilOpts('-- Sem filamento --');
+  if(filIdx !== undefined && filIdx >= 0) sel.value = filIdx;
+
+  var inpPeso = document.createElement('input');
+  inpPeso.type='number'; inpPeso.placeholder='Peso (g)'; inpPeso.min='0'; inpPeso.step='1';
+  inpPeso.style.cssText='width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:12px;background:var(--bg2);color:var(--text);';
+  if(pesoVal) inpPeso.value = pesoVal;
+
+  var lbl = document.createElement('span');
+  lbl.textContent = 'g';
+  lbl.style.cssText = 'font-size:12px;color:var(--text2);flex-shrink:0;';
+
+  var lblCusto = document.createElement('span');
+  lblCusto.className = 'imp-fil-custo';
+  lblCusto.style.cssText = 'font-size:11px;color:var(--text3);flex-shrink:0;min-width:50px;';
+
+  var btn = document.createElement('button');
+  btn.className = 'rm'; btn.innerHTML = '<i class="ti ti-x"></i>';
+  btn.addEventListener('click', function(){ d.remove(); calcCustoImpressao(); });
+
+  sel.addEventListener('change', calcCustoImpressao);
+  inpPeso.addEventListener('input', calcCustoImpressao);
+
+  d.appendChild(sel);
+  d.appendChild(inpPeso);
+  d.appendChild(lbl);
+  d.appendChild(lblCusto);
+  d.appendChild(btn);
+  container.appendChild(d);
+}
+
+function calcCustoImpressao() {
+  var container = document.getElementById('imp-fils-lista');
+  if(!container) return;
+  var qtd = Math.max(1, parseInt((document.getElementById('imp-qtd')||{}).value)||1);
+  var cFil = 0;
+
+  container.querySelectorAll('div').forEach(function(row){
+    var sel  = row.querySelector('select');
+    var inp  = row.querySelector('input[type=number]');
+    var lblC = row.querySelector('.imp-fil-custo');
+    var idxF = sel ? parseInt(sel.value) : -1;
+    var peso = parseFloat(inp ? inp.value : 0)||0;
+    if(!isNaN(idxF) && idxF >= 0 && filamentos[idxF] && peso > 0) {
+      var f = filamentos[idxF];
+      var custoG = (parseFloat(f.preco)||0) / (parseFloat(f.pesoRolo)||1000);
+      var custoFil = custoG * peso;
+      cFil += custoFil;
+      if(lblC) { lblC.textContent = 'R$'+custoFil.toFixed(2); lblC.style.color='var(--text3)'; }
+    } else {
+      if(lblC) lblC.textContent = '';
+    }
+  });
+
+  var hH = parseInt((document.getElementById('imp-horas-h')||{}).value)||0;
+  var hM = parseInt((document.getElementById('imp-horas-m')||{}).value)||0;
+  var horas = hH + (hM/60);
+
+  var watts   = parseFloat((document.getElementById('c-watts')||{}).value)||0;
+  var kwh     = parseFloat((document.getElementById('c-kwh')||{}).value)||0;
+  var mdo     = parseFloat((document.getElementById('c-mdo')||{}).value)||0;
+  var vi      = parseFloat((document.getElementById('c-val-imp')||{}).value)||0;
+  var vida    = parseFloat((document.getElementById('c-vida')||{}).value)||5000;
+  var manut   = parseFloat((document.getElementById('c-manut')||{}).value)||0;
+  var hmes    = parseFloat((document.getElementById('c-hmes')||{}).value)||160;
+  var embal   = parseFloat((document.getElementById('c-embal')||{}).value)||0;
+  var insumos = parseFloat((document.getElementById('c-insumos')||{}).value)||0;
+  var impostos= parseFloat((document.getElementById('c-impostos')||{}).value)||0;
+  var pctFalhas=parseFloat((document.getElementById('c-falhas')||{}).value)||0;
+
+  var cFalhas = cFil * (pctFalhas/100);
+  var cFilComFalhas = cFil + cFalhas;
+  var cEn  = (watts/1000)*horas*kwh;
+  var cMdo = mdo*horas;
+  var cDep = (vi/vida)*horas;
+  var cMt  = (manut/hmes)*horas;
+
+  var cTotalLote = cFilComFalhas + cEn + cMdo + cDep + cMt + insumos + embal;
+  var cUnit = cTotalLote / qtd;
+  var cUnitComImp = impostos > 0 ? cUnit / (1 - impostos/100) : cUnit;
+
+  var box = document.getElementById('imp-custo-box');
+  var val = document.getElementById('imp-custo-val');
+  var info = document.getElementById('imp-custo-info');
+  if(cUnitComImp > 0 || cFil > 0) {
+    box.style.display = 'block';
+    val.textContent = fmt(cUnitComImp) + (qtd>1 ? ' /un  ('+fmt(cUnitComImp*qtd)+' total)' : '');
+    info.textContent = 'Filamento: '+fmt(cFilComFalhas/qtd)+' | Energia: '+fmt(cEn/qtd)+' | MDO: '+fmt(cMdo/qtd)+' | Deprec.+Manut: '+fmt((cDep+cMt)/qtd)+' | Insumos+Embal: '+fmt((insumos+embal)/qtd);
+  } else {
+    box.style.display = 'none';
+  }
+  return cUnitComImp;
+}
+
+function salvarImpressao() {
+  var nome = upper(document.getElementById('imp-nome').value);
+  if(!nome) { alert('Informe o nome ou motivo da impressao.'); return; }
+
+  var qtd = Math.max(1, parseInt(document.getElementById('imp-qtd').value)||1);
+  var dataIso = document.getElementById('imp-data').value || hoje();
+  var dataFmt = new Date(dataIso+'T00:00:00').toLocaleDateString('pt-BR');
+  var resultado = document.getElementById('imp-resultado').value;
+  var obs = upper(document.getElementById('imp-obs').value);
+  var hH = parseInt(document.getElementById('imp-horas-h').value)||0;
+  var hM = parseInt(document.getElementById('imp-horas-m').value)||0;
+  var tempoStr = (hH>0||hM>0) ? ((hH>0?hH+'h':'')+(hM>0?' '+hM+'min':'')).trim() : '--';
+
+  var custoUnit = calcCustoImpressao();
+
+  var filsEstoque = [];
+  var container = document.getElementById('imp-fils-lista');
+  if(container) {
+    container.querySelectorAll('div').forEach(function(row){
+      var sel  = row.querySelector('select');
+      var inp  = row.querySelector('input[type=number]');
+      var idxF = sel ? parseInt(sel.value) : -1;
+      var peso = parseFloat(inp ? inp.value : 0)||0;
+      if(!isNaN(idxF) && idxF >= 0 && filamentos[idxF] && peso > 0) {
+        filsEstoque.push({filIdx:idxF, filNome:filamentos[idxF].marca+' '+filamentos[idxF].modelo+' '+filamentos[idxF].corNome, peso:peso});
+      }
+    });
+  }
+
+  if(!filsEstoque.length && !confirm('Nenhum filamento informado. Salvar mesmo assim sem baixar estoque?')) return;
+
+  var registro = {
+    id: _impEditIdx >= 0 ? impressoesInternas[_impEditIdx].id : Date.now(),
+    nome: nome,
+    qtd: qtd,
+    data: dataFmt,
+    dataIso: dataIso,
+    horas: tempoStr,
+    horasH: hH, horasM: hM,
+    resultado: resultado,
+    obs: obs,
+    custoUnit: custoUnit,
+    filsEstoque: filsEstoque,
+    filNome: filsEstoque.length ? filsEstoque.map(function(f){ return f.filNome+' ('+f.peso+'g)'; }).join(', ') : '--',
+    produtoCriado: _impEditIdx >= 0 ? (impressoesInternas[_impEditIdx].produtoCriado||false) : false
+  };
+
+  if(_impEditIdx >= 0) {
+    impressoesInternas[_impEditIdx] = registro;
+  } else {
+    impressoesInternas.unshift(registro);
+    // Baixa imediata de estoque
+    if(filsEstoque.length) {
+      filsEstoque.forEach(function(f){
+        registrarMovimentacao(f.filIdx, 'saida', f.peso, 'Impressao interna: '+nome, 'Impressao: '+nome);
+      });
+    }
+  }
+
+  S.set('impressoes_internas', impressoesInternas);
+  document.getElementById('form-impressao').style.display = 'none';
+  renderImpressoes();
+  alert('Impressao registrada!' + (filsEstoque.length ? '\n' + filsEstoque.length + ' filamento(s) baixado(s) do estoque.' : '') + '\nCusto: ' + fmt(custoUnit) + (qtd>1?' /un':''));
+}
+
+function delImpressao(idx) {
+  var imp = impressoesInternas[idx];
+  if(!imp) return;
+  if(!confirm('Remover o registro "'+imp.nome+'"? O estoque ja baixado NAO sera devolvido automaticamente.')) return;
+  impressoesInternas.splice(idx, 1);
+  S.set('impressoes_internas', impressoesInternas);
+  renderImpressoes();
+}
+
+function transformarImpressaoEmProduto(idx) {
+  var imp = impressoesInternas[idx];
+  if(!imp) return;
+  if(imp.produtoCriado) { alert('Esta impressao ja foi transformada em produto.'); return; }
+  var precoSugerido = prompt('Custo desta peca: ' + fmt(imp.custoUnit) + '\nInforme o preco de venda sugerido (R$):', (imp.custoUnit*3).toFixed(2));
+  if(precoSugerido === null) return;
+  var precoNum = parseFloat(String(precoSugerido).replace(',','.'))||0;
+
+  var prod = {
+    id: Date.now(),
+    nome: imp.nome,
+    cat: '',
+    fils: imp.filsEstoque,
+    filNome: imp.filNome,
+    horas: imp.horas,
+    precoNum: precoNum,
+    preco: precoNum ? fmt(precoNum) : '--',
+    custoNum: imp.custoUnit,
+    obs: imp.obs
+  };
+  produtos.push(prod);
+  produtos.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||'','pt-BR'); });
+  S.set('produtos', produtos);
+
+  imp.produtoCriado = true;
+  S.set('impressoes_internas', impressoesInternas);
+  renderImpressoes();
+  alert('Produto criado no catalogo: ' + imp.nome + '\nPreco de venda: ' + fmt(precoNum));
+}
+
+function renderImpressoes() {
+  renderImpKpis();
+  var el = document.getElementById('lista-impressoes');
+  if(!el) return;
+
+  if(!impressoesInternas.length) {
+    el.innerHTML = '<div class="empty"><i class="ti ti-flask"></i>Nenhuma impressao interna registrada.<br><span style="font-size:12px;">Clique em "+ Nova Impressao" para registrar um teste ou prototipo.</span></div>';
+    return;
+  }
+
+  var RES = {
+    bom:        {label:'Ficou bom',       cor:'var(--neon)',      tag:'tag-green'},
+    refazer:    {label:'Precisa refazer', cor:'var(--amber-text)',tag:'tag-amber'},
+    descartado: {label:'Descartado',      cor:'var(--red-text)',  tag:'tag-red'}
+  };
+
+  el.innerHTML = impressoesInternas.map(function(imp){
+    var idx = impressoesInternas.indexOf(imp);
+    var r = RES[imp.resultado] || RES.bom;
+    var custoTotalImp = (imp.custoUnit||0) * (imp.qtd||1);
+
+    return '<div class="item-card" style="border-left:3px solid '+r.cor+';margin-bottom:8px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+            '<strong style="font-size:15px;">'+imp.nome+'</strong>' +
+            '<span class="tag '+r.tag+'" style="font-size:10px;">'+r.label+'</span>' +
+            (imp.produtoCriado ? '<span class="tag tag-blue" style="font-size:10px;"><i class="ti ti-package"></i> Virou Produto</span>' : '') +
+          '</div>' +
+          '<div style="font-size:12px;color:var(--text2);margin-top:4px;">'+(imp.filNome||'--')+'</div>' +
+          (imp.obs ? '<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic;">'+imp.obs+'</div>' : '') +
+          '<div style="font-size:11px;color:var(--text3);margin-top:4px;">Data: '+imp.data+' | Qtd: '+imp.qtd+' | Tempo: '+(imp.horas||'--')+'</div>' +
+        '</div>' +
+        '<div style="text-align:right;flex-shrink:0;">' +
+          '<div style="font-size:18px;font-weight:700;color:var(--amber-text);">'+fmt(custoTotalImp)+'</div>' +
+          (imp.qtd>1 ? '<div style="font-size:10px;color:var(--text3);">'+fmt(imp.custoUnit)+' /un</div>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">' +
+        (!imp.produtoCriado ? '<button class="btn-ok" onclick="transformarImpressaoEmProduto('+idx+')" style="font-size:11px;padding:5px 10px;background:rgba(0,170,255,0.08);border-color:var(--blue-border);color:var(--blue-text);"><i class="ti ti-package"></i> Transformar em Produto</button>' : '') +
+        '<button class="btn" onclick="abrirFormImpressao('+idx+')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-edit"></i> Editar</button>' +
+        '<button class="btn-del" onclick="delImpressao('+idx+')" style="font-size:11px;padding:5px 10px;margin-left:auto;"><i class="ti ti-trash"></i></button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+/* ===== FIM IMPRESSOES INTERNAS ===== */
+
 
 // INIT -- aguarda DOM completo
 document.addEventListener('DOMContentLoaded', function() {
