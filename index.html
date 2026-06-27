@@ -2199,17 +2199,18 @@
         style="width:100%;border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);resize:vertical;"></textarea>
     </div>
     <div class="field" style="margin-top:8px;">
-      <label>Imagem do Produto (opcional)</label>
-      <div style="border:2px dashed var(--border2);border-radius:var(--radius);padding:16px;text-align:center;cursor:pointer;background:var(--bg2);"
+      <label>Imagens do Produto (opcional)</label>
+      <div id="orc-img-drop" tabindex="0"
+        style="border:2px dashed var(--border2);border-radius:var(--radius);padding:16px;text-align:center;cursor:pointer;background:var(--bg2);outline:none;"
         onclick="document.getElementById('orc-img-input').click()">
-        <img id="orc-img-preview" src="" style="display:none;max-width:100%;max-height:180px;border-radius:8px;margin-bottom:8px;">
         <div id="orc-img-placeholder" style="color:var(--text3);font-size:13px;">
           <i class="ti ti-photo" style="font-size:32px;display:block;margin-bottom:6px;"></i>
-          Clique para adicionar imagem do produto<br>
-          <span style="font-size:11px;">(print do fatiador ou foto de referencia)</span>
+          Clique para selecionar, ou cole um print (Ctrl+V)<br>
+          <span style="font-size:11px;">Pode escolher varias imagens de uma vez</span>
         </div>
+        <div id="orc-img-previews" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;"></div>
       </div>
-      <input type="file" id="orc-img-input" accept="image/*" style="display:none;" onchange="previewImgOrcamento(this)">
+      <input type="file" id="orc-img-input" accept="image/*" multiple style="display:none;" onchange="adicionarImgsOrcamento(this.files)">
     </div>
     <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap;">
       <button class="btn-ok" onclick="gerarOrcamentoPDF()" style="background:rgba(255,170,0,0.12);border-color:var(--amber-border);color:var(--amber-text);flex:1;">
@@ -10742,7 +10743,7 @@ function criarPedidoDeOportunidade(idx) {
 /* =====================================================
    MODULO ORCAMENTO PDF
    ===================================================== */
-var _orcImgData = null;
+var _orcImgs = [];
 
 function abrirModalOrcamento() {
   var res = document.getElementById('resultado');
@@ -10754,25 +10755,66 @@ function abrirModalOrcamento() {
   document.getElementById('orc-prazo').value    = '5 a 7 dias uteis';
   document.getElementById('orc-obs').value      = '';
   document.getElementById('orc-validade').value = '7';
-  _orcImgData = null;
-  document.getElementById('orc-img-preview').style.display = 'none';
-  document.getElementById('orc-img-placeholder').style.display = 'block';
+  _orcImgs = [];
+  renderOrcImgPreviews();
   document.getElementById('modal-orcamento').style.display = 'flex';
 }
 
-function previewImgOrcamento(input) {
-  if(!input.files || !input.files[0]) return;
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    _orcImgData = e.target.result;
-    var preview = document.getElementById('orc-img-preview');
-    var placeholder = document.getElementById('orc-img-placeholder');
-    preview.src = _orcImgData;
-    preview.style.display = 'block';
-    placeholder.style.display = 'none';
-  };
-  reader.readAsDataURL(input.files[0]);
+function renderOrcImgPreviews() {
+  var box = document.getElementById('orc-img-previews');
+  var placeholder = document.getElementById('orc-img-placeholder');
+  if(!box) return;
+  if(!_orcImgs.length) {
+    box.innerHTML = '';
+    if(placeholder) placeholder.style.display = 'block';
+    return;
+  }
+  if(placeholder) placeholder.style.display = 'none';
+  box.innerHTML = _orcImgs.map(function(src, i){
+    return '<div style="position:relative;width:90px;height:90px;">' +
+      '<img src="'+src+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid var(--border2);">' +
+      '<button onclick="event.stopPropagation();removerImgOrcamento('+i+')" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--red-text);color:#000;border:none;cursor:pointer;font-size:12px;line-height:1;">x</button>' +
+    '</div>';
+  }).join('');
 }
+
+function removerImgOrcamento(i) {
+  _orcImgs.splice(i,1);
+  renderOrcImgPreviews();
+}
+
+function adicionarImgsOrcamento(files) {
+  if(!files || !files.length) return;
+  Array.prototype.forEach.call(files, function(file){
+    if(!file.type || file.type.indexOf('image') !== 0) return;
+    var reader = new FileReader();
+    reader.onload = function(e){
+      _orcImgs.push(e.target.result);
+      renderOrcImgPreviews();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Permitir colar (Ctrl+V) uma imagem de print direto na area de upload
+document.addEventListener('paste', function(e){
+  var modal = document.getElementById('modal-orcamento');
+  if(!modal || modal.style.display === 'none') return;
+  var items = (e.clipboardData || window.clipboardData).items;
+  if(!items) return;
+  for(var i = 0; i < items.length; i++) {
+    if(items[i].type.indexOf('image') === 0) {
+      var blob = items[i].getAsFile();
+      var reader = new FileReader();
+      reader.onload = function(ev){
+        _orcImgs.push(ev.target.result);
+        renderOrcImgPreviews();
+      };
+      reader.readAsDataURL(blob);
+      e.preventDefault();
+    }
+  }
+});
 
 function gerarOrcamentoPDF() {
   var cliente = document.getElementById('orc-cliente').value.trim();
@@ -10860,22 +10902,40 @@ function gerarOrcamentoPDF() {
   doc.text(cliente.toUpperCase(), marginL+4, y+13);
   y += 22;
 
-  // ---- IMAGEM DO PRODUTO (se houver) ----
+  // ---- IMAGEM(NS) DO PRODUTO (se houver) ----
   var colImgW = 70, colInfoW = W - marginL - marginR - colImgW - 6;
+  var imgs = _orcImgs || [];
+  var imgBlockH = 0;
 
-  if(_orcImgData) {
+  if(imgs.length) {
     try {
-      var imgType = _orcImgData.split(';')[0].split('/')[1].toUpperCase();
-      if(imgType === 'JPEG') imgType = 'JPEG';
-      doc.addImage(_orcImgData, imgType, marginL, y, colImgW, 60);
-    } catch(e) {
-      // Ignorar erro de imagem
+      var imgType0 = imgs[0].split(';')[0].split('/')[1].toUpperCase();
+      doc.addImage(imgs[0], imgType0, marginL, y, colImgW, 60);
+    } catch(e) { /* Ignorar erro de imagem */ }
+    imgBlockH = 60;
+
+    var extra = imgs.slice(1);
+    if(extra.length) {
+      var tw = 21, th = 18, gap = 2;
+      var porLinha = Math.max(1, Math.floor((colImgW+gap) / (tw+gap)));
+      var linhas = Math.ceil(extra.length / porLinha);
+      var ty = y + 60 + gap;
+      for(var ei = 0; ei < extra.length; ei++) {
+        var lin = Math.floor(ei / porLinha);
+        var col = ei % porLinha;
+        var tx = marginL + col*(tw+gap);
+        try {
+          var imgTypeE = extra[ei].split(';')[0].split('/')[1].toUpperCase();
+          doc.addImage(extra[ei], imgTypeE, tx, ty + lin*(th+gap), tw, th);
+        } catch(e) { /* Ignorar erro de imagem */ }
+      }
+      imgBlockH = 60 + gap + (linhas*(th+gap));
     }
   }
 
   // ---- DADOS DO PRODUTO ----
-  var xInfo = _orcImgData ? (marginL + colImgW + 6) : marginL;
-  var wInfo = _orcImgData ? colInfoW : (W - marginL - marginR);
+  var xInfo = imgs.length ? (marginL + colImgW + 6) : marginL;
+  var wInfo = imgs.length ? colInfoW : (W - marginL - marginR);
 
   doc.setTextColor(57,255,20);
   doc.setFontSize(8);
@@ -10906,7 +10966,7 @@ function gerarOrcamentoPDF() {
     yInfo += 6;
   }
 
-  y = (_orcImgData ? Math.max(y + 64, yInfo + 8) : yInfo + 8);
+  y = (imgs.length ? Math.max(y + imgBlockH + 4, yInfo + 8) : yInfo + 8);
   y += 6;
 
   // ---- BLOCO DE PRECO ----
