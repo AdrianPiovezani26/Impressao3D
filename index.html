@@ -11171,7 +11171,7 @@ function gerarOrcamentoPDF() {
   doc.text('@akp3d.oficial  |  Cascavel - PR', W/2, H-8, {align:'center'});
 
   // Baixar
-  var nomeArq = 'Orcamento_' + nome.replace(/[^a-zA-Z0-9]/g,'_').slice(0,20) + '_' + numOrc + '.pdf';
+  var nomeArq = 'Orcamento_' + nomeArquivo.replace(/[^a-zA-Z0-9]/g,'_').slice(0,20) + '_' + numOrc + '.pdf';
   doc.save(nomeArq);
 
   document.getElementById('modal-orcamento').style.display = 'none';
