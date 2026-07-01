@@ -2194,7 +2194,24 @@
         </select>
       </div>
     </div>
-    <div class="field" style="margin-top:8px;"><label>Observacoes (opcional)</label>
+    <div class="field" style="margin-top:8px;">
+      <label>Itens do Orçamento</label>
+      <div id="orc-itens-lista" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
+      <button class="btn" onclick="abrirSeletorHistOrc()" style="width:100%;font-size:12px;padding:7px;">
+        <i class="ti ti-history"></i> Adicionar item do Histórico de Precificação
+      </button>
+    </div>
+
+    <!-- Mini modal seletor do histCalc -->
+    <div id="orc-hist-seletor" style="display:none;background:var(--bg);border:1px solid var(--neon-border);border-radius:var(--radius);padding:12px;margin-top:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <strong style="font-size:12px;color:var(--neon);">Selecionar do histórico</strong>
+        <button class="btn" onclick="document.getElementById('orc-hist-seletor').style.display='none'" style="padding:3px 8px;font-size:11px;"><i class="ti ti-x"></i></button>
+      </div>
+      <input type="text" id="orc-hist-busca" placeholder="Buscar por nome..." oninput="filtrarHistOrc()"
+        style="width:100%;border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:12px;background:var(--bg2);color:var(--text);margin-bottom:8px;">
+      <div id="orc-hist-lista" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;"></div>
+    </div>
       <textarea id="orc-obs" rows="2" placeholder="Ex: Produto personalizado conforme referencia enviada..."
         style="width:100%;border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);resize:vertical;"></textarea>
     </div>
@@ -10744,6 +10761,7 @@ function criarPedidoDeOportunidade(idx) {
    MODULO ORCAMENTO PDF
    ===================================================== */
 var _orcImgs = [];
+var _orcItens = []; // itens do histCalc adicionados ao orcamento
 
 function abrirModalOrcamento() {
   var res = document.getElementById('resultado');
@@ -10756,9 +10774,72 @@ function abrirModalOrcamento() {
   document.getElementById('orc-obs').value      = '';
   document.getElementById('orc-validade').value = '7';
   _orcImgs = [];
+  // Carregar item atual da precificacao como primeiro item
+  var dados = coletarDadosCalc();
+  _orcItens = [dados];
+  renderOrcItens();
   renderOrcImgPreviews();
   document.getElementById('modal-orcamento').style.display = 'flex';
 }
+
+function renderOrcItens() {
+  var el = document.getElementById('orc-itens-lista');
+  if(!el) return;
+  if(!_orcItens.length) { el.innerHTML = ''; return; }
+  el.innerHTML = _orcItens.map(function(item, i){
+    var total = (item.precoUnit||0) * (item.qtd||1);
+    return '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:6px 10px;gap:8px;">' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:12px;font-weight:700;">'+item.nome+'</div>' +
+        '<div style="font-size:11px;color:var(--text3);">Qtd: '+item.qtd+' | '+fmt(item.precoUnit)+'/un = '+fmt(total)+'</div>' +
+      '</div>' +
+      '<button onclick="removerItemOrc('+i+')" class="btn-del" style="font-size:10px;padding:3px 7px;"><i class="ti ti-x"></i></button>' +
+    '</div>';
+  }).join('');
+}
+
+function removerItemOrc(i) {
+  _orcItens.splice(i,1);
+  renderOrcItens();
+}
+
+function abrirSeletorHistOrc() {
+  var el = document.getElementById('orc-hist-seletor');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  filtrarHistOrc();
+}
+
+function filtrarHistOrc() {
+  var busca = ((document.getElementById('orc-hist-busca')||{}).value||'').toUpperCase();
+  var lista = document.getElementById('orc-hist-lista');
+  if(!lista) return;
+  var itens = _histCalc.filter(function(h){
+    return !busca || (h.nome||'').toUpperCase().includes(busca);
+  }).slice(0,30);
+
+  lista.innerHTML = itens.map(function(h){
+    var total = (h.precoUnit||0)*(h.qtd||1);
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:var(--bg2);border:1px solid var(--border2);border-radius:6px;cursor:pointer;" onclick="adicionarItemHistOrc(\''+h.id+'\')">' +
+      '<div>' +
+        '<div style="font-size:12px;font-weight:700;">'+h.nome+'</div>' +
+        '<div style="font-size:10px;color:var(--text3);">Qtd:'+h.qtd+' | '+fmt(h.precoUnit)+'/un | '+h.data+'</div>' +
+      '</div>' +
+      '<span style="font-size:13px;color:var(--neon);font-weight:700;">'+fmt(total)+'</span>' +
+    '</div>';
+  }).join('') || '<div style="font-size:12px;color:var(--text3);text-align:center;padding:12px;">Nenhum resultado</div>';
+}
+
+function adicionarItemHistOrc(id) {
+  var h = _histCalc.find(function(x){ return String(x.id) === String(id); });
+  if(!h) return;
+  // Evitar duplicata
+  var jaExiste = _orcItens.some(function(item){ return item.id === h.id; });
+  if(jaExiste) { alert('Este item ja foi adicionado.'); return; }
+  _orcItens.push(h);
+  renderOrcItens();
+  document.getElementById('orc-hist-seletor').style.display = 'none';
+}
+
 
 function renderOrcImgPreviews() {
   var box = document.getElementById('orc-img-previews');
@@ -10820,12 +10901,9 @@ function gerarOrcamentoPDF() {
   var cliente = document.getElementById('orc-cliente').value.trim();
   if(!cliente) { alert('Informe o nome do cliente.'); return; }
 
-  // Coletar dados da precificacao
-  var dados = coletarDadosCalc();
-  var nome     = dados.nome || 'Produto Personalizado';
-  var qtd      = dados.qtd  || 1;
-  var preco    = parseFloat((document.getElementById('r-preco')||{}).dataset.unitValue || dados.precoUnit) || 0;
-  var total    = preco * qtd;
+  // Coletar itens do orcamento
+  var itens = _orcItens.length ? _orcItens : [coletarDadosCalc()];
+  var totalGeral = itens.reduce(function(s,it){ return s + (it.precoUnit||0)*(it.qtd||1); }, 0);
   var prazo    = document.getElementById('orc-prazo').value  || '5 a 7 dias uteis';
   var cond     = document.getElementById('orc-condicao').value || 'A vista';
   var obs      = document.getElementById('orc-obs').value || '';
@@ -10942,73 +11020,67 @@ function gerarOrcamentoPDF() {
   doc.setFont('helvetica','bold');
   doc.text('PRODUTO / SERVICO', xInfo, y+5);
 
-  doc.setTextColor(255,255,255);
-  doc.setFontSize(13);
+  // Itens do orcamento (tabela)
+  var tY = y + 8;
+  var colN = xInfo, colQ = xInfo + wInfo*0.42, colPU = xInfo + wInfo*0.57, colT = xInfo + wInfo;
+  // Cabecalho da tabela
+  doc.setFillColor(22,40,22);
+  doc.rect(colN, tY, wInfo, 7, 'F');
+  doc.setFontSize(7);
   doc.setFont('helvetica','bold');
-  var nomeLines = doc.splitTextToSize(nome, wInfo - 4);
-  doc.text(nomeLines, xInfo, y+12);
-
-  var yInfo = y + 12 + (nomeLines.length * 6);
-
-  if(qtd > 1) {
-    doc.setFontSize(9);
+  doc.setTextColor(57,255,20);
+  doc.text('DESCRICAO', colN+2, tY+5);
+  doc.text('QTD', colQ, tY+5);
+  doc.text('UNIT', colPU, tY+5);
+  doc.text('TOTAL', colT, tY+5, {align:'right'});
+  tY += 8;
+  // Linhas dos itens
+  var alturaLinha = 9;
+  itens.forEach(function(it, idx){
+    var qtdIt = it.qtd||1;
+    var precoIt = it.precoUnit||0;
+    var totalIt = precoIt * qtdIt;
+    var bg = idx%2===0 ? [18,24,18] : [12,18,12];
+    doc.setFillColor(bg[0],bg[1],bg[2]);
+    doc.rect(colN, tY, wInfo, alturaLinha, 'F');
     doc.setFont('helvetica','normal');
-    doc.setTextColor(180,180,180);
-    doc.text('Quantidade: ' + qtd + ' unidades', xInfo, yInfo + 6);
-    yInfo += 6;
-  }
+    doc.setTextColor(255,255,255);
+    doc.setFontSize(8);
+    var nomeIt = doc.splitTextToSize(it.nome, wInfo*0.40);
+    doc.text(nomeIt[0], colN+2, tY+6);
+    doc.setTextColor(200,200,200);
+    doc.text(String(qtdIt), colQ, tY+6);
+    doc.text('R$'+precoIt.toFixed(2).replace('.',','), colPU, tY+6);
+    doc.setTextColor(57,255,20);
+    doc.text('R$'+totalIt.toFixed(2).replace('.',','), colT, tY+6, {align:'right'});
+    tY += alturaLinha;
+  });
+  // Linha total
+  doc.setDrawColor(57,255,20);
+  doc.setLineWidth(0.3);
+  doc.line(colN, tY, colT, tY);
+  tY += 3;
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(9);
+  doc.setTextColor(160,240,160);
+  doc.text('TOTAL GERAL:', colPU, tY+6);
+  doc.setTextColor(57,255,20);
+  doc.setFontSize(13);
+  doc.text('R$ '+totalGeral.toFixed(2).replace('.',','), colT, tY+7, {align:'right'});
+  tY += 12;
 
+  var yInfo = tY + 4;
+
+  y = (imgs.length ? Math.max(y + imgBlockH + 4, yInfo) : yInfo);
+
+  // ---- PRAZO ----
   if(prazo) {
     doc.setFontSize(9);
     doc.setFont('helvetica','normal');
     doc.setTextColor(180,180,180);
-    doc.text('Prazo estimado: ' + prazo, xInfo, yInfo + 6);
-    yInfo += 6;
+    doc.text('Prazo estimado: ' + prazo + ' | Pagamento: ' + cond, marginL, y+5);
+    y += 10;
   }
-
-  y = (imgs.length ? Math.max(y + imgBlockH + 4, yInfo + 8) : yInfo + 8);
-  y += 6;
-
-  // ---- BLOCO DE PRECO ----
-  doc.setFillColor(18,36,18);
-  doc.setDrawColor(57,255,20);
-  doc.setLineWidth(0.4);
-  doc.roundedRect(marginL, y, W-marginL-marginR, qtd > 1 ? 32 : 22, 3, 3, 'FD');
-
-  doc.setTextColor(180,220,180);
-  doc.setFontSize(8);
-  doc.setFont('helvetica','normal');
-  if(qtd > 1) {
-    doc.text('Preco unitario:', marginL+6, y+9);
-    doc.setTextColor(57,255,20);
-    doc.setFontSize(11);
-    doc.setFont('helvetica','bold');
-    doc.text('R$ ' + preco.toFixed(2).replace('.',','), marginL+6, y+16);
-    doc.setTextColor(180,220,180);
-    doc.setFontSize(8);
-    doc.setFont('helvetica','normal');
-    doc.text('TOTAL (' + qtd + ' unidades):', W/2, y+9, {align:'center'});
-    doc.setTextColor(57,255,20);
-    doc.setFontSize(16);
-    doc.setFont('helvetica','bold');
-    doc.text('R$ ' + total.toFixed(2).replace('.',','), W/2, y+20, {align:'center'});
-    doc.setTextColor(180,220,180);
-    doc.setFontSize(8);
-    doc.setFont('helvetica','normal');
-    doc.text('Pagamento: ' + cond, W-marginR-4, y+16, {align:'right'});
-  } else {
-    doc.text('VALOR TOTAL:', marginL+6, y+9);
-    doc.setTextColor(57,255,20);
-    doc.setFontSize(18);
-    doc.setFont('helvetica','bold');
-    doc.text('R$ ' + total.toFixed(2).replace('.',','), marginL+6, y+18);
-    doc.setTextColor(180,220,180);
-    doc.setFontSize(8);
-    doc.setFont('helvetica','normal');
-    doc.text('Pagamento: ' + cond, W-marginR-4, y+14, {align:'right'});
-  }
-
-  y += (qtd > 1 ? 32 : 22) + 8;
 
   // ---- OBSERVACOES ----
   if(obs) {
