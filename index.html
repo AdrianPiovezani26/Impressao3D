@@ -11056,7 +11056,7 @@ function gerarOrcamentoPDF() {
 
   // Itens do orcamento (tabela)
   var tY = y + 8;
-  var colN = xInfo, colQ = xInfo + wInfo*0.42, colPU = xInfo + wInfo*0.57, colT = xInfo + wInfo;
+  var colN = xInfo, colQ = xInfo + wInfo*0.55, colPU = xInfo + wInfo*0.68, colT = xInfo + wInfo;
   // Cabecalho da tabela
   doc.setFillColor(22,40,22);
   doc.rect(colN, tY, wInfo, 7, 'F');
@@ -11068,25 +11068,26 @@ function gerarOrcamentoPDF() {
   doc.text('UNIT', colPU, tY+5);
   doc.text('TOTAL', colT, tY+5, {align:'right'});
   tY += 8;
-  // Linhas dos itens
-  var alturaLinha = 9;
+  // Linhas dos itens (com suporte a nome longo em 2 linhas)
   itens.forEach(function(it, idx){
     var qtdIt = it.qtd||1;
     var precoIt = it.precoUnit||0;
     var totalIt = precoIt * qtdIt;
+    var nomeIt = doc.splitTextToSize(it.nome, wInfo*0.53);
+    var alturaLinha = nomeIt.length > 1 ? 14 : 9;
     var bg = idx%2===0 ? [18,24,18] : [12,18,12];
     doc.setFillColor(bg[0],bg[1],bg[2]);
     doc.rect(colN, tY, wInfo, alturaLinha, 'F');
     doc.setFont('helvetica','normal');
     doc.setTextColor(255,255,255);
     doc.setFontSize(8);
-    var nomeIt = doc.splitTextToSize(it.nome, wInfo*0.40);
-    doc.text(nomeIt[0], colN+2, tY+6);
+    doc.text(nomeIt, colN+2, tY+6);
+    var midY = tY + alturaLinha/2 + 2;
     doc.setTextColor(200,200,200);
-    doc.text(String(qtdIt), colQ, tY+6);
-    doc.text('R$'+precoIt.toFixed(2).replace('.',','), colPU, tY+6);
+    doc.text(String(qtdIt), colQ, midY);
+    doc.text('R$'+precoIt.toFixed(2).replace('.',','), colPU, midY);
     doc.setTextColor(57,255,20);
-    doc.text('R$'+totalIt.toFixed(2).replace('.',','), colT, tY+6, {align:'right'});
+    doc.text('R$'+totalIt.toFixed(2).replace('.',','), colT, midY, {align:'right'});
     tY += alturaLinha;
   });
   // Linha total
