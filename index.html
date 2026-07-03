@@ -7648,29 +7648,27 @@ function pagarConta(idx) {
   if(!c) return;
   if(!confirm('Confirmar pagamento: ' + c.desc + ' | ' + fmt(c.valor))) return;
 
-  // Usar ID para garantir que o item correto seja atualizado
-  var realIdx = contasPagar.findIndex(function(x){ return x.id === c.id; });
-  if(realIdx < 0) realIdx = idx;
+  // Buscar sempre por ID para evitar dessincronismo com indice do DOM apos filtro/ordenacao
+  var item = contasPagar.find(function(x){ return x.id === c.id; });
+  if(!item) { alert('Conta nao encontrada. Recarregue a pagina.'); return; }
 
-  contasPagar[realIdx].status = 'paga';
-  contasPagar[realIdx].dataPagamento = hoje();
+  item.status = 'paga';
+  item.dataPagamento = hoje();
   S.set('contas_pagar', contasPagar);
 
-  // Atualizar todas as telas que mostram contas a pagar
-  popularFiltroMes();
   renderKpisCP();
   renderContasPagar();
   renderDashboard();
 
   // Se recorrente, oferecer gerar proxima parcela
-  if(c.recorrencia && c.recorrencia !== 'unica') {
-    var d = new Date(c.venc+'T00:00:00');
-    if(c.recorrencia === 'mensal')     d.setMonth(d.getMonth()+1);
-    if(c.recorrencia === 'trimestral') d.setMonth(d.getMonth()+3);
-    if(c.recorrencia === 'anual')      d.setFullYear(d.getFullYear()+1);
+  if(item.recorrencia && item.recorrencia !== 'unica') {
+    var d = new Date(item.venc+'T00:00:00');
+    if(item.recorrencia === 'mensal')     d.setMonth(d.getMonth()+1);
+    if(item.recorrencia === 'trimestral') d.setMonth(d.getMonth()+3);
+    if(item.recorrencia === 'anual')      d.setFullYear(d.getFullYear()+1);
     var proxVenc = d.toISOString().slice(0,10);
     if(confirm('Conta recorrente!\nGerar proxima parcela para ' + fmtD(proxVenc) + '?')) {
-      var nova = Object.assign({}, c, {
+      var nova = Object.assign({}, item, {
         id: Date.now(), status: 'pendente',
         dataPagamento: null, dataCadastro: hoje(), venc: proxVenc
       });
