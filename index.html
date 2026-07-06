@@ -1528,96 +1528,39 @@
   <div id="subtab-compras-lancamento" class="subtab active">
     <div class="card">
       <div class="stitle" style="margin-bottom:1rem;">Registrar Compra</div>
+
+      <!-- Cabecalho da NF / Compra -->
       <div class="grid2">
-        <div class="field"><label>Tipo de item</label>
-          <select id="cp-tipo" onchange="toggleTipoCompra()">
-            <option value="filamento">Filamento</option>
-            <option value="acessorio">Acessorio / Insumo</option>
-            <option value="impressora">Impressora / Equipamento</option>
-          </select>
-        </div>
         <div class="field"><label>Fornecedor</label>
           <select id="cp-fornecedor"><option value="">Selecionar fornecedor...</option></select>
         </div>
         <div class="field"><label>Data da Compra</label><input type="date" id="cp-data"></div>
         <div class="field"><label>Numero NF / Pedido</label><input type="text" id="cp-nf" placeholder="Ex: NF-001234"></div>
-      </div>
-
-      <!-- Campos filamento -->
-      <div id="cp-campos-filamento">
-        <div class="sep"></div>
-        <div class="stitle" style="font-size:11px;margin-bottom:.75rem;">Dados do Filamento</div>
-        <div class="grid2">
-          <div class="field"><label>Filamento do estoque</label>
-            <select id="cp-fil-estoque" onchange="preencherDadosFilCompra()">
-              <option value="">Selecionar filamento cadastrado...</option>
-            </select>
-          </div>
-          <div class="field"><label>Ou -- novo filamento (marca / modelo)</label>
-            <input type="text" id="cp-fil-desc" placeholder="Ex: Volt3d PLA Preto"></div>
-          <div class="field"><label>Quantidade de rolos</label><input type="number" id="cp-rolos" placeholder="1" value="1" min="1" step="1" oninput="calcTotalCompra()"></div>
-          <div class="field"><label>Peso por rolo (g) <span style="color:var(--text3);font-weight:400;">(1 kg = 1000g)</span></label><input type="number" id="cp-peso-rolo" placeholder="1000" value="1000" step="50" oninput="calcTotalCompra()"></div>
-          <div class="field"><label>Preco por rolo (R$)</label><input type="number" id="cp-preco-rolo" placeholder="89.90" step="0.50" oninput="calcTotalCompra()"></div>
-          <div class="field"><label>Total da compra (R$)</label><input type="number" id="cp-total" readonly></div>
-        </div>
-        <div class="field"><label>Dar entrada no estoque automaticamente?</label>
-          <select id="cp-entrada-estoque">
-            <option value="sim">Sim -- atualizar estoque do filamento selecionado</option>
-            <option value="nao">Nao -- apenas registrar a compra</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Campos acessorio -->
-      <div id="cp-campos-acessorio" style="display:none;">
-        <div class="sep"></div>
-        <div class="stitle" style="font-size:11px;margin-bottom:.75rem;">Dados do Acessorio / Insumo</div>
-        <div class="grid2">
-          <div class="field"><label>Nome do item *</label><input type="text" id="cp-ac-nome" placeholder="Ex: Cama de vidro, Bico 0.4mm, Cola 3D"></div>
-          <div class="field"><label>Categoria</label>
-            <select id="cp-ac-cat">
-              <option>Bico / Nozzle</option><option>Cama de impressao</option><option>Correia / Belt</option>
-              <option>Extrusor</option><option>Lubrificante</option><option>Cola / Adesivo</option>
-              <option>Cabo / Eletrico</option><option>Ventilador / Fan</option><option>Sensor</option>
-              <option>Ferramenta</option><option>Embalagem</option><option>EPI / Seguranca</option>
-              <option>Outro acessorio</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Quantidade *</label>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <input type="number" id="cp-ac-qtd" placeholder="Ex: 2" value="1" min="1" step="1" oninput="calcTotalCompra()" style="flex:1;">
-              <select id="cp-ac-unidade" style="width:80px;border:1px solid var(--border2);border-radius:var(--radius);padding:8px;font-size:13px;background:var(--bg3);color:var(--text);" onchange="calcTotalCompra()">
-                <option value="un">un</option>
-                <option value="cx">cx</option>
-                <option value="kg">kg</option>
-                <option value="ml">ml</option>
-                <option value="m">m</option>
-                <option value="par">par</option>
-                <option value="pc">pc</option>
-                <option value="rolo">rolo</option>
-              </select>
-            </div>
-          </div>
-          <div class="field"><label>Preco unitario (R$) *</label><input type="number" id="cp-ac-preco" placeholder="0.00" step="0.01" min="0" oninput="calcTotalCompra()"></div>
-          <div class="field">
-            <label>Total da compra (R$)</label>
-            <input type="number" id="cp-total-ac" readonly style="color:var(--neon);font-weight:700;font-size:15px;">
-          </div>
-          <div class="field">
-            <label>Descricao / Referencia</label>
-            <input type="text" id="cp-ac-ref" placeholder="Ex: Ref. 0.4mm, modelo XYZ, cor...">
-          </div>
-        </div>
-      </div>
-
-      <div class="sep"></div>
-      <div class="grid2">
         <div class="field"><label>Forma de Pagamento</label>
           <select id="cp-pgto"><option>Pix</option><option>Cartao de Credito</option><option>Cartao de Debito</option><option>Boleto</option><option>Transferencia</option><option>Dinheiro</option></select>
         </div>
         <div class="field"><label>Observacao</label><input type="text" id="cp-obs" placeholder="Ex: compra online, frete gratis"></div>
       </div>
+
+      <div class="sep"></div>
+
+      <!-- Lista de itens dinamica -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div class="stitle" style="font-size:12px;margin:0;"><i class="ti ti-list"></i> Itens da Compra</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn" onclick="addItemCompra('filamento')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-bolt"></i> + Filamento</button>
+          <button class="btn" onclick="addItemCompra('acessorio')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-tool"></i> + Acessorio</button>
+          <button class="btn" onclick="addItemCompra('impressora')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-printer"></i> + Impressora</button>
+        </div>
+      </div>
+      <div id="cp-itens-lista" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
+
+      <!-- Total geral -->
+      <div id="cp-total-geral-box" style="display:none;background:var(--neon-dim);border:1px solid var(--border2);border-radius:var(--radius);padding:8px 14px;margin-bottom:10px;">
+        <span style="font-size:11px;color:var(--text3);">Total Geral da Compra</span>
+        <span id="cp-total-geral-val" style="font-size:20px;font-weight:700;color:var(--neon);margin-left:12px;"></span>
+      </div>
+
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn-ok" onclick="salvarCompra()"><i class="ti ti-device-floppy"></i> Registrar Compra</button>
         <button class="btn" onclick="limparFormCompra()"><i class="ti ti-refresh"></i> Limpar</button>
@@ -1635,6 +1578,7 @@
             <option value="">Todos</option>
             <option value="filamento">Filamentos</option>
             <option value="acessorio">Acessorios</option>
+            <option value="impressora">Impressoras</option>
           </select>
           <select id="cp-filtro-periodo" onchange="renderComprasLancamento()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);">
             <option value="">Todo o periodo</option>
@@ -1649,6 +1593,7 @@
     </div>
   </div>
 
+  <!-- Sub: Historico -->
   <!-- Sub: Historico -->
   <div id="subtab-compras-historico" class="subtab">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
@@ -2453,7 +2398,9 @@ function showTab(t){
     buildFornecedorSelect();
     var cpData = document.getElementById('cp-data');
     if(cpData) cpData.value = hoje();
-    // Ativar subtab lancamento por padrao
+    // Inicializar lista de itens com um filamento vazio se estiver vazia
+    var cpContainer = document.getElementById('cp-itens-lista');
+    if(cpContainer && !cpContainer.children.length) addItemCompra('filamento');
     showSubtab('compras', 'lancamento');
   }
   if(t==='financeiro')  { renderFinKPIs(); showFinSubtab('pagar'); }
@@ -5050,26 +4997,6 @@ function showSubtab(tab, sub) {
   }
 }
 
-function toggleTipoCompra() {
-  const tipo = document.getElementById('cp-tipo').value;
-  document.getElementById('cp-campos-filamento').style.display  = tipo === 'filamento'  ? 'block' : 'none';
-  document.getElementById('cp-campos-acessorio').style.display  = tipo === 'acessorio'  ? 'block' : 'none';
-  document.getElementById('cp-campos-impressora').style.display = tipo === 'impressora' ? 'block' : 'none';
-}
-
-function calcDepreciacaoImpressora() {
-  var preco = parseFloat(document.getElementById('cp-imp-preco').value)||0;
-  var vida  = parseFloat(document.getElementById('cp-imp-vida').value)||20000;
-  var box   = document.getElementById('cp-imp-deprec-box');
-  var val   = document.getElementById('cp-imp-deprec-val');
-  if(preco > 0 && vida > 0) {
-    box.style.display = 'block';
-    val.textContent   = fmt(preco / vida) + '/h';
-  } else {
-    box.style.display = 'none';
-  }
-}
-
 function buildFilSelectCompra() {
   const s = document.getElementById('cp-fil-estoque');
   if(!s) return;
@@ -5087,17 +5014,145 @@ function preencherDadosFilCompra() {
   calcTotalCompra();
 }
 
-function calcTotalCompra() {
-  const tipo = document.getElementById('cp-tipo').value;
-  if(tipo === 'filamento') {
-    const rolos = parseFloat(document.getElementById('cp-rolos').value) || 0;
-    const preco = parseFloat(document.getElementById('cp-preco-rolo').value) || 0;
-    document.getElementById('cp-total').value = (rolos * preco).toFixed(2);
-  } else {
-    const qtd = parseFloat(document.getElementById('cp-ac-qtd').value) || 0;
-    const preco = parseFloat(document.getElementById('cp-ac-preco').value) || 0;
-    document.getElementById('cp-total-ac').value = (qtd * preco).toFixed(2);
+function addItemCompra(tipo, dados) {
+  var container = document.getElementById('cp-itens-lista');
+  if(!container) return;
+  var id = 'cpitem_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+
+  var filOpts = '<option value="">-- Novo filamento --</option>' +
+    filamentos.map(function(f,i){
+      return '<option value="'+i+'">'+(f.marca||'')+' '+(f.modelo||'')+' '+(f.corNome||'')+'</option>';
+    }).join('');
+
+  var AC_CATS = ['Bico / Nozzle','Cama de impressao','Correia / Belt','Extrusor','Lubrificante',
+    'Cola / Adesivo','Cabo / Eletrico','Ventilador / Fan','Sensor','Ferramenta',
+    'Embalagem','EPI / Seguranca','Outro acessorio'];
+
+  var camposFilamento = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;">' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Filamento do estoque</label>' +
+      '<select class="cpitem-fil-sel" onchange="cpitemPreencherFil(this,\''+id+'\')" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;">'+filOpts+'</select></div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Ou novo (marca/modelo)</label>' +
+      '<input type="text" id="'+id+'-desc" placeholder="Ex: Volt3d PLA Preto" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;" value="'+(dados&&dados.desc||'')+'"></div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Qtd rolos</label>' +
+      '<input type="number" id="'+id+'-rolos" value="'+(dados&&dados.rolos||1)+'" min="1" step="1" oninput="cpitemCalcTotal(\''+id+'\')" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;"></div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Peso por rolo (g)</label>' +
+      '<input type="number" id="'+id+'-peso" value="'+(dados&&dados.pesoRolo||1000)+'" step="50" oninput="cpitemCalcTotal(\''+id+'\')" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;"></div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Preco por rolo (R$)</label>' +
+      '<input type="number" id="'+id+'-preco" placeholder="89.90" step="0.50" oninput="cpitemCalcTotal(\''+id+'\')" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;" value="'+(dados&&dados.precoRolo||'')+'"></div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Total (R$)</label>' +
+      '<input type="number" id="'+id+'-total" readonly style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg2);color:var(--neon);width:100%;font-weight:700;"></div>' +
+    '<div class="field" style="margin:0;grid-column:1/-1;"><label style="font-size:10px;">Dar entrada no estoque?</label>' +
+      '<select id="'+id+'-entrada" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;">' +
+        '<option value="sim">Sim -- atualizar estoque</option><option value="nao">Nao -- apenas registrar</option>' +
+      '</select></div>' +
+  '</div>';
+
+  var camposAcessorio = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;">' +
+    '<div class="field" style="margin:0;grid-column:1/-1;"><label style="font-size:10px;">Nome do item *</label>' +
+      '<input type="text" id="'+id+'-desc" placeholder="Ex: Bico 0.4mm, Cola 3D" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;" value="'+(dados&&dados.desc||'')+'"></div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Categoria</label>' +
+      '<select id="'+id+'-cat" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;">' +
+        AC_CATS.map(function(c){ return '<option'+(dados&&dados.cat===c?' selected':'')+'>'+c+'</option>'; }).join('') +
+      '</select></div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Qtd</label>' +
+      '<div style="display:flex;gap:4px;">' +
+        '<input type="number" id="'+id+'-qtd" value="'+(dados&&dados.qtd||1)+'" min="1" step="1" oninput="cpitemCalcTotal(\''+id+'\')" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);flex:1;">' +
+        '<select id="'+id+'-unid" style="font-size:12px;padding:5px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:55px;"><option>un</option><option>cx</option><option>kg</option><option>ml</option><option>m</option><option>par</option></select>' +
+      '</div></div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Preco unit (R$)</label>' +
+      '<input type="number" id="'+id+'-preco" placeholder="0.00" step="0.01" oninput="cpitemCalcTotal(\''+id+'\')" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;" value="'+(dados&&dados.precoUnit||'')+'"></div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Total (R$)</label>' +
+      '<input type="number" id="'+id+'-total" readonly style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg2);color:var(--neon);width:100%;font-weight:700;"></div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Referencia</label>' +
+      '<input type="text" id="'+id+'-ref" placeholder="Opcional" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;" value="'+(dados&&dados.ref||'')+'"></div>' +
+  '</div>';
+
+  var camposImpressora = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;">' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Nome / Modelo *</label>' +
+      '<input type="text" id="'+id+'-desc" placeholder="Ex: Bambu Lab A1 Mini" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;" value="'+(dados&&dados.desc||'')+'"></div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Marca</label>' +
+      '<input type="text" id="'+id+'-marca" placeholder="Ex: Bambu Lab" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;" value="'+(dados&&dados.marca||'')+'"></div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Numero de Serie</label>' +
+      '<input type="text" id="'+id+'-serie" placeholder="Opcional" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;" value="'+(dados&&dados.serie||'')+'"></div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Preco Pago (R$) *</label>' +
+      '<input type="number" id="'+id+'-preco" placeholder="0,00" min="0" step="0.01" oninput="cpitemCalcTotal(\''+id+'\');cpitemCalcDeprec(\''+id+'\')" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;" value="'+(dados&&dados.preco||'')+'"></div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Vida Util (horas)</label>' +
+      '<input type="number" id="'+id+'-vida" value="'+(dados&&dados.vida||20000)+'" min="100" step="100" oninput="cpitemCalcDeprec(\''+id+'\')" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;"></div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Deprec. <span id="'+id+'-deprec" style="color:var(--neon);font-weight:700;"></span></label>' +
+      '<select id="'+id+'-atualizar" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;">' +
+        '<option value="sim">Atualizar precificacao</option><option value="nao">Nao atualizar</option>' +
+      '</select></div>' +
+  '</div>';
+
+  var campos = tipo === 'filamento' ? camposFilamento : tipo === 'impressora' ? camposImpressora : camposAcessorio;
+  var icone = tipo === 'filamento' ? 'ti-bolt' : tipo === 'impressora' ? 'ti-printer' : 'ti-tool';
+  var label = tipo === 'filamento' ? 'Filamento' : tipo === 'impressora' ? 'Impressora / Equip.' : 'Acessorio / Insumo';
+
+  var div = document.createElement('div');
+  div.id = id;
+  div.dataset.tipo = tipo;
+  div.style.cssText = 'background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:10px 12px;';
+  div.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+    '<span style="font-size:11px;font-weight:700;color:var(--text2);"><i class="ti '+icone+'"></i> '+label+'</span>' +
+    '<button onclick="this.closest(\'div[id]\').remove();calcTotalGeralCompra();" class="btn-del" style="font-size:10px;padding:3px 7px;"><i class="ti ti-x"></i></button>' +
+  '</div>' + campos;
+  container.appendChild(div);
+  calcTotalGeralCompra();
+}
+
+function cpitemPreencherFil(sel, id) {
+  var idx = parseInt(sel.value);
+  if(!isNaN(idx) && filamentos[idx]) {
+    var f = filamentos[idx];
+    var descEl = document.getElementById(id+'-desc');
+    var precoEl = document.getElementById(id+'-preco');
+    if(descEl && !descEl.value) descEl.value = (f.marca||'')+' '+(f.modelo||'')+' '+(f.corNome||'');
+    if(precoEl && !precoEl.value && f.preco) precoEl.value = f.preco;
+    cpitemCalcTotal(id);
   }
+}
+
+function cpitemCalcTotal(id) {
+  var el = document.getElementById(id);
+  if(!el) return 0;
+  var tipo = el.dataset.tipo;
+  var totalEl = document.getElementById(id+'-total');
+  var total = 0;
+  if(tipo === 'filamento') {
+    var rolos = parseFloat((document.getElementById(id+'-rolos')||{}).value)||0;
+    var preco = parseFloat((document.getElementById(id+'-preco')||{}).value)||0;
+    total = rolos * preco;
+  } else if(tipo === 'acessorio') {
+    var qtd = parseFloat((document.getElementById(id+'-qtd')||{}).value)||0;
+    var preco = parseFloat((document.getElementById(id+'-preco')||{}).value)||0;
+    total = qtd * preco;
+  } else if(tipo === 'impressora') {
+    total = parseFloat((document.getElementById(id+'-preco')||{}).value)||0;
+  }
+  if(totalEl) totalEl.value = total > 0 ? total.toFixed(2) : '';
+  calcTotalGeralCompra();
+  return total;
+}
+
+function cpitemCalcDeprec(id) {
+  var preco = parseFloat((document.getElementById(id+'-preco')||{}).value)||0;
+  var vida  = parseFloat((document.getElementById(id+'-vida')||{}).value)||20000;
+  var deprecEl = document.getElementById(id+'-deprec');
+  if(deprecEl) deprecEl.textContent = (preco>0&&vida>0) ? fmt(preco/vida)+'/h' : '';
+}
+
+function calcTotalGeralCompra() {
+  var container = document.getElementById('cp-itens-lista');
+  var box = document.getElementById('cp-total-geral-box');
+  var val = document.getElementById('cp-total-geral-val');
+  if(!container) return;
+  var total = 0;
+  container.querySelectorAll('div[id^="cpitem_"]').forEach(function(el){
+    var totalEl = el.querySelector('input[id$="-total"]');
+    total += parseFloat(totalEl ? totalEl.value : 0)||0;
+  });
+  if(box) box.style.display = total > 0 ? 'block' : 'none';
+  if(val) val.textContent = fmt(total);
 }
 
 function buildFornecedorSelect() {
@@ -5109,85 +5164,97 @@ function buildFornecedorSelect() {
 }
 
 function limparFormCompra() {
-  ['cp-nf','cp-fil-desc','cp-obs','cp-ac-nome','cp-ac-ref'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  const rolosEl = document.getElementById('cp-rolos'); if(rolosEl) rolosEl.value='1';
-  const pesoEl = document.getElementById('cp-peso-rolo'); if(pesoEl) pesoEl.value='1000';
-  ['cp-preco-rolo','cp-total','cp-ac-preco','cp-total-ac'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  const qtdEl = document.getElementById('cp-ac-qtd'); if(qtdEl) qtdEl.value='1';
-  const filEs = document.getElementById('cp-fil-estoque'); if(filEs) filEs.value='';
-  document.getElementById('cp-data').value = hoje();
+  ['cp-nf','cp-obs'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  var dataEl = document.getElementById('cp-data'); if(dataEl) dataEl.value = hoje();
+  var container = document.getElementById('cp-itens-lista');
+  if(container) container.innerHTML = '';
+  var box = document.getElementById('cp-total-geral-box');
+  if(box) box.style.display = 'none';
+  addItemCompra('filamento');
 }
 
 function salvarCompra() {
-  const tipo = document.getElementById('cp-tipo').value;
-  const fornIdx = parseInt(document.getElementById('cp-fornecedor').value);
-  const fornNome = (!isNaN(fornIdx) && parceiros[fornIdx]) ? parceiros[fornIdx].razao : '';
-  let compra = {
-    id: Date.now(), tipo, data: document.getElementById('cp-data').value,
-    nf: document.getElementById('cp-nf').value, fornNome,
-    pgto: document.getElementById('cp-pgto').value, obs: document.getElementById('cp-obs').value
-  };
-
-  if(tipo === 'filamento') {
-    const rolos = parseInt(document.getElementById('cp-rolos').value) || 1;
-    // Peso do rolo sempre em gramas
-    const pesoRoloRaw = parseFloat(document.getElementById('cp-peso-rolo').value) || 1000;
-    const pesoRolo = pesoRoloRaw <= 10 ? pesoRoloRaw * 1000 : pesoRoloRaw; // se <= 10 assume kg
-    const precoRolo = parseFloat(document.getElementById('cp-preco-rolo').value) || 0;
-    const total = rolos * precoRolo;
-    const filIdx = parseInt(document.getElementById('cp-fil-estoque').value);
-    const desc = document.getElementById('cp-fil-desc').value || (filamentos[filIdx] ? filamentos[filIdx].marca + ' ' + filamentos[filIdx].modelo : 'Filamento');
-    compra = {...compra, desc, rolos, pesoRolo, precoRolo, total, filIdx: isNaN(filIdx) ? -1 : filIdx};
-    // Atualizar estoque
-    const entrada = document.getElementById('cp-entrada-estoque').value;
-    if(entrada === 'sim' && !isNaN(filIdx) && filamentos[filIdx]) {
-      registrarMovimentacao(filIdx, 'entrada', rolos * pesoRolo, 'Compra de filamento', compra.nf ? 'NF: ' + compra.nf : 'Compra');
-      renderFils();
-    }
-  } else if(tipo === 'impressora') {
-    var impNome  = upper((document.getElementById('cp-imp-nome')||{}).value||'');
-    var impMarca = upper((document.getElementById('cp-imp-marca')||{}).value||'');
-    var impSerie = (document.getElementById('cp-imp-serie')||{}).value||'';
-    var impPreco = parseFloat(document.getElementById('cp-imp-preco').value)||0;
-    var impVida  = parseFloat(document.getElementById('cp-imp-vida').value)||20000;
-    var impObs   = upper((document.getElementById('cp-imp-obs')||{}).value||'');
-    var impAtualizar = (document.getElementById('cp-imp-atualizar-prec')||{}).value||'nao';
-    if(!impNome) { alert('Informe o nome/modelo da impressora.'); return; }
-    if(!impPreco) { alert('Informe o preco pago.'); return; }
-    compra = Object.assign(compra, {
-      desc: impNome, marca: impMarca, serie: impSerie,
-      preco: impPreco, total: impPreco, vida: impVida, obs: impObs
-    });
-    if(impAtualizar === 'sim') {
-      var elValImp = document.getElementById('c-val-imp');
-      var elVida   = document.getElementById('c-vida');
-      var valorAtual = elValImp ? parseFloat(elValImp.value)||0 : 0;
-      var novoValor  = valorAtual + impPreco;
-      if(elValImp) { elValImp.value = novoValor.toFixed(2); }
-      if(elVida)   { elVida.value   = impVida; }
-      if(typeof calcular === 'function') calcular();
-      alert('Impressora registrada!\nAtivo acumulado: ' + fmt(novoValor) + '\nVida util: ' + impVida + 'h\nDepreciacao: ' + fmt(novoValor/impVida) + '/h');
-    } else {
-      alert('Impressora registrada com sucesso!');
-    }
-  } else {
-    const qtd = parseFloat(document.getElementById('cp-ac-qtd').value) || 1;
-    const precoUnit = parseFloat(document.getElementById('cp-ac-preco').value) || 0;
-    const ref = (document.getElementById('cp-ac-ref') || {}).value || '';
-    if(!document.getElementById('cp-ac-nome').value.trim()) { alert('Informe o nome do item'); return; }
-    compra = {...compra,
-      desc: upper(document.getElementById('cp-ac-nome').value),
-      cat: document.getElementById('cp-ac-cat').value,
-      unidade: document.getElementById('cp-ac-unidade').value,
-      ref: ref,
-      qtd, precoUnit, total: qtd * precoUnit
-    };
+  var container = document.getElementById('cp-itens-lista');
+  if(!container || !container.querySelectorAll('div[id^="cpitem_"]').length) {
+    alert('Adicione pelo menos um item antes de registrar a compra.'); return;
   }
+  var fornIdx = parseInt(document.getElementById('cp-fornecedor').value);
+  var fornNome = (!isNaN(fornIdx) && parceiros[fornIdx]) ? parceiros[fornIdx].razao : '';
+  var dataCp = document.getElementById('cp-data').value || hoje();
+  var nf = document.getElementById('cp-nf').value;
+  var pgto = document.getElementById('cp-pgto').value;
+  var obs = document.getElementById('cp-obs').value;
+  var itensRegistrados = [], estoqueAtualizado = [], impressorasAtivas = [];
 
-  if(!compra.desc) { alert('Informe o item comprado'); return; }
-  compras.unshift(compra);
+  container.querySelectorAll('div[id^="cpitem_"]').forEach(function(el) {
+    var id = el.id;
+    var tipo = el.dataset.tipo;
+    var descEl = document.getElementById(id+'-desc');
+    var desc = descEl ? upper(descEl.value.trim()) : '';
+    if(!desc && tipo !== 'impressora') return;
+
+    var compra = { id: Date.now() + Math.random(), tipo: tipo, desc: desc,
+      nf: nf, data: dataCp, fornNome: fornNome, pgto: pgto, obs: obs };
+
+    if(tipo === 'filamento') {
+      var filSel = el.querySelector('.cpitem-fil-sel');
+      var filIdx = filSel ? parseInt(filSel.value) : -1;
+      var rolos = parseFloat((document.getElementById(id+'-rolos')||{}).value)||1;
+      var pesoRolo = parseFloat((document.getElementById(id+'-peso')||{}).value)||1000;
+      var precoRolo = parseFloat((document.getElementById(id+'-preco')||{}).value)||0;
+      var entrada = (document.getElementById(id+'-entrada')||{}).value||'nao';
+      var total = rolos * precoRolo;
+      Object.assign(compra, { rolos: rolos, pesoRolo: pesoRolo, precoUnit: precoRolo,
+        total: total, qtd: rolos * pesoRolo, unidade: 'g', filIdx: isNaN(filIdx) ? -1 : filIdx });
+      if(entrada === 'sim' && !isNaN(filIdx) && filIdx >= 0 && filamentos[filIdx]) {
+        registrarMovimentacao(filIdx, 'entrada', rolos * pesoRolo, 'Compra de filamento', nf ? 'NF: '+nf : 'Compra');
+        estoqueAtualizado.push(filamentos[filIdx].marca+' '+filamentos[filIdx].modelo);
+      }
+
+    } else if(tipo === 'acessorio') {
+      var qtd = parseFloat((document.getElementById(id+'-qtd')||{}).value)||1;
+      var preco = parseFloat((document.getElementById(id+'-preco')||{}).value)||0;
+      var unid = (document.getElementById(id+'-unid')||{}).value||'un';
+      var cat = (document.getElementById(id+'-cat')||{}).value||'';
+      var ref = (document.getElementById(id+'-ref')||{}).value||'';
+      if(!desc) { return; }
+      Object.assign(compra, { cat: cat, qtd: qtd, precoUnit: preco,
+        total: qtd * preco, unidade: unid, ref: ref, filIdx: -1 });
+
+    } else if(tipo === 'impressora') {
+      var impDesc = desc || upper(((document.getElementById(id+'-desc')||{}).value||'').trim());
+      if(!impDesc) { alert('Informe o nome da impressora.'); return; }
+      var preco = parseFloat((document.getElementById(id+'-preco')||{}).value)||0;
+      var vida = parseFloat((document.getElementById(id+'-vida')||{}).value)||20000;
+      var marca = upper((document.getElementById(id+'-marca')||{}).value||'');
+      var serie = (document.getElementById(id+'-serie')||{}).value||'';
+      var atualizar = (document.getElementById(id+'-atualizar')||{}).value||'nao';
+      if(!preco) { alert('Informe o preco da impressora.'); return; }
+      Object.assign(compra, { desc: impDesc, marca: marca, serie: serie,
+        preco: preco, total: preco, vida: vida, filIdx: -1 });
+      if(atualizar === 'sim') {
+        var elV = document.getElementById('c-val-imp');
+        var elVida = document.getElementById('c-vida');
+        var valAtual = elV ? parseFloat(elV.value)||0 : 0;
+        var novoVal = valAtual + preco;
+        if(elV) elV.value = novoVal.toFixed(2);
+        if(elVida) elVida.value = vida;
+        if(typeof calcular === 'function') calcular();
+        impressorasAtivas.push(impDesc + '  ativo: ' + fmt(novoVal) + ' | deprec: ' + fmt(novoVal/vida) + '/h');
+      }
+    }
+    compras.unshift(compra);
+    itensRegistrados.push(desc || compra.desc);
+  });
+
+  if(!itensRegistrados.length) { alert('Nenhum item valido para registrar.'); return; }
   S.set('compras', compras);
-  alert('Compra registrada com sucesso!' + (tipo==='filamento' && document.getElementById('cp-entrada-estoque').value==='sim' ? ' Estoque atualizado.' : ''));
+  buildFilSelect(); renderFils();
+
+  var msg = itensRegistrados.length + ' item(s) registrado(s)!';
+  if(estoqueAtualizado.length) msg += '\nEstoque atualizado: ' + estoqueAtualizado.join(', ');
+  if(impressorasAtivas.length) msg += '\nImpressora(s): ' + impressorasAtivas.join('\n');
+  alert(msg);
   limparFormCompra();
   renderComprasLancamento();
 }
@@ -5577,8 +5644,8 @@ function processarXML(file) {
           <div class="field">
             <label>Atualizar parametro de depreciacao na Precificacao?</label>
             <select id="cp-imp-atualizar-prec" style="border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);width:100%;">
-              <option value="sim">Sim — atualizar valor do ativo e vida util na aba Precificacao</option>
-              <option value="nao">Nao — registrar compra apenas</option>
+              <option value="sim">Sim  atualizar valor do ativo e vida util na aba Precificacao</option>
+              <option value="nao">Nao  registrar compra apenas</option>
             </select>
           </div>
           <div class="field"><label>Observacoes</label><input type="text" id="cp-imp-obs" placeholder="Ex: Segunda impressora, substituicao de..."></div>
