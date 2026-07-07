@@ -269,61 +269,99 @@
 
 </style>
   <!-- Firebase SDK -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
-    const firebaseConfig = {
-      apiKey: "AIzaSyASdQ7sCFvfSByZkYVGDX67j5VnDzKTEZw",
-      authDomain: "akp3d-oficial.firebaseapp.com",
-      projectId: "akp3d-oficial",
-      storageBucket: "akp3d-oficial.firebasestorage.app",
-      messagingSenderId: "246540101390",
-      appId: "1:246540101390:web:4a49544c6c971a51a5595f"
-    };
-    const app = initializeApp(firebaseConfig);
-    const db  = getFirestore(app);
-    const CHAVES = ['filamentos','produtos','pedidos','vendas','faturas','compras','parceiros','clientes','contas_pagar','movimentacoes','hist_calc','cfg'];
-    async function fbSalvar(chave, valor) {
-      try { await setDoc(doc(db,'akp3d',chave),{data:JSON.stringify(valor)}); } catch(e) {}
-    }
-    async function fbCarregar(chave) {
-      try { const s=await getDoc(doc(db,'akp3d',chave)); if(s.exists()) return JSON.parse(s.data().data); } catch(e) {}
-      return null;
-    }
-    async function fbSincronizar() {
-      var ind = document.getElementById('fb-sync-status');
-      if(ind) { ind.style.display='flex'; ind.querySelector('span').textContent='Sincronizando...'; }
-      var ok = true;
+  <!-- Firebase Compat SDK (escopo global, sem modulos) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script>
+    (function(){
+      var firebaseConfig = {
+        apiKey: "AIzaSyASdQ7sCFvfSByZkYVGDX67j5VnDzKTEZw",
+        authDomain: "akp3d-oficial.firebaseapp.com",
+        projectId: "akp3d-oficial",
+        storageBucket: "akp3d-oficial.firebasestorage.app",
+        messagingSenderId: "246540101390",
+        appId: "1:246540101390:web:4a49544c6c971a51a5595f"
+      };
       try {
-        for(var i=0;i<CHAVES.length;i++) {
-          var k=CHAVES[i], fb=await fbCarregar(k);
-          var loc = localStorage.getItem('akp3d_'+k);
-          var locDados = loc ? JSON.parse(loc) : null;
-          var locTam = Array.isArray(locDados) ? locDados.length : (locDados ? 1 : 0);
-          var fbTam  = Array.isArray(fb) ? fb.length : (fb ? 1 : 0);
+        firebase.initializeApp(firebaseConfig);
+        window._fbDb = firebase.firestore();
+        window._firebaseOk = true;
+        console.log('[Firebase] inicializado OK');
+      } catch(e) {
+        window._firebaseOk = false;
+        console.warn('[Firebase] falha na inicializacao:', e.message);
+      }
 
-          if(fb !== null && fbTam > 0) {
-            // Firebase tem dados  so sobrescreve local se Firebase tiver MAIS dados
-            if(fbTam >= locTam) {
-              localStorage.setItem('akp3d_'+k, JSON.stringify(fb));
-            } else {
-              // Local tem mais dados  enviar local para Firebase
-              if(locDados) await fbSalvar(k, locDados);
-            }
-          } else if(fb !== null && fbTam === 0 && locTam > 0) {
-            // Firebase esta vazio mas local tem dados  enviar local para Firebase
-            await fbSalvar(k, locDados);
-          } else if(fb === null) {
-            // Firebase nao tem o documento  enviar local
-            if(locDados) await fbSalvar(k, locDados);
-          }
+      var TODAS_CHAVES = [
+        'filamentos','produtos','pedidos','vendas','faturas','compras',
+        'parceiros','clientes','contas_pagar','movimentacoes','hist_calc',
+        'cfg','consignacoes','oportunidades','impressoes_internas'
+      ];
+
+      // Salvar uma chave no Firestore
+      window.fbSalvar = function(chave, valor) {
+        if(!window._firebaseOk || !window._fbDb) return Promise.resolve();
+        return window._fbDb.collection('akp3d').doc(chave)
+          .set({ data: JSON.stringify(valor) })
+          .catch(function(e){ console.warn('[Firebase] erro ao salvar '+chave+':', e.message); });
+      };
+
+      // Carregar uma chave do Firestore
+      window.fbCarregar = function(chave) {
+        if(!window._firebaseOk || !window._fbDb) return Promise.resolve(null);
+        return window._fbDb.collection('akp3d').doc(chave).get()
+          .then(function(s){ return s.exists ? JSON.parse(s.data().data) : null; })
+          .catch(function(){ return null; });
+      };
+
+      // Sincronizar todas as chaves: Firebase -> localStorage (prioridade Firebase se tiver mais dados)
+      window.fbSincronizar = function() {
+        if(!window._firebaseOk || !window._fbDb) {
+          console.warn('[Firebase] offline  usando apenas localStorage');
+          return Promise.resolve();
         }
-      } catch(e) { ok=false; }
-      if(ind) { ind.querySelector('span').textContent=ok?'Sincronizado':'Offline'; setTimeout(()=>ind.style.display='none',2000); }
-      if(ok && typeof recarregarDados==='function') recarregarDados();
-    }
-    window.fbSalvar = fbSalvar;
-    document.addEventListener('DOMContentLoaded', fbSincronizar);
+        var ind = document.getElementById('fb-sync-status');
+        if(ind) { ind.style.display='flex'; ind.querySelector('span').textContent='Sincronizando...'; }
+
+        var promises = TODAS_CHAVES.map(function(k) {
+          return window.fbCarregar(k).then(function(fb) {
+            var loc = localStorage.getItem('akp3d_'+k);
+            var locDados = loc ? JSON.parse(loc) : null;
+            var locTam = Array.isArray(locDados) ? locDados.length : (locDados ? 1 : 0);
+            var fbTam  = Array.isArray(fb) ? fb.length : (fb ? 1 : 0);
+
+            if(fb !== null) {
+              if(fbTam >= locTam) {
+                // Firebase tem mais ou igual  sobrescreve local
+                localStorage.setItem('akp3d_'+k, JSON.stringify(fb));
+              } else if(locDados) {
+                // Local tem mais  envia para Firebase
+                return window.fbSalvar(k, locDados);
+              }
+            } else if(locDados) {
+              // Firebase vazio  envia local
+              return window.fbSalvar(k, locDados);
+            }
+          });
+        });
+
+        return Promise.all(promises)
+          .then(function(){
+            if(ind) { ind.querySelector('span').textContent='Sincronizado'; setTimeout(function(){ ind.style.display='none'; }, 2000); }
+            if(typeof recarregarDados === 'function') recarregarDados();
+            console.log('[Firebase] sincronizacao concluida');
+          })
+          .catch(function(e){
+            if(ind) { ind.querySelector('span').textContent='Offline'; setTimeout(function(){ ind.style.display='none'; }, 2000); }
+            console.warn('[Firebase] erro na sincronizacao:', e.message);
+          });
+      };
+
+      // Rodar sincronizacao apos DOM pronto
+      document.addEventListener('DOMContentLoaded', function(){
+        setTimeout(window.fbSincronizar, 800);
+      });
+    })();
   </script>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -2152,17 +2190,17 @@
       </div>
     </div>
     <div class="field" style="margin-top:8px;">
-      <label>Itens do Orçamento</label>
+      <label>Itens do Orcamento</label>
       <div id="orc-itens-lista" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
       <button class="btn" onclick="abrirSeletorHistOrc()" style="width:100%;font-size:12px;padding:7px;">
-        <i class="ti ti-history"></i> Adicionar item do Histórico de Precificação
+        <i class="ti ti-history"></i> Adicionar item do Historico de Precificacao
       </button>
     </div>
 
     <!-- Mini modal seletor do histCalc -->
     <div id="orc-hist-seletor" style="display:none;background:var(--bg);border:1px solid var(--neon-border);border-radius:var(--radius);padding:12px;margin-top:8px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <strong style="font-size:12px;color:var(--neon);">Selecionar do histórico</strong>
+        <strong style="font-size:12px;color:var(--neon);">Selecionar do historico</strong>
         <button class="btn" onclick="document.getElementById('orc-hist-seletor').style.display='none'" style="padding:3px 8px;font-size:11px;"><i class="ti ti-x"></i></button>
       </div>
       <input type="text" id="orc-hist-busca" placeholder="Buscar por nome..." oninput="filtrarHistOrc()"
