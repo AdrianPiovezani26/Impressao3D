@@ -4750,21 +4750,52 @@ function salvarAjuste() {
 }
 
 function renderEstoque() {
-  // Alertas de estoque critico
-  var criticos = filamentos.filter(function(f){
-    var pct = f.pesoRolo > 0 ? (parseFloat(f.qtd||0)/parseFloat(f.pesoRolo||1000)*100) : 0;
-    return pct <= 15;
-  });
-  var alertasEl = document.getElementById('estoque-alertas');
-  if(alertasEl) alertasEl.innerHTML = criticos.length
-    ? criticos.map(function(f){
-        var pct = f.pesoRolo>0?((parseFloat(f.qtd||0)/parseFloat(f.pesoRolo||1000))*100).toFixed(0):0;
-        return '<div class="alerta-box"><i class="ti ti-alert-triangle"></i><span>' +
-          '<strong>'+f.corNome+' '+f.marca+' '+f.modelo+'</strong> -- estoque critico: ' +
-          '<strong>'+parseFloat(f.qtd||0).toFixed(2)+'g</strong> restantes ('+pct+'% do rolo)</span></div>';
-      }).join('') : '';
+  var hj = hoje();
 
-  // Resumo geral
+  // Classificar filamentos por status
+  var esgotados = [], criticos = [], normais = [];
+  filamentos.forEach(function(f) {
+    var qtd = parseFloat(f.qtd||0);
+    var pct = f.pesoRolo > 0 ? (qtd / parseFloat(f.pesoRolo||1000) * 100) : 0;
+    if(qtd <= 0)    esgotados.push(f);
+    else if(pct <= 15) criticos.push(f);
+    else            normais.push(f);
+  });
+
+  // Custo estimado de reposicao (criticos + esgotados)
+  var custoReposicao = criticos.concat(esgotados).reduce(function(s,f){
+    return s + parseFloat(f.preco||0);
+  }, 0);
+
+  // Alertas separados
+  var alertasEl = document.getElementById('estoque-alertas');
+  if(alertasEl) {
+    var hAlerta = '';
+    if(esgotados.length) {
+      hAlerta += esgotados.map(function(f){
+        return '<div class="alerta-box" style="border-color:var(--red-border);background:rgba(255,50,50,0.08);">' +
+          '<i class="ti ti-package-off" style="color:var(--red-text);"></i>' +
+          '<span><strong style="color:var(--red-text);">ESGOTADO:</strong> ' +
+          f.corNome+' '+f.marca+' '+f.modelo+'  0.00g restantes</span>' +
+          '<button onclick="irParaReposicao('+filamentos.indexOf(f)+')" class="btn" style="margin-left:auto;font-size:10px;padding:3px 8px;flex-shrink:0;"><i class="ti ti-shopping-cart"></i> Repor</button>' +
+        '</div>';
+      }).join('');
+    }
+    if(criticos.length) {
+      hAlerta += criticos.map(function(f){
+        var pct = f.pesoRolo>0 ? ((parseFloat(f.qtd||0)/parseFloat(f.pesoRolo||1000))*100).toFixed(0) : 0;
+        return '<div class="alerta-box" style="border-color:var(--amber-border);background:rgba(255,170,0,0.06);">' +
+          '<i class="ti ti-alert-triangle" style="color:var(--amber-text);"></i>' +
+          '<span><strong style="color:var(--amber-text);">CRITICO:</strong> ' +
+          f.corNome+' '+f.marca+' '+f.modelo+'  <strong>'+parseFloat(f.qtd||0).toFixed(2)+'g</strong> ('+pct+'% do rolo)</span>' +
+          '<button onclick="irParaReposicao('+filamentos.indexOf(f)+')" class="btn" style="margin-left:auto;font-size:10px;padding:3px 8px;flex-shrink:0;"><i class="ti ti-shopping-cart"></i> Repor</button>' +
+        '</div>';
+      }).join('');
+    }
+    alertasEl.innerHTML = hAlerta;
+  }
+
+  // KPIs
   var totalG   = filamentos.reduce(function(s,f){ return s+parseFloat(f.qtd||0); },0);
   var totalV   = filamentos.reduce(function(s,f){ return s+(parseFloat(f.qtd||0)/parseFloat(f.pesoRolo||1000))*parseFloat(f.preco||0); },0);
   var totalSaida = movimentacoes.filter(function(m){return m.tipo==='saida';}).reduce(function(s,m){return s+parseFloat(m.qtd||0);},0);
@@ -4775,91 +4806,130 @@ function renderEstoque() {
       '<div class="metric"><div class="lbl">Total disponivel</div><div class="val">'+totalG.toFixed(2)+'g</div></div>' +
       '<div class="metric"><div class="lbl">Valor em estoque</div><div class="val">'+fmt(totalV)+'</div></div>' +
       '<div class="metric"><div class="lbl">Total consumido</div><div class="val" style="color:var(--amber-text);">'+totalSaida.toFixed(2)+'g</div></div>' +
+      (custoReposicao > 0 ? '<div class="metric" style="grid-column:1/-1;border-color:var(--amber-border);"><div class="lbl">Custo estimado de reposicao ('+(criticos.length+esgotados.length)+' filamentos)</div><div class="val" style="color:var(--amber-text);">'+fmt(custoReposicao)+'</div></div>' : '') +
     '</div>';
 
   var cardsEl = document.getElementById('estoque-cards');
   if(!cardsEl) return;
   if(!filamentos.length) {
     cardsEl.innerHTML = '<div class="empty"><i class="ti ti-package"></i>Nenhum filamento cadastrado.</div>';
-  } else {
-    // MESMA ORDENACAO DO TELA DE FILAMENTOS: agrupar por modelo, ordenar por modelo e cor
+    return;
+  }
+
+  function cardFil(f) {
+    var idx = filamentos.indexOf(f);
+    var qtd = parseFloat(f.qtd||0);
+    var pct = f.pesoRolo > 0 ? Math.min(100, (qtd/parseFloat(f.pesoRolo||1000)*100)) : 0;
+    var cor = qtd <= 0 ? '#555' : pct > 50 ? '#39ff14' : pct > 15 ? '#ffaa00' : '#ff4444';
+    var stLabel = qtd <= 0 ? 'Esgotado' : pct > 50 ? 'Ok' : pct > 15 ? 'Baixo' : 'Critico';
+    var stClass = qtd <= 0 ? 'tag-red' : pct > 50 ? 'tag-green' : pct > 15 ? 'tag-amber' : 'tag-red';
+    var custoG = f.preco > 0 && f.pesoRolo > 0 ? (parseFloat(f.preco)/parseFloat(f.pesoRolo)).toFixed(2) : '--';
+    var movsFil = movimentacoes.filter(function(m){ return m.filIdx === idx; });
+    var totalEnt = movsFil.filter(function(m){return m.tipo==='entrada';}).reduce(function(s,m){return s+parseFloat(m.qtd||0);},0);
+    var totalSai = movsFil.filter(function(m){return m.tipo==='saida';}).reduce(function(s,m){return s+parseFloat(m.qtd||0);},0);
+    var prev = calcPrevisaoConsumo(idx);
+    var prevHtml = '';
+    if(prev && qtd > 0) {
+      var corP = prev.diasRestantes < 7 ? 'var(--red-text)' : prev.diasRestantes < 30 ? 'var(--amber-text)' : 'var(--neon)';
+      prevHtml = '<span style="color:'+corP+';"><i class="ti ti-trending-down"></i> Media: '+prev.mediaDiaria+'g/dia | <strong>'+prev.diasRestantes+' dias restantes</strong></span>';
+    }
+
+    return '<div class="card" style="margin-bottom:10px;'+(qtd<=0?'opacity:0.7;':'')+'">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px;">' +
+        '<div style="display:flex;align-items:center;gap:10px;">' +
+          '<span class="cor-dot" style="background:'+f.corHex+';width:18px;height:18px;"></span>' +
+          '<div>' +
+            '<strong style="font-size:14px;">'+f.marca+'</strong>' +
+            '<span class="tag '+stClass+'" style="margin-left:8px;">'+stLabel+'</span>' +
+            '<br><span style="font-size:12px;color:var(--text2);">'+f.corNome+' - '+f.diam+'mm - R$ '+custoG+'/g</span>' +
+          '</div>' +
+        '</div>' +
+        '<div style="text-align:right;">' +
+          '<div style="font-size:22px;font-weight:700;color:'+cor+';text-shadow:0 0 8px '+cor+';">'+qtd.toFixed(2)+'g</div>' +
+          '<div style="font-size:11px;color:var(--text3);">'+pct.toFixed(0)+'% do rolo ('+f.pesoRolo+'g)</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="estoque-bar-wrap"><div class="estoque-bar" style="width:'+pct+'%;background:'+cor+';"></div></div>' +
+      '<div style="margin-top:6px;font-size:11px;color:var(--text3);">'+prevHtml+'</div>' +
+      '<div class="grid3" style="margin-top:10px;">' +
+        '<div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--neon);font-weight:700;">+'+totalEnt.toFixed(2)+'g</span><br>entradas</div>' +
+        '<div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--red-text);font-weight:700;">-'+totalSai.toFixed(2)+'g</span><br>consumido</div>' +
+        '<div style="font-size:11px;color:var(--text2);text-align:center;">' +
+          (qtd <= 0 ? '<button onclick="irParaReposicao('+idx+')" class="btn" style="font-size:10px;padding:3px 8px;"><i class="ti ti-shopping-cart"></i> Repor</button>' :
+            '<span style="color:var(--amber-text);font-weight:700;">'+movsFil.length+'</span><br>movimentacoes') +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function secaoGrupos(lista, titulo, cor, icone, colapsado) {
+    if(!lista.length) return '';
     var ag = {};
-    filamentos.forEach(function(f){
+    lista.forEach(function(f){
       var k = f.modelo || 'Outro';
       if(!ag[k]) ag[k] = [];
       ag[k].push(f);
     });
-    var modOrdenados = Object.keys(ag).sort(function(a,b){ return a.localeCompare(b,'pt-BR'); });
-    modOrdenados.forEach(function(k){
+    var mods = Object.keys(ag).sort(function(a,b){ return a.localeCompare(b,'pt-BR'); });
+    mods.forEach(function(k){
       ag[k].sort(function(a,b){ return (a.marca||'').localeCompare(b.marca||'','pt-BR') || (a.corNome||'').localeCompare(b.corNome||'','pt-BR'); });
     });
-
-    var h = '';
-    modOrdenados.forEach(function(modelo){
+    var idSecao = 'secao_est_'+titulo.replace(/\s/g,'_');
+    var h = '<div style="margin-bottom:16px;">' +
+      '<div onclick="var c=document.getElementById(\''+idSecao+'\');c.style.display=c.style.display===\'none\'?\'block\':\'none\';" ' +
+        'style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 12px;background:var(--bg2);border-left:3px solid '+cor+';border-radius:var(--radius);margin-bottom:8px;">' +
+        '<i class="ti '+icone+'" style="color:'+cor+';font-size:14px;"></i>' +
+        '<span style="font-size:13px;font-weight:700;color:'+cor+';">'+titulo+'</span>' +
+        '<span class="tag" style="font-size:11px;">'+lista.length+'</span>' +
+        '<i class="ti ti-chevron-'+(colapsado?'down':'up')+'" style="margin-left:auto;color:var(--text3);font-size:12px;"></i>' +
+      '</div>' +
+      '<div id="'+idSecao+'" style="display:'+(colapsado?'none':'block')+';">';
+    mods.forEach(function(modelo){
       h += '<div class="section-group"><div class="section-group-title">'+modelo+'</div>';
-      ag[modelo].forEach(function(f){
-        var idx = filamentos.indexOf(f);
-        var pct = f.pesoRolo > 0 ? Math.min(100, (parseFloat(f.qtd||0)/parseFloat(f.pesoRolo||1000)*100)) : 0;
-        var cor = pct > 50 ? '#39ff14' : pct > 15 ? '#ffaa00' : '#ff4444';
-        var stLabel = pct > 50 ? 'Ok' : pct > 15 ? 'Baixo' : 'Critico';
-        var stClass = pct > 50 ? 'tag-green' : pct > 15 ? 'tag-amber' : 'tag-red';
-        var custoG = f.preco > 0 && f.pesoRolo > 0 ? (parseFloat(f.preco)/parseFloat(f.pesoRolo)).toFixed(2) : '--';
-        var movsFil = movimentacoes.filter(function(m){ return m.filIdx === idx; });
-        var totalEnt = movsFil.filter(function(m){return m.tipo==='entrada';}).reduce(function(s,m){return s+parseFloat(m.qtd||0);},0);
-        var totalSai = movsFil.filter(function(m){return m.tipo==='saida';}).reduce(function(s,m){return s+parseFloat(m.qtd||0);},0);
-        h += '<div class="card" style="margin-bottom:10px;">' +
-          '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px;">' +
-            '<div style="display:flex;align-items:center;gap:10px;">' +
-              '<span class="cor-dot" style="background:'+f.corHex+';width:18px;height:18px;"></span>' +
-              '<div>' +
-                '<strong style="font-size:14px;">'+f.marca+'</strong>' +
-                '<span class="tag '+stClass+'" style="margin-left:8px;">'+stLabel+'</span>' +
-                '<br><span style="font-size:12px;color:var(--text2);">'+f.corNome+' - '+f.diam+'mm - R$ '+custoG+'/g</span>' +
-              '</div>' +
-            '</div>' +
-            '<div style="text-align:right;">' +
-              '<div style="font-size:22px;font-weight:700;color:'+cor+';text-shadow:0 0 8px '+cor+';">'+parseFloat(f.qtd||0).toFixed(2)+'g</div>' +
-              '<div style="font-size:11px;color:var(--text3);">'+pct.toFixed(0)+'% do rolo ('+f.pesoRolo+'g)</div>' +
-            '</div>' +
-          '</div>' +
-          '<div class="estoque-bar-wrap"><div class="estoque-bar" style="width:'+pct+'%;background:'+cor+';"></div></div>' +
-          '<div style="margin-top:6px;font-size:11px;color:var(--text3);">'+
-          (function(){
-            var prev = calcPrevisaoConsumo(idx);
-            if(!prev) return '';
-            var cor = prev.diasRestantes < 7 ? 'var(--red-text)' : prev.diasRestantes < 30 ? 'var(--amber-text)' : 'var(--neon)';
-            return '<span style="color:'+cor+';"><i class="ti ti-trending-down"></i> Media: '+prev.mediaDiaria+'g/dia | <strong>'+prev.diasRestantes+' dias restantes</strong></span>';
-          })() +
-          '</div>' +
-          '<div class="grid3" style="margin-top:10px;">' +
-            '<div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--neon);font-weight:700;">+'+totalEnt.toFixed(2)+'g</span><br>entradas</div>' +
-            '<div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--red-text);font-weight:700;">-'+totalSai.toFixed(2)+'g</span><br>consumido</div>' +
-            '<div style="font-size:11px;color:var(--text2);text-align:center;"><span style="color:var(--amber-text);font-weight:700;">'+movsFil.length+'</span><br>movimentacoes</div>' +
-          '</div>' +
-        '</div>';
-      });
-      h += '</div>'; // fecha section-group
+      ag[modelo].forEach(function(f){ h += cardFil(f); });
+      h += '</div>';
     });
-    cardsEl.innerHTML = h;
+    h += '</div></div>';
+    return h;
   }
 
-  // Atualizar select de filtro do historico mantendo selecao
+  cardsEl.innerHTML =
+    secaoGrupos(normais,   'Em Estoque ('+normais.length+')',   'var(--neon)',       'ti-package',         false) +
+    secaoGrupos(criticos,  'Critico  Repor em breve ('+criticos.length+')', 'var(--amber-text)', 'ti-alert-triangle',  false) +
+    secaoGrupos(esgotados, 'Esgotado  Sem estoque ('+esgotados.length+')',  'var(--red-text)',   'ti-package-off',     true);
+
+  // Atualizar select de filtro do historico
   var selFil = document.getElementById('filtro-mov-fil');
   if(selFil) {
     var valAtual = selFil.value;
-    // Mesmo order da tela: por modelo e cor
     var filOrdenados = filamentos.slice().sort(function(a,b){
-      return (a.corNome||'').localeCompare(b.corNome||'','pt-BR') || (a.marca||'').localeCompare(b.marca||'','pt-BR') || (a.modelo||'').localeCompare(b.modelo||'','pt-BR');
+      return (a.corNome||'').localeCompare(b.corNome||'','pt-BR') || (a.marca||'').localeCompare(b.marca||'','pt-BR');
     });
     selFil.innerHTML = '<option value="">Todos os filamentos</option>' +
       filOrdenados.map(function(f){
-        var idx = filamentos.indexOf(f);
-        return '<option value="'+idx+'">'+f.corNome+' '+f.marca+' '+f.modelo+'</option>';
+        var i = filamentos.indexOf(f);
+        return '<option value="'+i+'">'+f.corNome+' '+f.marca+' '+f.modelo+'</option>';
       }).join('');
     selFil.value = valAtual;
   }
-
   renderMovimentacoes();
+}
+
+function irParaReposicao(filIdx) {
+  showTab('compras');
+  setTimeout(function(){
+    var container = document.getElementById('cp-itens-lista');
+    if(container) container.innerHTML = '';
+    addItemCompra('filamento', { filIdx: filIdx });
+    // Selecionar o filamento automaticamente no item adicionado
+    setTimeout(function(){
+      var sels = document.querySelectorAll('.cpitem-fil-sel');
+      if(sels.length) {
+        sels[sels.length-1].value = filIdx;
+        cpitemPreencherFil(sels[sels.length-1], sels[sels.length-1].closest('div[id^="cpitem_"]').id);
+      }
+    }, 100);
+  }, 300);
 }
 
 function limparTodoHistorico() {
