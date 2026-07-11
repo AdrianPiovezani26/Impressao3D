@@ -11391,13 +11391,13 @@ function gerarOrcamentoPDF() {
     tY += 2;
   }
   doc.setFont('helvetica','bold');
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setTextColor(160,240,160);
-  doc.text('TOTAL GERAL:', colPU, tY+6);
+  doc.text('TOTAL GERAL:', colN+2, tY+6);
   doc.setTextColor(57,255,20);
-  doc.setFontSize(13);
+  doc.setFontSize(14);
   doc.text('R$ '+totalGeral.toFixed(2).replace('.',','), colT, tY+7, {align:'right'});
-  tY += 12;
+  tY += 14;
 
   var yInfo = tY + 4;
 
