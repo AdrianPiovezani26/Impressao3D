@@ -2588,7 +2588,7 @@ function renderFils(){
 function delFil(i){if(confirm('Remover filamento?')){filamentos.splice(i,1);S.set('filamentos',filamentos);renderFils();buildFilSelect();checkEstoque();}}
 
 /* ---- PRODUTOS (multi-filamento) ---- */
-function buildFilOpts(){return filamentos.map((f,i)=>`<option value="${i}">${f.marca} ${f.modelo} -- ${f.corNome}</option>`).join('');}
+function buildFilOpts(){return filamentos.filter((f)=>parseFloat(f.qtd||0)>0).map((f,_,arr)=>{var i=filamentos.indexOf(f);return `<option value="${i}">${f.marca} ${f.modelo} -- ${f.corNome} (${parseFloat(f.qtd||0).toFixed(0)}g)</option>`;}).join('');}
 function addFilProd(filIdx,pesoVal){
   const d=document.createElement('div');d.className='fil-multi-item';
   d.innerHTML=`<span class="cor-dot" style="background:#555;margin-right:2px;"></span><select onchange="syncDot(this)">${buildFilOpts()}</select><input type="number" placeholder="Peso (g)" value="${pesoVal||''}" min="0" step="1"><span style="font-size:11px;color:var(--text3);white-space:nowrap;">gramas</span><button class="rm" onclick="this.closest('.fil-multi-item').remove()"><i class="ti ti-x"></i></button>`;
@@ -2651,7 +2651,7 @@ function addFilProdInline(i, filIdx, pesoVal) {
   var sel = document.createElement('select');
   sel.style.cssText = 'flex:2;min-width:150px;border:1px solid var(--border2);border-radius:var(--radius);padding:5px 8px;font-size:12px;background:var(--bg2);color:var(--text);';
   sel.innerHTML = '<option value="">-- Sem filamento --</option>' +
-    filamentos.map(function(f,fi){ return '<option value="'+fi+'">'+ f.corNome+' '+f.marca+' '+f.modelo+'</option>'; }).join('');
+    filamentos.filter(function(f){ return parseFloat(f.qtd||0)>0; }).map(function(f){ var fi=filamentos.indexOf(f); return '<option value="'+fi+'">'+f.corNome+' '+f.marca+' '+f.modelo+' ('+parseFloat(f.qtd||0).toFixed(0)+'g)</option>'; }).join('');
   if(filIdx !== undefined && filIdx >= 0) sel.value = filIdx;
   var inp = document.createElement('input');
   inp.type='number'; inp.placeholder='Peso (g)'; inp.min='0'; inp.step='1';
@@ -5680,9 +5680,10 @@ function matchFilamento(xProd) {
 
 function filOpts(selecionado) {
   return '<option value="-1">-- Nao vincular ao estoque --</option>' +
-    filamentos.map(function(f, i) {
+    filamentos.filter(function(f){ return parseFloat(f.qtd||0) > 0; }).map(function(f, _, arr) {
+      var i = filamentos.indexOf(f);
       var sel = i === selecionado ? 'selected' : '';
-      return '<option value="' + i + '" ' + sel + '>' + f.marca + ' ' + f.modelo + ' -- ' + f.corNome + ' (' + f.qtd + 'g)</option>';
+      return '<option value="' + i + '" ' + sel + '>' + f.marca + ' ' + f.modelo + ' -- ' + f.corNome + ' (' + parseFloat(f.qtd||0).toFixed(0) + 'g)</option>';
     }).join('');
 }
 
@@ -10444,7 +10445,9 @@ function getFilsOrdenados() {
 function getFilOpts(placeholder) {
   var ph = placeholder || 'Selecionar filamento...';
   return '<option value="">'+ph+'</option>' +
-    getFilsOrdenados().map(function(i){
+    getFilsOrdenados().filter(function(i){
+      return parseFloat(filamentos[i].qtd||0) > 0;
+    }).map(function(i){
       var f = filamentos[i];
       return '<option value="'+i+'">'+f.corNome+'  '+f.marca+' '+f.modelo+' ('+parseFloat(f.qtd||0).toFixed(0)+'g)</option>';
     }).join('');
