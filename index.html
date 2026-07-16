@@ -1026,6 +1026,7 @@
     <select id="venda-filtro-mes" onchange="renderVendas()"
       style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
       <option value="">Todos os meses</option>
+      <option value="mes_atual">Mes atual (ate hoje)</option>
     </select>
   </div>
 
@@ -1087,6 +1088,7 @@
     <select id="filtro-fatura-mes" onchange="renderContas()"
       style="border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
       <option value="">Todos os meses</option>
+      <option value="mes_atual">Mes atual (ate hoje)</option>
     </select>
     <input type="text" id="filtro-fatura-busca" placeholder="Buscar cliente..." oninput="renderContas()"
       style="flex:1;min-width:150px;border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);">
@@ -3936,7 +3938,18 @@ function salvarVenda(){
       S.set('faturas',faturas);
       alert('Venda salva! Fatura criada em Contas a Receber.');
     }
-  } else { alert('Venda salva com pagamento registrado!'); }
+  } else {
+    // Venda a vista: criar fatura ja marcada como paga
+    faturas.unshift({
+      id: Date.now()+1, vendaId: venda.id, cliente: cliente,
+      descricao: prodNome + ' (x'+venda.qtd+')',
+      valor: total, recebido: total, venc: venda.data,
+      data: venda.data, status: 'paga',
+      dataPagamento: venda.dataPagamento || venda.data
+    });
+    S.set('faturas', faturas);
+    alert('Venda salva com pagamento registrado!');
+  }
   document.getElementById('form-venda').style.display='none';
   ['v-cliente','v-obs'].forEach(id=>{document.getElementById(id).value='';});
   document.getElementById('v-valor').value='';document.getElementById('v-total').value='';document.getElementById('v-qtd').value='1';
@@ -3988,6 +4001,7 @@ function renderVendas(){
     vendas.forEach(function(v){ if(v.data) meses[v.data.slice(0,7)]=true; });
     var valMes = selMes.value;
     selMes.innerHTML = '<option value="">Todos os meses</option>' +
+      '<option value="mes_atual">Mes atual (ate hoje)</option>' +
       Object.keys(meses).sort().reverse().map(function(m){
         var d = new Date(m+'-01'); var n = d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
         return '<option value="'+m+'">'+n.charAt(0).toUpperCase()+n.slice(1)+'</option>';
@@ -4005,7 +4019,12 @@ function renderVendas(){
 
   var lista = vendas.filter(function(v, i){
     if(busca && !(v.cliente||'').toUpperCase().includes(busca) && !(v.prodNome||'').toUpperCase().includes(busca)) return false;
-    if(filtMs && (v.data||'').slice(0,7) !== filtMs) return false;
+    if(filtMs === 'mes_atual') {
+      var hj = hoje(); // yyyy-mm-dd
+      var mesH = hj.slice(0,7);
+      if(!(v.data||'').slice(0,7).startsWith(mesH)) return false;
+      if((v.data||'') > hj) return false;
+    } else if(filtMs && (v.data||'').slice(0,7) !== filtMs) return false;
     var isPago = v.statusPgto==='pago'||v.statusPgto==='paga';
     var isParcial = !isPago && (v.recebido||0) > 0;
     if(filtSt==='pago' && !isPago) return false;
@@ -4128,6 +4147,7 @@ function renderContas() {
     faturas.forEach(function(f){ if(f.data) meses[f.data.slice(0,7)]=true; });
     var valAtual = selMes.value;
     selMes.innerHTML = '<option value="">Todos os meses</option>' +
+      '<option value="mes_atual">Mes atual (ate hoje)</option>' +
       Object.keys(meses).sort().reverse().map(function(m){
         var d = new Date(m+'-01');
         var n = d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
@@ -4182,7 +4202,11 @@ function renderContas() {
   var lista = faturas.filter(function(f){
     if(filtro === 'vencida') return f.status !== 'paga' && f.venc && f.venc < hj;
     if(filtro && f.status !== filtro) return false;
-    if(filtMs && (f.data||'').slice(0,7) !== filtMs) return false;
+    if(filtMs === 'mes_atual') {
+      var hj2 = hoje(); var mesH2 = hj2.slice(0,7);
+      if(!(f.data||'').startsWith(mesH2)) return false;
+      if((f.data||'') > hj2) return false;
+    } else if(filtMs && (f.data||'').slice(0,7) !== filtMs) return false;
     if(busca && !(f.cliente||'').toUpperCase().includes(busca) && !(f.descricao||'').toUpperCase().includes(busca)) return false;
     return true;
   });
