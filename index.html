@@ -5464,7 +5464,7 @@ function renderComprasLancamento() {
   var tipo = (document.getElementById('cp-filtro-lancamento')||{}).value || '';
   var periodo = (document.getElementById('cp-filtro-periodo')||{}).value || '';
   var lista = filtrarCompras(busca, tipo, periodo);
-  var totGasto = lista.reduce(function(s,c){return s+(c.total||0);},0);
+  var totGasto = lista.reduce(function(s,c){return s+(c.total||c.preco||0);},0);
   var resumoEl = document.getElementById('resumo-compras-lancamento');
   if(resumoEl) {
     resumoEl.innerHTML = lista.length ?
@@ -5490,7 +5490,7 @@ function renderCompras() {
   var tipo = (document.getElementById('filtro-cp-tipo')||{}).value || '';
   var periodo = (document.getElementById('filtro-cp-periodo')||{}).value || '';
   var lista = filtrarCompras(busca, tipo, periodo);
-  var totGasto = lista.reduce(function(s,c){return s+(c.total||0);},0);
+  var totGasto = lista.reduce(function(s,c){return s+(c.total||c.preco||0);},0);
   var totFil = lista.filter(function(c){return c.tipo==='filamento';}).reduce(function(s,c){return s+(c.total||0);},0);
   var totAc = lista.filter(function(c){return c.tipo==='acessorio';}).reduce(function(s,c){return s+(c.total||0);},0);
   var resumoEl = document.getElementById('resumo-compras');
@@ -5772,8 +5772,8 @@ function processarXML(file) {
             <div class="field"><label>Nome / Modelo *</label><input type="text" id="cp-imp-nome" placeholder="Ex: Bambu Lab A1 Mini, Creality K1..."></div>
             <div class="field"><label>Marca</label><input type="text" id="cp-imp-marca" placeholder="Ex: Bambu Lab, Creality, Anycubic"></div>
             <div class="field"><label>Numero de Serie</label><input type="text" id="cp-imp-serie" placeholder="Opcional"></div>
-            <div class="field"><label>Preco Pago (R$) *</label><input type="number" id="cp-imp-preco" placeholder="0,00" min="0" step="0.01" oninput="calcDepreciacaoImpressora()"></div>
-            <div class="field"><label>Vida Util Estimada (horas)</label><input type="number" id="cp-imp-vida" placeholder="Ex: 20000" min="100" step="100" value="20000" oninput="calcDepreciacaoImpressora()"></div>
+            <div class="field"><label>Preco Pago (R$) *</label><input type="number" id="cp-imp-preco" placeholder="0,00" min="0" step="0.01"></div>
+            <div class="field"><label>Vida Util Estimada (horas)</label><input type="number" id="cp-imp-vida" placeholder="Ex: 20000" min="100" step="100" value="20000"></div>
             <div class="field"><label>Data de Compra</label><input type="date" id="cp-imp-data-compra"></div>
           </div>
           <div id="cp-imp-deprec-box" style="display:none;background:var(--neon-dim);border:1px solid var(--border2);border-radius:var(--radius);padding:10px 14px;margin:8px 0;">
@@ -7955,7 +7955,10 @@ function salvarContaPagar() {
   };
 
   if(_cpEditIdx >= 0) {
-    contasPagar[_cpEditIdx] = cp;
+    // Buscar por ID para evitar dessincronismo com filtro
+    var editPos = contasPagar.findIndex(function(x){ return x.id === cp.id; });
+    if(editPos >= 0) contasPagar[editPos] = cp;
+    else contasPagar[_cpEditIdx] = cp; // fallback
   } else {
     contasPagar.unshift(cp);
     // Se recorrente, criar proximas parcelas
@@ -7973,6 +7976,7 @@ function salvarContaPagar() {
   }
   S.set('contas_pagar', contasPagar);
   document.getElementById('form-conta-pagar').style.display = 'none';
+  _cpEditIdx = -1;
   renderContasPagar();
   renderFinKPIs();
 }
@@ -8015,8 +8019,12 @@ function pagarConta(idx) {
 }
 
 function delContaPagar(idx) {
-  if(!confirm('Remover esta conta?')) return;
-  contasPagar.splice(idx,1);
+  var c = contasPagar[idx];
+  if(!c) return;
+  if(!confirm('Excluir "' + c.desc + '"?')) return;
+  var realIdx = contasPagar.findIndex(function(x){ return x.id === c.id; });
+  if(realIdx >= 0) contasPagar.splice(realIdx, 1);
+  else contasPagar.splice(idx, 1);
   S.set('contas_pagar', contasPagar);
   renderContasPagar();
   renderFinKPIs();
@@ -10620,76 +10628,6 @@ function abrirFormTemplate(template) {
   document.getElementById('cp-recorrencia').value = template.recorrencia;
 }
 
-/* ----- SALVAR ----- */
-function salvarContaPagar() {
-  var desc  = (document.getElementById('cp-desc').value||'').toUpperCase().trim();
-  var valor = parseFloat(document.getElementById('cp-valor').value)||0;
-  var venc  = document.getElementById('cp-venc').value;
-  var cat   = document.getElementById('cp-cat').value;
-  var rec   = document.getElementById('cp-recorrencia').value;
-  var selCred = document.getElementById('cp-credor-sel');
-  var inpCred = document.getElementById('cp-credor');
-  var cred = '';
-  if(selCred && selCred.value && selCred.value !== 'manual') {
-    cred = (selCred.options[selCred.selectedIndex].text||'').toUpperCase().trim();
-  } else if(inpCred) {
-    cred = (inpCred.value||'').toUpperCase().trim();
-  }
-  var obs   = (document.getElementById('cp-obs-cp').value||'').toUpperCase().trim();
-
-  if(!desc) { alert('Informe a descricao da despesa.'); return; }
-  if(!valor || valor <= 0) { alert('Informe um valor valido.'); return; }
-  if(!venc) { alert('Informe a data de vencimento.'); return; }
-
-  var hj = hoje();
-  var status = venc < hj ? 'vencida' : 'pendente';
-
-  var conta = {
-    id:     _cpEditIdx >= 0 ? contasPagar[_cpEditIdx].id : Date.now(),
-    desc, valor, venc, cat, recorrencia: rec, credor: cred, obs, status,
-    dataCadastro: _cpEditIdx >= 0 ? (contasPagar[_cpEditIdx].dataCadastro||hoje()) : hoje()
-  };
-
-  if(_cpEditIdx >= 0) {
-    conta.dataPagamento = contasPagar[_cpEditIdx].dataPagamento;
-    conta.status = contasPagar[_cpEditIdx].status === 'paga' ? 'paga' : status;
-    contasPagar[_cpEditIdx] = conta;
-  } else {
-    contasPagar.unshift(conta);
-  }
-
-  S.set('contas_pagar', contasPagar);
-  document.getElementById('form-conta-pagar').style.display = 'none';
-  renderContasPagar();
-  renderKpisCP();
-  alert('Despesa salva: ' + desc);
-}
-
-/* ----- PAGAR / ESTORNAR ----- */
-function pagarConta(idx) {
-  var c = contasPagar[idx];
-  if(!c || !confirm('Confirmar pagamento: ' + c.desc + ' | ' + fmt(c.valor))) 
-  contasPagar[idx].status = 'paga';
-  contasPagar[idx].dataPagamento = hoje();
-  S.set('contas_pagar', contasPagar);
-  renderContasPagar(); renderKpisCP();
-
-  // Se recorrente, gerar proxima parcela automaticamente
-  if(c.recorrencia && c.recorrencia !== 'unica') {
-    var d = new Date(c.venc+'T00:00:00');
-    if(c.recorrencia === 'mensal')     d.setMonth(d.getMonth()+1);
-    if(c.recorrencia === 'trimestral') d.setMonth(d.getMonth()+3);
-    if(c.recorrencia === 'anual')      d.setFullYear(d.getFullYear()+1);
-    var proxVenc = d.toISOString().slice(0,10);
-    if(confirm('Conta recorrente! Gerar proxima parcela para ' + fmtD(proxVenc) + '?')) {
-      var nova = Object.assign({}, c, {id:Date.now(), status:'pendente', dataPagamento:null, dataCadastro:hoje(), venc:proxVenc});
-      contasPagar.unshift(nova);
-      S.set('contas_pagar', contasPagar);
-      renderContasPagar(); renderKpisCP();
-    }
-  }
-}
-
 function estornarConta(idx) {
   if(!confirm('Estornar pagamento?')) return;
   contasPagar[idx].status = contasPagar[idx].venc < hoje() ? 'vencida' : 'pendente';
@@ -10697,15 +10635,6 @@ function estornarConta(idx) {
   S.set('contas_pagar', contasPagar);
   renderContasPagar(); renderKpisCP();
 }
-
-function delContaPagar(idx) {
-  if(!confirm('Excluir despesa "' + contasPagar[idx].desc + '"?')) return;
-  contasPagar.splice(idx, 1);
-  S.set('contas_pagar', contasPagar);
-  renderContasPagar(); renderKpisCP();
-}
-
-/* ----- FILTRO MES ----- */
 function popularFiltroMes() {
   var sel = document.getElementById('cp-filtro-mes');
   if(!sel) return;
@@ -10746,75 +10675,6 @@ function abrirFormTemplateIdx(i) {
   }, 150);
 }
 
-
-/* ----- RENDER LISTA ----- */
-function renderContasPagar() {
-  var el = document.getElementById('lista-contas-pagar');
-  if(!el) return;
-
-  var filtStatus = (document.getElementById('cp-filtro-status')||{}).value || '';
-  var filtCat    = (document.getElementById('cp-filtro-cat')||{}).value || '';
-  var filtMes    = (document.getElementById('cp-filtro-mes')||{}).value || '';
-  var busca      = ((document.getElementById('cp-busca')||{}).value||'').toUpperCase();
-  var hj = hoje();
-
-  // Atualizar status de vencidas
-  contasPagar.forEach(function(c){
-    if(c.status === 'pendente' && c.venc && c.venc < hj) c.status = 'vencida';
-  });
-
-  var lista = contasPagar.filter(function(c){
-    if(filtStatus && c.status !== filtStatus) return false;
-    if(filtCat    && c.cat !== filtCat)       return false;
-    if(filtMes    && (!c.venc || !c.venc.startsWith(filtMes))) return false;
-    if(busca && !(c.desc||'').toUpperCase().includes(busca) && !(c.credor||'').toUpperCase().includes(busca)) return false;
-    return true;
-  });
-
-  if(!lista.length) {
-    el.innerHTML = '<div class="empty"><i class="ti ti-file-invoice"></i>Nenhuma despesa encontrada.<br><span style="font-size:12px;">Cadastre uma despesa ou use os atalhos acima.</span></div>';
-    return;
-  }
-
-  // Ordenar: vencidas > pendentes > pagas, depois por vencimento
-  lista.sort(function(a,b){
-    var ord = {vencida:0, pendente:1, paga:2};
-    var oa = ord[a.status]||1, ob = ord[b.status]||1;
-    if(oa !== ob) return oa - ob;
-    return (a.venc||'').localeCompare(b.venc||'');
-  });
-
-  el.innerHTML = lista.map(function(c){
-    var idx = contasPagar.indexOf(c);
-    var corStatus = c.status==='paga'?'var(--neon)':c.status==='vencida'?'var(--red-text)':'var(--amber-text)';
-    var tagStatus = c.status==='paga'?'tag-green':c.status==='vencida'?'tag-red':'tag-amber';
-    var labelStatus = c.status==='paga'?'Paga':c.status==='vencida'?'Vencida':'Pendente';
-    var recLabel = {unica:'Unica',mensal:'Mensal',trimestral:'Trimestral',anual:'Anual'};
-
-    return '<div class="item-card" style="margin-bottom:8px;border-left:3px solid '+corStatus+';">' +
-      '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">' +
-        '<div>' +
-          '<strong style="font-size:14px;">'+c.desc+'</strong>' +
-          '<span class="tag '+tagStatus+'" style="margin-left:8px;font-size:10px;">'+labelStatus+'</span>' +
-          '<span class="tag '+(CP_CAT_TAG[c.cat]||'')+'" style="margin-left:4px;font-size:10px;">'+CP_CAT_LABEL[c.cat]+'</span>' +
-          '<br><span style="font-size:12px;color:var(--text3);">Venc: '+fmtD(c.venc)+' | '+recLabel[c.recorrencia||'unica']+(c.credor?' | '+c.credor:'')+'</span>' +
-          (c.dataPagamento ? '<br><span style="font-size:11px;color:var(--neon);">Pago em: '+fmtD(c.dataPagamento)+'</span>' : '') +
-        '</div>' +
-        '<div style="text-align:right;">' +
-          '<div style="font-size:20px;font-weight:700;color:'+corStatus+';">'+fmt(c.valor)+'</div>' +
-        '</div>' +
-      '</div>' +
-      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">' +
-        (c.status !== 'paga' ? '<button class="btn-ok" onclick="pagarConta('+idx+')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-check"></i> Pagar</button>' : '') +
-        (c.status === 'paga' ? '<button class="btn" onclick="estornarConta('+idx+')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-arrow-back"></i> Estornar</button>' : '') +
-        '<button class="btn" onclick="abrirFormContaPagar('+idx+')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-edit"></i> Editar</button>' +
-        '<button class="btn-del" onclick="delContaPagar('+idx+')" style="font-size:11px;padding:5px 10px;margin-left:auto;"><i class="ti ti-trash"></i></button>' +
-      '</div>' +
-    '</div>';
-  }).join('');
-}
-
-/* ----- KPIs ----- */
 function renderKpisCP() {
   var el = document.getElementById('cp-kpis');
   if(!el) return;
