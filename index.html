@@ -7136,17 +7136,28 @@ function abrirEdicaoPedido(idx) {
   var stEl = document.getElementById('mp-status');
   if(stEl) stEl.value = p.status || 'pendente';
 
-  // Restaurar filamentos do pedido  usar pesoUnit se disponivel
+  // Restaurar filamentos do pedido  resolver idx pelo nome para evitar deslocamento de array
   var filsListaEl = document.getElementById('mp-fils-lista');
   if(filsListaEl) {
     filsListaEl.innerHTML = '';
     var fils = p.filsEstoque || [];
-    var qtdAtual = Math.max(1, parseInt(document.getElementById('mp-qtd').value)||1);
     if(fils.length > 0) {
       fils.forEach(function(f){
-        // Se tem pesoUnit salvo, usar ele; senao calcular dividindo pelo qtd
         var pUnit = f.pesoUnit || (f.peso && p.qtd && p.qtd > 0 ? Math.round((f.peso / p.qtd) * 100) / 100 : f.peso);
-        addFilModal(f.filIdx, pUnit, true); // true = modo pesoUnit
+
+        // Resolver indice pelo nome (mais confiavel que o indice salvo que pode ter deslocado)
+        var idxResolvido = f.filIdx; // fallback para o indice salvo
+        if(f.filNome) {
+          var nomeBusca = (f.filNome||'').toUpperCase();
+          var encontrado = -1;
+          filamentos.forEach(function(fil, fi){
+            var nomeAtual = ((fil.marca||'')+' '+(fil.modelo||'')+' '+(fil.corNome||'')).toUpperCase();
+            if(nomeAtual.includes(nomeBusca) || nomeBusca.includes(nomeAtual)) encontrado = fi;
+          });
+          if(encontrado >= 0) idxResolvido = encontrado;
+        }
+
+        addFilModal(idxResolvido, pUnit, true);
       });
     } else {
       addFilModal();
