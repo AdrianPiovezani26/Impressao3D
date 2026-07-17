@@ -6843,9 +6843,19 @@ function salvarNoHistorico() {
 function salvarNoHistoricoSilencioso() {
   if(!document.getElementById('resultado') || document.getElementById('resultado').style.display === 'none') return;
   var dados = coletarDadosCalc();
-  _histCalc.unshift(dados);
-  // Manter maximo 50 entradas
-  if(_histCalc.length > 50) _histCalc = _histCalc.slice(0,50);
+  dados.nome = (dados.nome||'SEM NOME').toUpperCase().trim();
+
+  // Verificar duplicata por nome  se ja existe, substituir silenciosamente
+  var existeIdx = _histCalc.findIndex(function(h){
+    return (h.nome||'').toUpperCase().trim() === dados.nome;
+  });
+  if(existeIdx >= 0) {
+    dados.id = _histCalc[existeIdx].id; // manter o mesmo ID
+    _histCalc[existeIdx] = dados;
+  } else {
+    _histCalc.unshift(dados);
+    if(_histCalc.length > 50) _histCalc = _histCalc.slice(0,50);
+  }
   S.set('hist_calc', _histCalc);
   renderHistoricoCalc();
 }
