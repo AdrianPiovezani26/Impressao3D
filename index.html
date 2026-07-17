@@ -7255,7 +7255,7 @@ function calcCustoModal() {
   if(!container) return;
 
   var qtd = Math.max(1, parseFloat((document.getElementById('mp-qtd')||{}).value)||1);
-  var pesoTotal = 0, custoTotal = 0;
+  var pesoTotal = 0, custoFilTotal = 0;
 
   container.querySelectorAll('div').forEach(function(row){
     var sel  = row.querySelector('select');
@@ -7267,8 +7267,8 @@ function calcCustoModal() {
       var f = filamentos[idxF];
       var custoG   = (parseFloat(f.preco)||0) / (parseFloat(f.pesoRolo)||1000);
       var custoFil = custoG * pesoUnitF;
-      pesoTotal  += pesoUnitF;
-      custoTotal += custoFil;
+      pesoTotal    += pesoUnitF;
+      custoFilTotal+= custoFil;
       if(lblC) lblC.textContent = 'R$' + custoFil.toFixed(2) + '/un';
     } else {
       if(lblC) lblC.textContent = '';
@@ -7277,24 +7277,20 @@ function calcCustoModal() {
 
   if(custoWrap) custoWrap.style.display = pesoTotal > 0 ? 'block' : 'none';
   if(pesoTotalEl) pesoTotalEl.textContent = pesoTotal.toFixed(0) + 'g/un (' + (pesoTotal*qtd).toFixed(0) + 'g total)';
-  if(custoEl) custoEl.textContent = fmt(custoTotal) + '/un (' + fmt(custoTotal*qtd) + ' total)';
+  if(custoEl) custoEl.textContent = fmt(custoFilTotal) + '/un (' + fmt(custoFilTotal*qtd) + ' total)';
 
-  // Atualizar campo custo unitario automaticamente APENAS se estiver vazio
-  if(custoUnitEl && custoTotal > 0) {
-    var custoAtual = parseFloat(custoUnitEl.value) || 0;
-    if(custoAtual === 0) {
-      // Sem custo definido  calcular pelos filamentos
-      custoUnitEl.value = custoTotal.toFixed(2);
-      custoUnitEl.style.borderColor = 'var(--neon)';
-    }
-    // Se ja tem custo (da precificacao), nao sobrescrever
+  // Sempre atualizar custo ao trocar filamento  preco de venda nao e alterado
+  if(custoUnitEl && custoFilTotal > 0) {
+    custoUnitEl.value = custoFilTotal.toFixed(2);
+    custoUnitEl.style.borderColor = 'var(--neon)';
   }
 
-  // Calcular margem
-  var preco = parseFloat((document.getElementById('mp-preco-unit')||{}).value||0);
+  // Margem: recalcula com novo custo vs preco mantido
+  var preco     = parseFloat((document.getElementById('mp-preco-unit')||{}).value||0);
+  var custoUnit = parseFloat((custoUnitEl||{}).value||0) || custoFilTotal;
   if(margemEl) {
-    if(preco > 0 && custoTotal > 0) {
-      var margem = ((preco - custoTotal) / preco * 100).toFixed(1);
+    if(preco > 0 && custoUnit > 0) {
+      var margem = ((preco - custoUnit) / preco * 100).toFixed(1);
       margemEl.textContent = margem + '%';
       margemEl.style.color = parseFloat(margem) > 0 ? 'var(--neon)' : 'var(--red-text)';
     } else {
@@ -7302,6 +7298,7 @@ function calcCustoModal() {
     }
   }
 }
+
 
 function atualizarTotalPedido() {
   var qtd = parseInt(document.getElementById('mp-qtd').value) || 1;
