@@ -2312,9 +2312,9 @@
     <div class="field">
       <label>Tempo de Impressao</label>
       <div style="display:flex;gap:8px;align-items:center;">
-        <input type="number" id="mp-horas-h" placeholder="0" min="0" style="width:70px;border:1px solid var(--border2);border-radius:var(--radius);padding:7px 8px;font-size:13px;background:var(--bg2);color:var(--text);">
+        <input type="number" id="mp-horas-h" placeholder="0" min="0" style="width:70px;border:1px solid var(--border2);border-radius:var(--radius);padding:7px 8px;font-size:13px;background:var(--bg2);color:var(--text);" oninput="calcCustoModal()">
         <span style="font-size:13px;color:var(--text2);">h</span>
-        <input type="number" id="mp-horas-m" placeholder="0" min="0" max="59" style="width:70px;border:1px solid var(--border2);border-radius:var(--radius);padding:7px 8px;font-size:13px;background:var(--bg2);color:var(--text);">
+        <input type="number" id="mp-horas-m" placeholder="0" min="0" max="59" style="width:70px;border:1px solid var(--border2);border-radius:var(--radius);padding:7px 8px;font-size:13px;background:var(--bg2);color:var(--text);" oninput="calcCustoModal()">
         <span style="font-size:13px;color:var(--text2);">min</span>
       </div>
     </div>
@@ -7254,9 +7254,13 @@ function calcCustoModal() {
   var custoUnitEl= document.getElementById('mp-custo-unit');
   if(!container) return;
 
-  var qtd = Math.max(1, parseFloat((document.getElementById('mp-qtd')||{}).value)||1);
-  var pesoTotal = 0, custoFilTotal = 0;
+  var qtd  = Math.max(1, parseFloat((document.getElementById('mp-qtd')||{}).value)||1);
+  var hH   = parseFloat((document.getElementById('mp-horas-h')||{}).value)||0;
+  var hM   = parseFloat((document.getElementById('mp-horas-m')||{}).value)||0;
+  var horas = hH + (hM/60);
 
+  // Custo dos filamentos
+  var pesoTotal = 0, custoFilTotal = 0;
   container.querySelectorAll('div').forEach(function(row){
     var sel  = row.querySelector('select');
     var inp  = row.querySelector('input[type=number]');
@@ -7275,22 +7279,51 @@ function calcCustoModal() {
     }
   });
 
+  // Custos operacionais (mesmos parametros da aba Precificacao)
+  var watts    = parseFloat((document.getElementById('c-watts')||{}).value)||0;
+  var kwh      = parseFloat((document.getElementById('c-kwh')||{}).value)||0;
+  var mdo      = parseFloat((document.getElementById('c-mdo')||{}).value)||0;
+  var vi       = parseFloat((document.getElementById('c-val-imp')||{}).value)||0;
+  var vida     = parseFloat((document.getElementById('c-vida')||{}).value)||5000;
+  var manut    = parseFloat((document.getElementById('c-manut')||{}).value)||0;
+  var hmes     = parseFloat((document.getElementById('c-hmes')||{}).value)||160;
+  var embal    = parseFloat((document.getElementById('c-embal')||{}).value)||0;
+  var insumos  = parseFloat((document.getElementById('c-insumos')||{}).value)||0;
+  var impostos = parseFloat((document.getElementById('c-impostos')||{}).value)||0;
+  var pctFalhas= parseFloat((document.getElementById('c-falhas')||{}).value)||0;
+
+  var cFalhas = custoFilTotal * (pctFalhas/100);
+  var cFilComFalhas = custoFilTotal + cFalhas;
+  var cEn  = horas > 0 ? (watts/1000)*horas*kwh     : 0;
+  var cMdo = horas > 0 ? mdo*horas                   : 0;
+  var cDep = horas > 0 ? (vi/vida)*horas             : 0;
+  var cMt  = horas > 0 ? (manut/hmes)*horas          : 0;
+
+  // Custo total por lote / por unidade
+  var cTotalLote = cFilComFalhas + cEn + cMdo + cDep + cMt + insumos + embal;
+  var cUnit = cTotalLote / qtd;
+  var cUnitFinal = impostos > 0 ? cUnit / (1 - impostos/100) : cUnit;
+
   if(custoWrap) custoWrap.style.display = pesoTotal > 0 ? 'block' : 'none';
   if(pesoTotalEl) pesoTotalEl.textContent = pesoTotal.toFixed(0) + 'g/un (' + (pesoTotal*qtd).toFixed(0) + 'g total)';
-  if(custoEl) custoEl.textContent = fmt(custoFilTotal) + '/un (' + fmt(custoFilTotal*qtd) + ' total)';
+  if(custoEl) {
+    var detalhes = 'Fil: '+fmt(cFilComFalhas/qtd);
+    if(cEn > 0) detalhes += ' | Energia: '+fmt(cEn/qtd);
+    if(cDep > 0) detalhes += ' | Deprec: '+fmt(cDep/qtd);
+    custoEl.textContent = fmt(cUnitFinal) + '/un  ' + detalhes;
+  }
 
-  // Sempre atualizar custo ao trocar filamento  preco de venda nao e alterado
-  if(custoUnitEl && custoFilTotal > 0) {
-    custoUnitEl.value = custoFilTotal.toFixed(2);
+  // Atualizar custo unitario automaticamente
+  if(custoUnitEl && cUnitFinal > 0) {
+    custoUnitEl.value = cUnitFinal.toFixed(2);
     custoUnitEl.style.borderColor = 'var(--neon)';
   }
 
-  // Margem: recalcula com novo custo vs preco mantido
-  var preco     = parseFloat((document.getElementById('mp-preco-unit')||{}).value||0);
-  var custoUnit = parseFloat((custoUnitEl||{}).value||0) || custoFilTotal;
+  // Margem: novo custo vs preco mantido
+  var preco = parseFloat((document.getElementById('mp-preco-unit')||{}).value||0);
   if(margemEl) {
-    if(preco > 0 && custoUnit > 0) {
-      var margem = ((preco - custoUnit) / preco * 100).toFixed(1);
+    if(preco > 0 && cUnitFinal > 0) {
+      var margem = ((preco - cUnitFinal) / preco * 100).toFixed(1);
       margemEl.textContent = margem + '%';
       margemEl.style.color = parseFloat(margem) > 0 ? 'var(--neon)' : 'var(--red-text)';
     } else {
