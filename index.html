@@ -4043,14 +4043,16 @@ function renderVendas(){
     var recebido = fatsV.length > 0 ? recFats : (v.recebido||0);
     var pendente = fatsV.length > 0 ? pendFats : (isPago ? 0 : v.valor - recebido);
     var isParcial = !isPago && recebido > 0 && pendente > 0;
-    var tagCor = isPago ? 'tag-green' : isParcial ? 'tag-amber' : 'tag-red';
-    var tagLabel = isPago ? 'Pago' : isParcial ? 'Parcial' : 'Pendente';
+    var isCancelado = v.statusPgto === 'cancelado';
+    var tagCor = isCancelado ? 'tag-red' : isPago ? 'tag-green' : isParcial ? 'tag-amber' : 'tag-red';
+    var tagLabel = isCancelado ? 'Cancelado' : isPago ? 'Pago' : isParcial ? 'Parcial' : 'Pendente';
     var parcInfo = fatsV.length > 1 ? ' <span style="font-size:10px;color:var(--text3);">'+fatsV.length+' parcelas</span>' : '';
     return '<div class="item-card">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px;">' +
         '<div style="flex:1;min-width:0;">' +
           '<strong style="font-size:15px;">'+v.cliente+'</strong>' + parcInfo +
           '<br><span style="font-size:12px;color:var(--text2);">'+fmtD(v.data)+' - '+v.prodNome+(v.qtd>1?' (x'+v.qtd+')':'')+' - '+v.pgto+'</span>' +
+          (function(){ var fv=faturas.find(function(f){return f.vendaId===v.id&&f.desconto>0;}); return fv?'<div style="font-size:11px;color:var(--amber-text);margin-top:2px;"><i class="ti ti-tag"></i> Desconto no recebimento: '+fv.desconto.toFixed(1)+'% (-'+fmt(fv.valorDesconto||0)+')</div>':''; })() +
           (v.obs ? '<br><span style="font-size:11px;color:var(--text3);">'+v.obs+'</span>' : '') +
         '</div>' +
         '<div style="text-align:right;flex-shrink:0;">' +
@@ -4065,6 +4067,7 @@ function renderVendas(){
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
         (!isPago ? '<button class="btn-ok" onclick="darBaixaVenda('+i+')" style="font-size:12px;padding:6px 12px;"><i class="ti ti-check"></i> Confirmar Recebimento</button>' :
           '<span style="font-size:12px;color:var(--neon);display:flex;align-items:center;gap:4px;"><i class="ti ti-circle-check"></i> Recebido em '+fmtD(v.dataPagamento||v.data)+'</span>') +
+        '<button class="btn" onclick="cancelarVenda('+i+')" style="font-size:12px;padding:6px 10px;color:var(--red-text);border-color:var(--red-text);"><i class="ti ti-ban"></i> Cancelar</button>' +
         '<button class="btn-del" onclick="delVenda('+i+')" style="margin-left:auto;"><i class="ti ti-trash"></i> Remover</button>' +
       '</div>' +
     '</div>';
@@ -4247,10 +4250,46 @@ function renderContas() {
 function delVenda(i) {
   var v = vendas[i];
   if(!v) return;
-  if(!confirm('Remover venda de "' + v.cliente + '" - ' + fmt(v.valor) + '?')) return;
+  var fatsVinculadas = faturas.filter(function(f){ return f.vendaId === v.id; });
+  var msg = 'Remover venda de "' + v.cliente + '" - ' + fmt(v.valor) + '?';
+  if(fatsVinculadas.length > 0) {
+    msg += '\n\nATENCAO: ' + fatsVinculadas.length + ' fatura(s) em Contas a Receber vinculada(s) a esta venda tambem serao removidas.';
+  }
+  if(!confirm(msg)) return;
+  // Remover faturas vinculadas
+  if(fatsVinculadas.length > 0) {
+    faturas = faturas.filter(function(f){ return f.vendaId !== v.id; });
+    S.set('faturas', faturas);
+  }
   vendas.splice(i, 1);
   S.set('vendas', vendas);
   renderVendas();
+  renderContas();
+  renderDashboard();
+}
+
+function cancelarVenda(i) {
+  var v = vendas[i];
+  if(!v) return;
+  var fatsVinculadas = faturas.filter(function(f){ return f.vendaId === v.id; });
+  var msg = 'Cancelar venda de "' + v.cliente + '" - ' + fmt(v.valor) + '?';
+  msg += '\n\nO status da venda sera alterado para "cancelado".';
+  if(fatsVinculadas.length > 0) {
+    msg += '\n' + fatsVinculadas.length + ' fatura(s) vinculada(s) tambem serao canceladas.';
+  }
+  if(!confirm(msg)) return;
+  vendas[i].statusPgto = 'cancelado';
+  vendas[i].dataCancelamento = hoje();
+  S.set('vendas', vendas);
+  // Cancelar faturas vinculadas
+  faturas.forEach(function(f){
+    if(f.vendaId === v.id) { f.status = 'cancelada'; }
+  });
+  S.set('faturas', faturas);
+  renderVendas();
+  renderContas();
+  renderDashboard();
+  alert('Venda cancelada.' + (fatsVinculadas.length > 0 ? '\n' + fatsVinculadas.length + ' fatura(s) cancelada(s) em Contas a Receber.' : ''));
 }
 
 function sincronizarVendaDaFatura(f) {
@@ -4259,9 +4298,17 @@ function sincronizarVendaDaFatura(f) {
   var todasPagas = faturasVenda.length > 0 && faturasVenda.every(function(ff){ return ff.status === 'paga'; });
   if(todasPagas) {
     var vIdx = vendas.findIndex(function(v){ return v.id === f.vendaId; });
-    if(vIdx >= 0 && vendas[vIdx].statusPgto !== 'pago') {
-      vendas[vIdx].statusPgto = 'pago';
-      vendas[vIdx].dataPagamento = hoje();
+    if(vIdx >= 0) {
+      if(vendas[vIdx].statusPgto !== 'pago') {
+        vendas[vIdx].statusPgto = 'pago';
+        vendas[vIdx].dataPagamento = hoje();
+      }
+      // Propagar desconto para a venda se houver
+      var totalDesconto = faturasVenda.reduce(function(s,ff){ return s+(ff.valorDesconto||0); },0);
+      if(totalDesconto > 0) {
+        vendas[vIdx].desconto = totalDesconto;
+        vendas[vIdx].valorComDesconto = vendas[vIdx].valor - totalDesconto;
+      }
       S.set('vendas', vendas);
     }
   }
@@ -4359,7 +4406,23 @@ function marcarPaga(i){
   renderContas();
   renderDashboard();
 }
-function delFatura(i){if(confirm('Remover fatura?')){faturas.splice(i,1);S.set('faturas',faturas);renderContas();}}
+function delFatura(i) {
+  var f = faturas[i];
+  if(!f) return;
+  // Verificar se tem venda vinculada
+  if(f.vendaId) {
+    var vendaVinc = vendas.find(function(v){ return v.id === f.vendaId; });
+    if(vendaVinc) {
+      alert('Esta fatura esta vinculada a venda de "' + vendaVinc.cliente + '" (' + fmt(vendaVinc.valor) + ').\n\nPara remover, va em Vendas e exclua ou cancele a venda  a fatura sera removida automaticamente.');
+      return;
+    }
+  }
+  if(confirm('Remover fatura de "' + (f.cliente||'') + '" - ' + fmt(f.valor) + '?')) {
+    faturas.splice(i, 1);
+    S.set('faturas', faturas);
+    renderContas();
+  }
+}
 
 /* ---- CONFIG ---- */
 function alterarSenhaConfig() {
