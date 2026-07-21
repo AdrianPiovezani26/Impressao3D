@@ -4219,6 +4219,7 @@ function renderContas() {
             (f.pgto ? '<span class="tag" style="font-size:10px;">'+f.pgto+'</span>' : '') +
           '</div>' +
           '<div style="font-size:13px;color:var(--text2);">'+f.descricao+'</div>' +
+          (f.desconto > 0 ? '<div style="font-size:11px;color:var(--amber-text);margin-top:2px;"><i class="ti ti-tag"></i> Desconto concedido: '+f.desconto.toFixed(1)+'% (-'+fmt(f.valorDesconto||0)+')</div>' : '') +
           '<div style="font-size:11px;color:var(--text3);margin-top:3px;display:flex;gap:12px;flex-wrap:wrap;">' +
             '<span><i class="ti ti-calendar" style="font-size:10px;"></i> Emissao: '+fmtD(f.data)+'</span>' +
             (f.venc ? '<span style="color:'+(isVenc?'var(--red-text)':'var(--text3)')+'"><i class="ti ti-calendar-due" style="font-size:10px;"></i> Venc: '+fmtD(f.venc)+(isVenc?' ':'')+'</span>' : '') +
@@ -4271,19 +4272,43 @@ function darBaixaFatura(i) {
   if(!f) return;
   var recebidoAtual = parseFloat(f.recebido)||0;
   var restante = parseFloat((f.valor - recebidoAtual).toFixed(2));
-  var valorStr = prompt(
-    'Pagamento parcial - ' + f.cliente + ' (' + f.descricao + ')\n' +
-    'Valor total: ' + fmt(f.valor) +
-    (recebidoAtual > 0 ? '\nJa recebido: ' + fmt(recebidoAtual) : '') +
-    '\nRestante: ' + fmt(restante) +
-    '\n\nInforme o valor recebido agora:',
-    restante.toFixed(2)
+
+  // Perguntar desconto
+  var descStr = prompt(
+    'Confirmar recebimento - ' + f.cliente + '\n' +
+    f.descricao + '\n\n' +
+    'Valor a receber: ' + fmt(restante) +
+    '\n\nDesconto (% ou deixe 0 para nenhum):',
+    '0'
   );
+  if(descStr === null) return;
+  var descPct = parseFloat(String(descStr).replace(',','.'))||0;
+  if(descPct < 0 || descPct > 100) { alert('Desconto invalido. Use um valor entre 0 e 100.'); return; }
+
+  var valorDesconto = parseFloat((restante * descPct / 100).toFixed(2));
+  var valorFinal    = parseFloat((restante - valorDesconto).toFixed(2));
+
+  // Confirmar com desconto
+  var msg = 'Confirmar recebimento?\n\n' +
+    'Cliente: ' + f.cliente + '\n' +
+    'Valor original: ' + fmt(restante);
+  if(descPct > 0) {
+    msg += '\nDesconto (' + descPct.toFixed(1) + '%): -' + fmt(valorDesconto) +
+           '\nValor a receber: ' + fmt(valorFinal);
+  }
+  if(!confirm(msg)) return;
+
+  // Perguntar valor recebido (ja com desconto pre-preenchido)
+  var valorStr = prompt('Informe o valor recebido agora:', valorFinal.toFixed(2));
   if(valorStr === null) return;
   var valorPago = parseFloat(String(valorStr).replace(',','.'))||0;
   if(valorPago <= 0) { alert('Informe um valor valido.'); return; }
-  if(valorPago > restante + 0.01) {
-    if(!confirm('O valor informado (' + fmt(valorPago) + ') e maior que o restante (' + fmt(restante) + ').\nDeseja continuar mesmo assim?')) return;
+
+  // Salvar desconto na fatura
+  if(descPct > 0) {
+    f.desconto    = descPct;
+    f.valorDesconto = valorDesconto;
+    f.valor = parseFloat((f.valor - valorDesconto).toFixed(2)); // ajusta valor da fatura
   }
 
   recebidoAtual = parseFloat((recebidoAtual + valorPago).toFixed(2));
@@ -4297,7 +4322,9 @@ function darBaixaFatura(i) {
     sincronizarVendaDaFatura(f);
     renderContas();
     renderDashboard();
-    alert('Fatura paga integralmente!\nTotal recebido: ' + fmt(f.valor));
+    var msgFinal = 'Fatura recebida!\nValor recebido: ' + fmt(f.valor);
+    if(descPct > 0) msgFinal += '\nDesconto concedido: ' + fmt(valorDesconto) + ' (' + descPct.toFixed(1) + '%)';
+    alert(msgFinal);
   } else {
     f.status = 'parcial';
     S.set('faturas', faturas);
