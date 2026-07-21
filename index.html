@@ -4273,42 +4273,58 @@ function darBaixaFatura(i) {
   var recebidoAtual = parseFloat(f.recebido)||0;
   var restante = parseFloat((f.valor - recebidoAtual).toFixed(2));
 
-  // Perguntar desconto
+  // Perguntar desconto (% ou R$)
   var descStr = prompt(
     'Confirmar recebimento - ' + f.cliente + '\n' +
     f.descricao + '\n\n' +
     'Valor a receber: ' + fmt(restante) +
-    '\n\nDesconto (% ou deixe 0 para nenhum):',
+    '\n\nDesconto:' +
+    '\n  Em %: digite o numero (ex: 10)' +
+    '\n  Em R$: digite R$ + valor (ex: R$20)' +
+    '\n  Sem desconto: deixe 0',
     '0'
   );
   if(descStr === null) return;
-  var descPct = parseFloat(String(descStr).replace(',','.'))||0;
-  if(descPct < 0 || descPct > 100) { alert('Desconto invalido. Use um valor entre 0 e 100.'); return; }
 
-  var valorDesconto = parseFloat((restante * descPct / 100).toFixed(2));
-  var valorFinal    = parseFloat((restante - valorDesconto).toFixed(2));
+  var descPct = 0, valorDesconto = 0;
+  var descInput = String(descStr).trim().replace(',','.');
+
+  // Detectar se e valor fixo (comeca com R$ ou r$) ou percentual
+  if(descInput.toUpperCase().startsWith('R$') || descInput.toUpperCase().startsWith('R ')) {
+    // Valor fixo em R$
+    var valorFixo = parseFloat(descInput.replace(/[Rr\$\s]/g,''))||0;
+    if(valorFixo < 0 || valorFixo > restante) { alert('Desconto invalido. O valor nao pode ser maior que o restante (' + fmt(restante) + ').'); return; }
+    valorDesconto = parseFloat(valorFixo.toFixed(2));
+    descPct = restante > 0 ? parseFloat((valorFixo / restante * 100).toFixed(2)) : 0;
+  } else {
+    // Percentual
+    descPct = parseFloat(descInput)||0;
+    if(descPct < 0 || descPct > 100) { alert('Desconto invalido. Use um valor entre 0 e 100.'); return; }
+    valorDesconto = parseFloat((restante * descPct / 100).toFixed(2));
+  }
+
+  var valorFinal = parseFloat((restante - valorDesconto).toFixed(2));
 
   // Confirmar com desconto
-  var msg = 'Confirmar recebimento?\n\n' +
-    'Cliente: ' + f.cliente + '\n' +
-    'Valor original: ' + fmt(restante);
-  if(descPct > 0) {
+  var msg = 'Confirmar recebimento?\n\nCliente: ' + f.cliente +
+    '\nValor original: ' + fmt(restante);
+  if(valorDesconto > 0) {
     msg += '\nDesconto (' + descPct.toFixed(1) + '%): -' + fmt(valorDesconto) +
            '\nValor a receber: ' + fmt(valorFinal);
   }
   if(!confirm(msg)) return;
 
-  // Perguntar valor recebido (ja com desconto pre-preenchido)
+  // Confirmar valor recebido
   var valorStr = prompt('Informe o valor recebido agora:', valorFinal.toFixed(2));
   if(valorStr === null) return;
   var valorPago = parseFloat(String(valorStr).replace(',','.'))||0;
   if(valorPago <= 0) { alert('Informe um valor valido.'); return; }
 
   // Salvar desconto na fatura
-  if(descPct > 0) {
-    f.desconto    = descPct;
+  if(valorDesconto > 0) {
+    f.desconto      = descPct;
     f.valorDesconto = valorDesconto;
-    f.valor = parseFloat((f.valor - valorDesconto).toFixed(2)); // ajusta valor da fatura
+    f.valor         = parseFloat((f.valor - valorDesconto).toFixed(2));
   }
 
   recebidoAtual = parseFloat((recebidoAtual + valorPago).toFixed(2));
@@ -4323,7 +4339,7 @@ function darBaixaFatura(i) {
     renderContas();
     renderDashboard();
     var msgFinal = 'Fatura recebida!\nValor recebido: ' + fmt(f.valor);
-    if(descPct > 0) msgFinal += '\nDesconto concedido: ' + fmt(valorDesconto) + ' (' + descPct.toFixed(1) + '%)';
+    if(valorDesconto > 0) msgFinal += '\nDesconto concedido: ' + fmt(valorDesconto) + ' (' + descPct.toFixed(1) + '%)';
     alert(msgFinal);
   } else {
     f.status = 'parcial';
