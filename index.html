@@ -5550,7 +5550,19 @@ function salvarCompra() {
     var id = el.id;
     var tipo = el.dataset.tipo;
     var descEl = document.getElementById(id+'-desc');
-    var desc = descEl ? upper(descEl.value.trim()) : '';
+    var marcaEl = document.getElementById(id+'-marca');
+    var modeloEl = document.getElementById(id+'-modelo');
+    var corEl = document.getElementById(id+'-cornome');
+    var desc = '';
+    if(descEl) {
+      desc = upper(descEl.value.trim());
+    } else if(marcaEl) {
+      // Form expandido de filamento  construir desc a partir dos campos
+      var m = upper((marcaEl.value||'').trim());
+      var mo = upper((modeloEl ? modeloEl.value : '')||'');
+      var co = upper((corEl ? corEl.value : '')||'');
+      desc = [m, mo, co].filter(Boolean).join(' ');
+    }
     if(!desc && tipo !== 'impressora') return;
 
     var compra = { id: Date.now() + Math.random(), tipo: tipo, desc: desc,
