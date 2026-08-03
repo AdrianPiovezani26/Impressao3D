@@ -5296,24 +5296,51 @@ function addItemCompra(tipo, dados) {
     'Cola / Adesivo','Cabo / Eletrico','Ventilador / Fan','Sensor','Ferramenta',
     'Embalagem','EPI / Seguranca','Outro acessorio'];
 
-  var camposFilamento = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;">' +
-    '<div class="field" style="margin:0;"><label style="font-size:10px;">Filamento do estoque</label>' +
-      '<select class="cpitem-fil-sel" onchange="cpitemPreencherFil(this,\''+id+'\')" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;">'+filOpts+'</select></div>' +
-    '<div class="field" style="margin:0;"><label style="font-size:10px;">Ou novo (marca/modelo)</label>' +
-      '<input type="text" id="'+id+'-desc" placeholder="Ex: Volt3d PLA Preto" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;" value="'+(dados&&dados.desc||'')+'"></div>' +
-    '<div class="field" style="margin:0;"><label style="font-size:10px;">Qtd rolos</label>' +
+  var camposFilamento =
+    '<div style="grid-column:1/-1;font-size:10px;font-weight:700;color:var(--text3);border-bottom:1px solid var(--border2);padding-bottom:4px;margin-bottom:2px;">Vincular ao estoque</div>' +
+    '<div class="field" style="margin:0;grid-column:1/-1;"><label style="font-size:10px;">Filamento ja cadastrado no estoque</label>' +
+      '<select class="cpitem-fil-sel" onchange="cpitemPreencherFil(this,\''+id+'\')" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;">'+filOpts+'</select>' +
+      '<div style="font-size:10px;color:var(--text3);margin-top:3px;">Selecione para preencher os dados automaticamente, ou preencha manualmente abaixo para cadastrar novo.</div></div>' +
+    '<div style="grid-column:1/-1;font-size:10px;font-weight:700;color:var(--text3);border-bottom:1px solid var(--border2);padding-bottom:4px;margin-top:4px;">Dados do filamento</div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Marca / Fabricante *</label>' +
+      '<input type="text" id="'+id+'-marca" placeholder="Ex: Bambu Lab, Volt3D" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;" value="'+(dados&&dados.marca||'')+'"></div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Modelo / Material *</label>' +
+      '<select id="'+id+'-modelo" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;">' +
+        '<optgroup label="PLA e variacoes"><option value="PLA">PLA</option><option value="PLA+">PLA+</option><option value="PLA Silk">PLA Silk</option><option value="PLA Matte">PLA Matte</option><option value="PLA Wood">PLA Wood</option><option value="PLA Marble">PLA Marble</option><option value="PLA Glow">PLA Glow</option><option value="PLA Color Change">PLA Muda de Cor</option><option value="PLA Metal">PLA Metal</option><option value="PLA Carbon">PLA Carbon Fiber</option><option value="PLA HT">PLA HT</option><option value="PLA Rainbow">PLA Rainbow</option><option value="PLA Glitter">PLA Glitter</option><option value="PLA Fluorescente">PLA Fluorescente</option><option value="PLA Transparente">PLA Transparente</option><option value="HYPER PLA">HYPER PLA</option></optgroup>' +
+        '<optgroup label="PETG"><option value="PETG">PETG</option><option value="PETG+">PETG+</option><option value="PETG Carbon">PETG Carbon</option></optgroup>' +
+        '<optgroup label="ABS/ASA"><option value="ABS">ABS</option><option value="ABS+">ABS+</option><option value="ASA">ASA</option></optgroup>' +
+        '<optgroup label="Flexiveis"><option value="TPU 95A">TPU 95A</option><option value="TPU 87A">TPU 87A</option></optgroup>' +
+        '<optgroup label="Alta Performance"><option value="PA (Nylon)">PA Nylon</option><option value="PC">PC Policarbonato</option></optgroup>' +
+        '<optgroup label="Resina"><option value="Resina Standard">Resina Standard</option><option value="Resina ABS-Like">Resina ABS-Like</option></optgroup>' +
+        '<option value="Outro">Outro</option>' +
+      '</select></div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Cor</label>' +
+      '<div style="display:flex;gap:6px;align-items:center;">' +
+        '<input type="text" id="'+id+'-cornome" placeholder="Ex: Preto, Azul Royal" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);flex:1;" value="'+(dados&&dados.corNome||'')+'"> ' +
+        '<input type="color" id="'+id+'-corhex" value="'+(dados&&dados.corHex||'#1a1a1a')+'" style="width:36px;height:28px;border-radius:4px;border:1px solid var(--border2);padding:1px;cursor:pointer;"></div></div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Diametro</label>' +
+      '<select id="'+id+'-diam" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;">' +
+        '<option value="1.75">1.75 mm</option><option value="2.85">2.85 mm</option></select></div>' +
+    '<div style="grid-column:1/-1;font-size:10px;font-weight:700;color:var(--text3);border-bottom:1px solid var(--border2);padding-bottom:4px;margin-top:4px;">Quantidade e Preco</div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Qtd rolos *</label>' +
       '<input type="number" id="'+id+'-rolos" value="'+(dados&&dados.rolos||1)+'" min="1" step="1" oninput="cpitemCalcTotal(\''+id+'\')" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;"></div>' +
-    '<div class="field" style="margin:0;"><label style="font-size:10px;">Peso por rolo (g)</label>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Peso por rolo (g) *</label>' +
       '<input type="number" id="'+id+'-peso" value="'+(dados&&dados.pesoRolo||1000)+'" step="50" oninput="cpitemCalcTotal(\''+id+'\')" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;"></div>' +
-    '<div class="field" style="margin:0;"><label style="font-size:10px;">Preco por rolo (R$)</label>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Preco por rolo (R$) *</label>' +
       '<input type="number" id="'+id+'-preco" placeholder="89.90" step="0.50" oninput="cpitemCalcTotal(\''+id+'\')" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;" value="'+(dados&&dados.precoRolo||'')+'"></div>' +
     '<div class="field" style="margin:0;"><label style="font-size:10px;">Total (R$)</label>' +
       '<input type="number" id="'+id+'-total" readonly style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg2);color:var(--neon);width:100%;font-weight:700;"></div>' +
+    '<div style="grid-column:1/-1;font-size:10px;font-weight:700;color:var(--text3);border-bottom:1px solid var(--border2);padding-bottom:4px;margin-top:4px;">Parametros de impressao</div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Temp. Impressao (C)</label>' +
+      '<input type="number" id="'+id+'-temp" placeholder="Ex: 215" step="5" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;" value="'+(dados&&dados.temp||'')+'"></div>' +
+    '<div class="field" style="margin:0;"><label style="font-size:10px;">Temp. Mesa (C)</label>' +
+      '<input type="number" id="'+id+'-tempmesa" placeholder="Ex: 60" step="5" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;" value="'+(dados&&dados.tempMesa||'')+'"></div>' +
+    '<div class="field" style="margin:0;grid-column:1/-1;"><label style="font-size:10px;">Observacao</label>' +
+      '<input type="text" id="'+id+'-obs" placeholder="Ex: otimo acabamento, fosco" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;" value="'+(dados&&dados.obs||'')+'"></div>' +
     '<div class="field" style="margin:0;grid-column:1/-1;"><label style="font-size:10px;">Dar entrada no estoque?</label>' +
       '<select id="'+id+'-entrada" style="font-size:12px;padding:5px 7px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;">' +
         '<option value="sim">Sim -- atualizar estoque</option><option value="nao">Nao -- apenas registrar</option>' +
-      '</select></div>' +
-  '</div>';
+      '</select></div>'
 
   var camposAcessorio = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;">' +
     '<div class="field" style="margin:0;grid-column:1/-1;"><label style="font-size:10px;">Nome do item *</label>' +
@@ -5372,10 +5399,17 @@ function cpitemPreencherFil(sel, id) {
   var idx = parseInt(sel.value);
   if(!isNaN(idx) && filamentos[idx]) {
     var f = filamentos[idx];
-    var descEl = document.getElementById(id+'-desc');
-    var precoEl = document.getElementById(id+'-preco');
-    if(descEl && !descEl.value) descEl.value = (f.marca||'')+' '+(f.modelo||'')+' '+(f.corNome||'');
-    if(precoEl && !precoEl.value && f.preco) precoEl.value = f.preco;
+    var set = function(sfx, val) { var el = document.getElementById(id+sfx); if(el && val !== undefined && val !== null && val !== '') el.value = val; };
+    set('-marca', f.marca);
+    set('-modelo', f.modelo);
+    set('-cornome', f.corNome);
+    set('-corhex', f.corHex);
+    set('-diam', f.diam);
+    set('-peso', f.pesoRolo || 1000);
+    set('-preco', f.preco);
+    set('-temp', f.temp);
+    set('-tempmesa', f.tempMesa);
+    set('-obs', f.obs);
     cpitemCalcTotal(id);
   }
 }
@@ -5532,9 +5566,43 @@ function salvarCompra() {
       var total = rolos * precoRolo;
       Object.assign(compra, { rolos: rolos, pesoRolo: pesoRolo, precoUnit: precoRolo,
         total: total, qtd: rolos * pesoRolo, unidade: 'g', filIdx: isNaN(filIdx) ? -1 : filIdx });
-      if(entrada === 'sim' && !isNaN(filIdx) && filIdx >= 0 && filamentos[filIdx]) {
-        registrarMovimentacao(filIdx, 'entrada', rolos * pesoRolo, 'Compra de filamento', nf ? 'NF: '+nf : 'Compra');
-        estoqueAtualizado.push(filamentos[filIdx].marca+' '+filamentos[filIdx].modelo);
+      // Ler dados completos do formulario expandido
+      var marca    = upper((document.getElementById(id+'-marca')||{}).value||'');
+      var modelo   = upper((document.getElementById(id+'-modelo')||{}).value||'');
+      var corNome  = upper((document.getElementById(id+'-cornome')||{}).value||'');
+      var corHex   = (document.getElementById(id+'-corhex')||{}).value||'#888888';
+      var diam     = (document.getElementById(id+'-diam')||{}).value||'1.75';
+      var temp     = (document.getElementById(id+'-temp')||{}).value||'';
+      var tempMesa = (document.getElementById(id+'-tempmesa')||{}).value||'';
+      var obs      = upper((document.getElementById(id+'-obs')||{}).value||'');
+      var descFil  = marca + (modelo?' '+modelo:'') + (corNome?' '+corNome:'');
+      Object.assign(compra, { desc: descFil, marca: marca, modelo: modelo, corNome: corNome, corHex: corHex, diam: diam, temp: temp, tempMesa: tempMesa, obs: obs });
+
+      if(entrada === 'sim') {
+        if(!isNaN(filIdx) && filIdx >= 0 && filamentos[filIdx]) {
+          // Filamento existente  apenas dar entrada
+          // Atualizar preco se informado
+          if(precoRolo > 0) filamentos[filIdx].preco = precoRolo;
+          registrarMovimentacao(filIdx, 'entrada', rolos * pesoRolo, 'Compra de filamento', nf ? 'NF: '+nf : 'Compra');
+          estoqueAtualizado.push(filamentos[filIdx].marca+' '+filamentos[filIdx].modelo);
+          S.set('filamentos', filamentos);
+        } else if(marca) {
+          // Filamento novo  cadastrar automaticamente
+          var novoFil = {
+            id: Date.now() + Math.floor(Math.random()*1000),
+            marca: marca, modelo: modelo, corNome: corNome || 'NAO INFORMADA',
+            corHex: corHex, diam: diam, qtd: rolos * pesoRolo,
+            preco: precoRolo, pesoRolo: pesoRolo,
+            temp: temp, tempMesa: tempMesa, obs: obs,
+            data: dataCp
+          };
+          filamentos.unshift(novoFil);
+          S.set('filamentos', filamentos);
+          Object.assign(compra, { filIdx: 0 }); // recem inserido na posicao 0
+          estoqueAtualizado.push(marca + ' ' + modelo + ' (novo cadastro)');
+          // Registrar movimentacao de entrada
+          registrarMovimentacao(0, 'entrada', rolos * pesoRolo, 'Compra de filamento  novo cadastro', nf ? 'NF: '+nf : 'Compra');
+        }
       }
 
     } else if(tipo === 'acessorio') {
