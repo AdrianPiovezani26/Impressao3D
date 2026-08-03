@@ -1589,7 +1589,30 @@
       <!-- Cabecalho da NF / Compra -->
       <div class="grid2">
         <div class="field"><label>Fornecedor</label>
-          <select id="cp-fornecedor"><option value="">Selecionar fornecedor...</option></select>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <select id="cp-fornecedor" onchange="onChangeFornecedor()" style="flex:1;">
+              <option value="">Selecionar fornecedor...</option>
+            </select>
+            <button type="button" class="btn" onclick="abrirNovoFornecedorInline()" title="Cadastrar novo fornecedor" style="padding:6px 10px;flex-shrink:0;white-space:nowrap;"><i class="ti ti-plus"></i> Novo</button>
+          </div>
+          <!-- Mini-form de novo fornecedor inline -->
+          <div id="novo-forn-inline" style="display:none;margin-top:8px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:12px;">
+            <div style="font-size:11px;font-weight:700;color:var(--neon);margin-bottom:8px;"><i class="ti ti-building-store"></i> Novo Fornecedor</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+              <div class="field" style="margin:0;"><label style="font-size:10px;">Nome / Razao Social *</label>
+                <input type="text" id="nf-inline-razao" placeholder="Ex: BAMBU LAB" style="font-size:12px;padding:6px 8px;"></div>
+              <div class="field" style="margin:0;"><label style="font-size:10px;">Nome Fantasia</label>
+                <input type="text" id="nf-inline-fantasia" placeholder="Opcional" style="font-size:12px;padding:6px 8px;"></div>
+              <div class="field" style="margin:0;"><label style="font-size:10px;">Telefone</label>
+                <input type="text" id="nf-inline-tel" placeholder="(00) 00000-0000" style="font-size:12px;padding:6px 8px;"></div>
+              <div class="field" style="margin:0;"><label style="font-size:10px;">Email</label>
+                <input type="text" id="nf-inline-email" placeholder="contato@fornecedor.com" style="font-size:12px;padding:6px 8px;"></div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button type="button" class="btn-ok" onclick="salvarFornecedorInline()" style="font-size:11px;padding:5px 12px;"><i class="ti ti-device-floppy"></i> Salvar Fornecedor</button>
+              <button type="button" class="btn" onclick="fecharNovoFornecedorInline()" style="font-size:11px;padding:5px 10px;">Cancelar</button>
+            </div>
+          </div>
         </div>
         <div class="field"><label>Data da Compra</label><input type="date" id="cp-data"></div>
         <div class="field"><label>Numero NF / Pedido</label><input type="text" id="cp-nf" placeholder="Ex: NF-001234"></div>
@@ -5406,6 +5429,64 @@ function buildFornecedorSelect() {
   const fors = parceiros.filter(p => p.tipo === 'fornecedor' || p.tipo === 'ambos');
   s.innerHTML = '<option value="">Selecionar fornecedor...</option>' +
     fors.map((p,i) => `<option value="${parceiros.indexOf(p)}">${p.razao}</option>`).join('');
+}
+
+function onChangeFornecedor() {
+  // Fecha o mini-form se usuario escolher um fornecedor existente
+  var val = (document.getElementById('cp-fornecedor')||{}).value;
+  if(val !== '' && val !== '__novo') fecharNovoFornecedorInline();
+}
+
+function abrirNovoFornecedorInline() {
+  var el = document.getElementById('novo-forn-inline');
+  if(el) el.style.display = 'block';
+  var razao = document.getElementById('nf-inline-razao');
+  if(razao) razao.focus();
+}
+
+function fecharNovoFornecedorInline() {
+  var el = document.getElementById('novo-forn-inline');
+  if(el) el.style.display = 'none';
+  ['nf-inline-razao','nf-inline-fantasia','nf-inline-tel','nf-inline-email'].forEach(function(id){
+    var el2 = document.getElementById(id); if(el2) el2.value = '';
+  });
+}
+
+function salvarFornecedorInline() {
+  var razao = (document.getElementById('nf-inline-razao')||{}).value;
+  if(!razao || !razao.trim()) { alert('Informe o nome do fornecedor.'); return; }
+  razao = razao.trim().toUpperCase();
+  // Verificar duplicata
+  var jaExiste = parceiros.find(function(p){ return p.razao === razao; });
+  if(jaExiste) {
+    if(!confirm('Ja existe um parceiro com o nome "'+razao+'".\nDeseja usar o existente?')) return;
+    // Selecionar o existente no select
+    buildFornecedorSelect();
+    var sel = document.getElementById('cp-fornecedor');
+    var idx = parceiros.indexOf(jaExiste);
+    if(sel) sel.value = idx;
+    fecharNovoFornecedorInline();
+    return;
+  }
+  // Criar novo fornecedor
+  var novoForn = {
+    id: Date.now(),
+    tipo: 'fornecedor',
+    pessoa: 'juridica',
+    razao: razao,
+    fantasia: ((document.getElementById('nf-inline-fantasia')||{}).value||'').trim().toUpperCase(),
+    tel: ((document.getElementById('nf-inline-tel')||{}).value||'').trim(),
+    email: ((document.getElementById('nf-inline-email')||{}).value||'').trim().toLowerCase(),
+    cnpj: '', end: '', obs: ''
+  };
+  parceiros.push(novoForn);
+  S.set('parceiros', parceiros);
+  // Atualizar select e selecionar o novo
+  buildFornecedorSelect();
+  var sel = document.getElementById('cp-fornecedor');
+  if(sel) sel.value = parceiros.indexOf(novoForn);
+  fecharNovoFornecedorInline();
+  alert('Fornecedor "'+razao+'" cadastrado e selecionado!');
 }
 
 function limparFormCompra() {
