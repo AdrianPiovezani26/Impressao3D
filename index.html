@@ -2621,7 +2621,32 @@ function addFilProd(filIdx,pesoVal){
   syncDot(d.querySelector('select'));
   document.getElementById('p-fils-lista').appendChild(d);
 }
-function syncDot(sel){const idx=parseInt(sel.value),dot=sel.closest('.fil-multi-item').querySelector('.cor-dot');if(dot&&filamentos[idx])dot.style.background=filamentos[idx].corHex;}
+function syncDot(sel) {
+  var idx = parseInt(sel.value);
+  var item = sel.closest('.fil-multi-item');
+  var dot = item ? item.querySelector('.cor-dot') : null;
+  if(dot && filamentos[idx]) dot.style.background = filamentos[idx].corHex;
+
+  // Mostrar saldo disponivel ao lado do select
+  var saldoEl = item ? item.querySelector('.fil-saldo-info') : null;
+  if(!saldoEl && item) {
+    saldoEl = document.createElement('span');
+    saldoEl.className = 'fil-saldo-info';
+    saldoEl.style.cssText = 'font-size:10px;white-space:nowrap;margin-left:2px;';
+    sel.parentNode.insertBefore(saldoEl, sel.nextSibling);
+  }
+  if(saldoEl) {
+    if(!isNaN(idx) && idx >= 0 && filamentos[idx]) {
+      var s = calcEstoqueDisponivel(idx);
+      var cor = s.disponivel <= 0 ? 'var(--red-text)' : s.disponivel < 100 ? 'var(--amber-text)' : 'var(--text3)';
+      var txt = s.disponivel <= 0 ? 'SEM SALDO' : s.disponivel.toFixed(0)+'g disp';
+      if(s.reservado > 0 || s.preReservado > 0) txt += ' ('+s.fisico.toFixed(0)+'g fis)';
+      saldoEl.innerHTML = '<span style="color:'+cor+';">'+txt+'</span>';
+    } else {
+      saldoEl.innerHTML = '';
+    }
+  }
+}
 function getFilsProd(){
   return Array.from(document.getElementById('p-fils-lista').querySelectorAll('.fil-multi-item')).map(item=>{
     const idx=parseInt(item.querySelector('select').value);
@@ -2999,6 +3024,62 @@ function syncDotCalc(sel) {
   }
 }
 
+// Split de filamento: ajusta o atual para o saldo disponivel e adiciona outro com o restante
+function splitFilamento(filIdxAtual, pesoTotal, filIdxNovo) {
+  var sAtual = calcEstoqueDisponivel(filIdxAtual);
+  var pesoAtual = parseFloat(sAtual.disponivel.toFixed(0));
+  var pesoRestante = parseFloat((pesoTotal - pesoAtual).toFixed(0));
+  if(pesoAtual <= 0) {
+    alert('Filamento sem saldo disponivel. Selecione outro manualmente.');
+    return;
+  }
+  // Atualizar peso do item atual para o saldo disponivel
+  var items = document.getElementById('c-fils-lista').querySelectorAll('.fil-multi-item');
+  items.forEach(function(item) {
+    var sel = item.querySelector('select');
+    var inp = item.querySelectorAll('input')[0];
+    if(sel && parseInt(sel.value) === filIdxAtual && inp) {
+      inp.value = pesoAtual;
+    }
+  });
+  // Adicionar novo item com o restante
+  if(pesoRestante > 0) addFilProd(filIdxNovo, pesoRestante);
+  calcular();
+}
+
+// Split automatico: divide pelo saldo disponivel e deixa o restante em branco para selecionar
+function splitAutomatico(filIdxAtual, pesoTotal) {
+  var sAtual = calcEstoqueDisponivel(filIdxAtual);
+  var pesoAtual = parseFloat(sAtual.disponivel.toFixed(0));
+  var pesoRestante = parseFloat((pesoTotal - pesoAtual).toFixed(0));
+  if(pesoAtual <= 0) {
+    alert('Filamento sem saldo. Selecione um filamento diferente.');
+    return;
+  }
+  // Atualizar peso do item atual
+  var items = document.getElementById('c-fils-lista').querySelectorAll('.fil-multi-item');
+  items.forEach(function(item) {
+    var sel = item.querySelector('select');
+    var inp = item.querySelectorAll('input')[0];
+    if(sel && parseInt(sel.value) === filIdxAtual && inp) {
+      inp.value = pesoAtual;
+    }
+  });
+  // Adicionar nova linha sem filamento selecionado para o usuario escolher
+  if(pesoRestante > 0) addFilProd(undefined, pesoRestante);
+  calcular();
+  // Focar no novo select para facilitar selecao
+  setTimeout(function() {
+    var itens = document.getElementById('c-fils-lista').querySelectorAll('.fil-multi-item');
+    if(itens.length > 0) {
+      var ultimo = itens[itens.length - 1];
+      var sel = ultimo.querySelector('select');
+      if(sel) sel.focus();
+    }
+  }, 100);
+}
+
+
 function getFilsCalc() {
   var items = document.getElementById('c-fils-lista').querySelectorAll('.fil-multi-item');
   var total = 0;
@@ -3014,7 +3095,7 @@ function getFilsCalc() {
     var custo    = peso > 0 && pesoRolo > 0 ? (peso / pesoRolo) * precoRolo : 0;
     if(peso > 0) {
       total += custo;
-      detalhes.push({ nome: nome, peso: peso, custo: custo });
+      detalhes.push({ nome: nome, filIdx: isNaN(idx) ? -1 : idx, peso: peso, custo: custo });
     }
   });
   return { total: total, detalhes: detalhes };
@@ -3023,6 +3104,62 @@ function getFilsCalc() {
 function calcular(){
   var filsData = getFilsCalc();
   var cFil = filsData.total;
+
+  // Verificar saldo disponivel de cada filamento e montar alertas
+  var alertasEstoque = [];
+  filsData.detalhes.forEach(function(d) {
+    if(d.filIdx < 0) return;
+    var v = verificarSaldoFil(d.filIdx, d.peso);
+    if(!v.ok) {
+      alertasEstoque.push({
+        filIdx: d.filIdx,
+        nome: d.nome,
+        pesoNecessario: d.peso,
+        disponivel: v.disponivel,
+        falta: v.falta,
+        sugestoes: v.sugestoes
+      });
+    }
+  });
+
+  // Mostrar painel de alertas de estoque
+  var alertaEl = document.getElementById('c-alerta-estoque');
+  if(!alertaEl) {
+    alertaEl = document.createElement('div');
+    alertaEl.id = 'c-alerta-estoque';
+    var filsEl = document.getElementById('c-fils-lista');
+    if(filsEl) filsEl.parentNode.insertBefore(alertaEl, filsEl.nextSibling);
+  }
+  if(alertasEstoque.length > 0) {
+    var html = '<div style="background:rgba(255,50,50,0.08);border:1px solid var(--red-text);border-radius:var(--radius);padding:10px 12px;margin:8px 0;">' +
+      '<div style="font-size:11px;font-weight:700;color:var(--red-text);margin-bottom:6px;"><i class="ti ti-alert-triangle"></i> Saldo insuficiente no estoque</div>';
+    alertasEstoque.forEach(function(a) {
+      html += '<div style="font-size:11px;margin-bottom:4px;padding:6px 8px;background:var(--bg3);border-radius:4px;">' +
+        '<span style="color:var(--text);">' + a.nome + '</span>  ' +
+        'precisa <strong>' + a.pesoNecessario + 'g</strong>, disponivel <strong style="color:var(--red-text);">' + a.disponivel.toFixed(0) + 'g</strong> ' +
+        '(falta <strong>' + a.falta.toFixed(0) + 'g</strong>)';
+      if(a.sugestoes.length > 0) {
+        html += '<div style="margin-top:4px;font-size:10px;color:var(--text3);">Alternativas com saldo suficiente:</div>';
+        a.sugestoes.forEach(function(sg) {
+          html += '<button onclick="splitFilamento('+a.filIdx+','+a.pesoNecessario+','+sg.filIdx+')" ' +
+            'style="font-size:10px;padding:2px 8px;margin:2px 2px 0 0;border:1px solid var(--border2);border-radius:4px;background:var(--bg2);color:var(--neon);cursor:pointer;">' +
+            sg.nome + ' (' + sg.disponivel.toFixed(0) + 'g disp)' +
+            '</button>';
+        });
+        html += '<div style="margin-top:6px;">' +
+          '<button onclick="splitAutomatico('+a.filIdx+','+a.pesoNecessario+')" ' +
+          'style="font-size:10px;padding:3px 10px;border:1px solid var(--neon);border-radius:4px;background:transparent;color:var(--neon);cursor:pointer;font-weight:700;">' +
+          '<i class="ti ti-scissors"></i> Dividir automaticamente pelo saldo disponivel' +
+          '</button></div>';
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+    alertaEl.innerHTML = html;
+  } else {
+    alertaEl.innerHTML = '';
+  }
+
   // Atualizar label de custo total de filamentos
   var labelFil = document.getElementById('c-fil-custo-total');
   if(labelFil) {
