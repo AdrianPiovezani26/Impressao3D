@@ -3283,6 +3283,14 @@ function salvarComoPedido(){
     estoquesBaixados: false
   });
   S.set('pedidos', pedidos);
+
+  // Liberar pre-reserva do historico se havia orcamento reservado para esta peca
+  var histItem = _histCalc.find(function(h){ return h.reservado && (h.nome||'').toUpperCase() === nome.toUpperCase(); });
+  if(histItem) {
+    histItem.reservado = false;
+    S.set('hist_calc', _histCalc);
+  }
+
   alert('Pedido salvo!\n\n'+nome+'\n'+qtd+' un | '+fmt(precoUnitNum)+'/un | Total: '+precoTotalStr+'\n\nEstoque sera baixado ao CONCLUIR o pedido.');
   salvarNoHistoricoSilencioso();
   limparCalc();
@@ -5034,8 +5042,17 @@ function renderEstoque() {
 
       // Painel expandido (oculto por padrao)
       '<div id="'+detId+'" style="display:none;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);margin:2px 0 6px;padding:12px 14px;">' +
+        (function(){
+          var saldo = calcEstoqueDisponivel(fi);
+          return (saldo.reservado > 0 || saldo.preReservado > 0) ?
+            '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;background:var(--bg3);border-radius:var(--radius);padding:8px;">' +
+              '<div style="text-align:center;"><div style="font-size:9px;color:var(--text3);text-transform:uppercase;">Fisico</div><div style="font-size:16px;font-weight:700;">'+saldo.fisico.toFixed(0)+'g</div></div>' +
+              '<div style="text-align:center;"><div style="font-size:9px;color:var(--amber-text);text-transform:uppercase;">Reservado</div><div style="font-size:16px;font-weight:700;color:var(--amber-text);">'+(saldo.reservado+saldo.preReservado).toFixed(0)+'g</div>'+(saldo.preReservado>0?'<div style="font-size:9px;color:var(--text3);">'+saldo.reservado.toFixed(0)+'g ped+'+saldo.preReservado.toFixed(0)+'g orc</div>':'')+'</div>' +
+              '<div style="text-align:center;"><div style="font-size:9px;color:var(--neon);text-transform:uppercase;">Disponivel</div><div style="font-size:16px;font-weight:700;color:var(--neon);">'+saldo.disponivel.toFixed(0)+'g</div></div>' +
+            '</div>' : '';
+        })() +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:10px;">' +
-          '<div><div style="font-size:10px;color:var(--text3);">Saldo exato</div><div style="font-size:14px;font-weight:700;color:'+cor+';">'+qtd.toFixed(2)+'g</div></div>' +
+          '<div><div style="font-size:10px;color:var(--text3);">Saldo fisico</div><div style="font-size:14px;font-weight:700;color:'+cor+';">'+qtd.toFixed(2)+'g</div></div>' +
           '<div><div style="font-size:10px;color:var(--text3);">% do rolo</div><div style="font-size:14px;font-weight:700;">'+pct.toFixed(0)+'%</div></div>' +
           '<div><div style="font-size:10px;color:var(--text3);">Custo/g</div><div style="font-size:14px;font-weight:700;">R$'+custoG+'</div></div>' +
           '<div><div style="font-size:10px;color:var(--text3);">Preco rolo</div><div style="font-size:14px;font-weight:700;">'+fmt(parseFloat(f.preco||0))+'</div></div>' +
@@ -7040,6 +7057,8 @@ function coletarDadosCalc() {
     descLojista: parseFloat(document.getElementById('c-desc-lojista').value)||30,
     fils: filsCalc.detalhes.map(function(d){ return d.nome.split(' ').slice(0,3).join(' ')+'('+d.peso+'g)'; }).join(', ') || '--',
     filsDetalhes: filsDetalhes,
+    filsEstoque: filsDetalhes.filter(function(f){ return f.filIdx >= 0 && f.peso > 0; }),
+    reservado: false,
     custoUnit: custo,
     precoUnit: precoUnit,
     precoLojista: precoLoj,
@@ -7148,6 +7167,51 @@ function limparCalc() {
   var icoD = document.getElementById('ico-detalhamento'); if(icoD) icoD.style.transform='';
 }
 
+function reservarHistCalc(id) {
+  var h = _histCalc.find(function(x){ return x.id === id; });
+  if(!h) return;
+  var fils = (h.filsEstoque||[]).filter(function(f){ return f.filIdx >= 0; });
+  if(!fils.length) { alert('Nenhum filamento vinculado para reservar.'); return; }
+  var alertas = [];
+  fils.forEach(function(f) {
+    var s = calcEstoqueDisponivel(f.filIdx);
+    if(f.peso > s.disponivel) {
+      var fil = filamentos[f.filIdx] || {};
+      alertas.push((fil.marca||'')+' '+(fil.corNome||'')+': precisa '+f.peso+'g, disp '+s.disponivel.toFixed(0)+'g');
+    }
+  });
+  var linhas = ['Reservar estoque para: '+h.nome, ''];
+  fils.forEach(function(f) {
+    var fil = filamentos[f.filIdx] || {};
+    linhas.push('  '+f.peso+'g - '+(fil.marca||'')+' '+(fil.modelo||'')+' '+(fil.corNome||''));
+  });
+  if(alertas.length) {
+    linhas.push('');
+    linhas.push('ATENCAO - Saldo insuficiente:');
+    alertas.forEach(function(a){ linhas.push('  '+a); });
+    linhas.push('');
+    linhas.push('Reservar mesmo assim?');
+  }
+  if(!confirm(linhas.join('\n'))) return;
+  h.reservado = true;
+  S.set('hist_calc', _histCalc);
+  renderHistoricoCalc();
+  renderEstoque();
+  alert('Estoque pre-reservado! Aparecera como reservado no estoque ate ser convertido em pedido ou liberado.');
+}
+
+
+function liberarReservaHistCalc(id) {
+  var h = _histCalc.find(function(x){ return x.id === id; });
+  if(!h) return;
+  if(!confirm('Liberar pre-reserva de "'+h.nome+'"? O estoque voltara a ficar disponivel.')) return;
+  h.reservado = false;
+  S.set('hist_calc', _histCalc);
+  renderHistoricoCalc();
+  renderEstoque();
+}
+
+
 function renderHistoricoCalc() {
   var wrap  = document.getElementById('historico-calc-wrap');
   var lista = document.getElementById('historico-calc-lista');
@@ -7226,6 +7290,13 @@ function renderHistoricoCalc() {
         '<button class="btn-ok" onclick="editarHistCalc(' + h.id + ')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-edit"></i> Editar / Recalcular</button>' +
         '<button class="btn-ok" onclick="pedidoHistCalc(' + h.id + ')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-plus"></i> Salvar como Pedido</button>' +
         '<button class="btn" onclick="produtoHistCalc(' + h.id + ')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-box"></i> Salvar nos Produtos</button>' +
+        (function(){
+          var temFils = h.filsEstoque && h.filsEstoque.some(function(f){ return f.filIdx >= 0; });
+          if(!temFils) return '';
+          return h.reservado ?
+            '<button class="btn" onclick="liberarReservaHistCalc('+h.id+')" style="font-size:11px;padding:5px 10px;color:var(--amber-text);border-color:var(--amber-text);"><i class="ti ti-lock-open"></i> Reservado</button>' :
+            '<button class="btn" onclick="reservarHistCalc('+h.id+')" style="font-size:11px;padding:5px 10px;color:var(--neon);border-color:var(--neon);"><i class="ti ti-lock"></i> Reservar Estoque</button>';
+        })() +
         '<button class="btn-del" onclick="delHistCalc(' + h.id + ')" style="font-size:11px;padding:5px 10px;margin-left:auto;"><i class="ti ti-trash"></i></button>' +
       '</div>' +
     '</div>';
@@ -9456,6 +9527,78 @@ function renderRelFinanceiro(datas) {
 }
 
 /* ===== UTILITARIOS RELATORIOS ===== */
+// ============================================================
+// CONTROLE DE RESERVA DE ESTOQUE
+// Calcula saldo em 3 camadas: fisico / reservado / disponivel
+// ============================================================
+function calcEstoqueDisponivel(filIdx) {
+  var fisico = parseFloat((filamentos[filIdx]||{}).qtd||0);
+
+  // Reservas confirmadas: pedidos pendentes ou em impressao
+  var reservado = 0;
+  pedidos.forEach(function(p) {
+    if(p.status === 'concluido' || p.status === 'cancelado') return;
+    (p.filsEstoque||[]).forEach(function(f) {
+      if(f.filIdx === filIdx) reservado += parseFloat(f.peso||0);
+    });
+  });
+
+  // Reservas de impressoes internas em andamento
+  impressoesInternas.forEach(function(imp) {
+    if(imp.status === 'concluida' || imp.status === 'cancelada') return;
+    (imp.filsEstoque||[]).forEach(function(f) {
+      if(f.filIdx === filIdx) reservado += parseFloat(f.peso||0);
+    });
+  });
+
+  // Pre-reservas: orcamentos marcados como aceitos no historico
+  var preReservado = 0;
+  _histCalc.forEach(function(h) {
+    if(!h.reservado) return;
+    (h.filsEstoque||[]).forEach(function(f) {
+      if(f.filIdx === filIdx) preReservado += parseFloat(f.peso||0);
+    });
+  });
+
+  var disponivel = Math.max(0, fisico - reservado - preReservado);
+  return { fisico: fisico, reservado: reservado, preReservado: preReservado, disponivel: disponivel };
+}
+
+// Retorna texto colorido do saldo disponivel para selects
+function labelFilDisponivel(filIdx) {
+  var s = calcEstoqueDisponivel(filIdx);
+  var cor = s.disponivel <= 0 ? 'var(--red-text)' : s.disponivel < 50 ? 'var(--amber-text)' : 'var(--neon)';
+  return s.disponivel.toFixed(0) + 'g disp';
+}
+
+// Verifica se filamento tem saldo suficiente e retorna {ok, falta, sugestoes}
+function verificarSaldoFil(filIdx, pesoNecessario) {
+  var s = calcEstoqueDisponivel(filIdx);
+  var falta = Math.max(0, pesoNecessario - s.disponivel);
+  // Sugerir filamentos alternativos com saldo suficiente
+  var sugestoes = [];
+  if(falta > 0) {
+    var filRef = filamentos[filIdx] || {};
+    filamentos.forEach(function(f, i) {
+      if(i === filIdx) return;
+      var sf = calcEstoqueDisponivel(i);
+      if(sf.disponivel >= falta) {
+        sugestoes.push({ filIdx: i, nome: f.marca+' '+f.modelo+' '+f.corNome, disponivel: sf.disponivel });
+      }
+    });
+    // Ordenar: mesma cor primeiro, depois mesmo modelo
+    sugestoes.sort(function(a, b) {
+      var fa = filamentos[a.filIdx], fb = filamentos[b.filIdx];
+      var mesmaCorA = (fa.corNome||'').toUpperCase() === (filRef.corNome||'').toUpperCase() ? 0 : 1;
+      var mesmaCorB = (fb.corNome||'').toUpperCase() === (filRef.corNome||'').toUpperCase() ? 0 : 1;
+      return mesmaCorA - mesmaCorB || mesmaCorB - mesmaCorA;
+    });
+    sugestoes = sugestoes.slice(0, 5);
+  }
+  return { ok: falta <= 0, disponivel: s.disponivel, falta: falta, saldo: s, sugestoes: sugestoes };
+}
+
+
 function kpiRel(label, valor, cor, icon) {
   return '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 14px;text-align:center;">' +
     '<div style="font-size:18px;color:'+cor+';margin-bottom:4px;"><i class="ti '+icon+'"></i></div>' +
@@ -10774,10 +10917,13 @@ function getFilOpts(placeholder) {
   var ph = placeholder || 'Selecionar filamento...';
   return '<option value="">'+ph+'</option>' +
     getFilsOrdenados().filter(function(i){
-      return parseFloat(filamentos[i].qtd||0) > 0;
+      var s = calcEstoqueDisponivel(i);
+      return s.fisico > 0; // mostrar todos com estoque fisico
     }).map(function(i){
       var f = filamentos[i];
-      return '<option value="'+i+'">'+f.corNome+'  '+f.marca+' '+f.modelo+' ('+parseFloat(f.qtd||0).toFixed(0)+'g)</option>';
+      var s = calcEstoqueDisponivel(i);
+      var tag = s.disponivel <= 0 ? ' [RESERVADO]' : s.reservado > 0 || s.preReservado > 0 ? ' [disp:'+s.disponivel.toFixed(0)+'g]' : ' ('+s.fisico.toFixed(0)+'g)';
+      return '<option value="'+i+'">'+f.corNome+'  '+f.marca+' '+f.modelo+tag+'</option>';
     }).join('');
 }
 
