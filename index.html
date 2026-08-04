@@ -5757,7 +5757,7 @@ function salvarCompra() {
           var novoFil = {
             id: Date.now() + Math.floor(Math.random()*1000),
             marca: marca, modelo: modelo, corNome: corNome || 'NAO INFORMADA',
-            corHex: corHex, diam: diam, qtd: rolos * pesoRolo,
+            corHex: corHex, diam: diam, qtd: 0,
             preco: precoRolo, pesoRolo: pesoRolo,
             temp: temp, tempMesa: tempMesa, obs: obs,
             data: dataCp
@@ -5766,7 +5766,7 @@ function salvarCompra() {
           S.set('filamentos', filamentos);
           Object.assign(compra, { filIdx: 0 }); // recem inserido na posicao 0
           estoqueAtualizado.push(marca + ' ' + modelo + ' (novo cadastro)');
-          // Registrar movimentacao de entrada
+          // Registrar movimentacao de entrada (ela que atualiza o qtd)
           registrarMovimentacao(0, 'entrada', rolos * pesoRolo, 'Compra de filamento  novo cadastro', nf ? 'NF: '+nf : 'Compra');
         }
       }
