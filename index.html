@@ -12566,12 +12566,18 @@ function abrirFormImpressora(idx) {
     document.getElementById('pr-horas').value = imp.horasUso||0;
     document.getElementById('pr-obs').value = imp.obs||'';
   } else {
-    ['pr-nome','pr-marca','pr-modelo','pr-valor','pr-obs'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
-    document.getElementById('pr-data').value = hoje();
-    document.getElementById('pr-vida').value = 5000;
-    document.getElementById('pr-interval').value = 500;
-    document.getElementById('pr-horas').value = 0;
+    ['pr-nome','pr-marca','pr-modelo','pr-obs'].forEach(function(id){
+      var el=document.getElementById(id); if(el) el.value='';
+    });
+    var dEl=document.getElementById('pr-data'); if(dEl) dEl.value=hoje();
+    var vEl=document.getElementById('pr-vida'); if(vEl) vEl.value=5000;
+    var iEl=document.getElementById('pr-interval'); if(iEl) iEl.value=500;
+    var hEl=document.getElementById('pr-horas'); if(hEl) hEl.value=0;
+    var pEl=document.getElementById('pr-valor'); if(pEl) pEl.value='';
   }
+  // Rolar para o form
+  setTimeout(function(){ form.scrollIntoView({behavior:'smooth', block:'start'}); }, 50);
+  var nEl=document.getElementById('pr-nome'); if(nEl) setTimeout(function(){ nEl.focus(); }, 200);
 }
 
 function salvarImpressora() {
