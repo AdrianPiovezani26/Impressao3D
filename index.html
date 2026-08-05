@@ -1529,8 +1529,6 @@
     <div id="rel-lucr-lista"></div>
   </div>
 
-</div>
-
 <!-- ESTOQUE -->
 <div id="tab-estoque" class="tab">
 
@@ -4669,7 +4667,7 @@ async function sincronizarFirebaseManual() {
 
   var chaves = ['filamentos','produtos','pedidos','vendas','faturas','compras',
                 'parceiros','clientes','contas_pagar','movimentacoes','hist_calc',
-                'cfg','consignacoes','oportunidades','impressoes_internas'];
+                'cfg','consignacoes','oportunidades','impressoes_internas','impressoras'];
   var ok = [], erro = [];
 
   for(var i = 0; i < chaves.length; i++) {
@@ -12726,6 +12724,8 @@ function registrarManutencao(i) {
 
   <!-- Lista de impressoras -->
   <div id="lista-impressoras"></div>
+</div>
+
 </div>
 
 </body>
