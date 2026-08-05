@@ -295,7 +295,7 @@
       var TODAS_CHAVES = [
         'filamentos','produtos','pedidos','vendas','faturas','compras',
         'parceiros','clientes','contas_pagar','movimentacoes','hist_calc',
-        'cfg','consignacoes','oportunidades','impressoes_internas'
+        'cfg','consignacoes','oportunidades','impressoes_internas','impressoras'
       ];
 
       // Salvar uma chave no Firestore
@@ -440,6 +440,7 @@
   <button onclick="showTab('contaspagar')" id="btn-contaspagar"><i class="ti ti-file-invoice"></i> Contas a Pagar</button>
   <button onclick="showTab('financeiro')" id="btn-financeiro"><i class="ti ti-chart-bar"></i> Financeiro</button>
   <button onclick="showTab('parceiros')" id="btn-parceiros"><i class="ti ti-users"></i> Parceiros</button>
+  <button onclick="showTab('impressoras')" id="btn-impressoras"><i class="ti ti-printer"></i> Impressoras</button>
   <button onclick="showTab('oportunidades')" id="btn-oportunidades"><i class="ti ti-target"></i> Oportunidades</button>
   <button onclick="showTab('impressoes')" id="btn-impressoes"><i class="ti ti-flask"></i> Impressoes Internas</button>
   <button onclick="showTab('consignacao')" id="btn-consignacao"><i class="ti ti-transfer"></i> Consignacao</button>
@@ -463,6 +464,27 @@
       <input type="date" id="dp-ate" onchange="renderDashboard()">
     </div>
     <span id="dp-label" style="font-size:11px;color:var(--text3);margin-left:8px;"></span>
+  </div>
+
+  <!-- Meta Mensal -->
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+    <span style="font-size:11px;color:var(--text3);white-space:nowrap;"><i class="ti ti-target"></i> Meta mensal:</span>
+    <input type="number" id="dp-meta-input" placeholder="Ex: 5000" min="0" step="100"
+      style="width:120px;padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:12px;background:var(--bg2);color:var(--text);"
+      oninput="cfg.metaMensal=parseFloat(this.value)||0;S.set('cfg',cfg);renderDashboard();">
+  </div>
+  <div id="dp-meta-wrap" style="display:none;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:12px 14px;margin-bottom:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px;">
+      <span style="font-size:11px;font-weight:700;color:var(--text2);">Progresso da Meta Mensal</span>
+      <span id="dp-meta-pct" style="font-size:18px;font-weight:900;color:var(--neon);"></span>
+    </div>
+    <div style="width:100%;height:10px;background:var(--bg3);border-radius:5px;overflow:hidden;margin-bottom:6px;">
+      <div id="dp-meta-barra" style="height:100%;border-radius:5px;transition:width .4s;"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);">
+      <span id="dp-meta-realizado"></span>
+      <span id="dp-meta-falta"></span>
+    </div>
   </div>
 
   <!-- Alertas -->
@@ -922,6 +944,15 @@
       </div>
     </div>
   </div>
+  <!-- Agenda de Pedidos -->
+  <div style="margin-bottom:1rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;"><i class="ti ti-calendar"></i> Agenda de Pedidos em Aberto</span>
+      <button class="btn" onclick="var el=document.getElementById('agenda-pedidos'); el.style.display=el.style.display==='none'?'block':'none';" style="font-size:11px;padding:4px 10px;">Expandir/Recolher</button>
+    </div>
+    <div id="agenda-pedidos" style="display:none;"></div>
+  </div>
+
   <!-- Lista view -->
   <div id="lista-pedidos"></div>
 </div>
@@ -1481,6 +1512,23 @@
       <div id="rel-dre-resumido"></div>
     </div>
   </div>
+</div>
+
+  <!-- Lucratividade por Produto -->
+  <div id="rel-sub-lucratividade" class="subtab" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
+      <span style="font-size:12px;font-weight:700;color:var(--text2);">Lucratividade por Produto</span>
+      <select id="lucr-ordenar" onchange="renderLucratividade()" style="padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:12px;background:var(--bg2);color:var(--text);">
+        <option value="lucro">Maior Lucro Total</option>
+        <option value="margem">Maior Margem %</option>
+        <option value="lucro_hora">Maior Lucro/Hora</option>
+        <option value="qtd">Mais Vendidos</option>
+      </select>
+    </div>
+    <div id="rel-lucr-kpis" style="margin-bottom:1rem;"></div>
+    <div id="rel-lucr-lista"></div>
+  </div>
+
 </div>
 
 <!-- ESTOQUE -->
@@ -2407,6 +2455,7 @@ let faturas=S.get('faturas')||[];
 let compras=S.get('compras')||[];
 var clientes=S.get('clientes')||[];
 var contasPagar=S.get('contas_pagar')||[];
+var impressoras=S.get('impressoras')||[];
 let parceiros=S.get('parceiros')||[];
 let cfg=S.get('cfg')||{};
 let editFilIdx=-1,editProdIdx=-1,editParceiroIdx=-1;
@@ -2491,6 +2540,7 @@ function showTab(t){
   if(t==='impressoes')    { renderImpressoes(); }
   if(t==='contaspagar') { showTab_contaspagar(); }
   if(t==='parceiros')   { showParcSubtab('clientes'); }
+  if(t==='impressoras') { renderImpressoras(); renderImpKpis(); }
 }
 
 /* ---- FILAMENTOS ---- */
@@ -5199,6 +5249,31 @@ function renderEstoque() {
           '<div><div style="font-size:10px;color:var(--text3);">Consumido</div><div style="font-size:14px;font-weight:700;color:var(--red-text);">-'+totalSai.toFixed(0)+'g</div></div>' +
         '</div>' +
         (prevTxt ? '<div style="font-size:11px;color:'+prevCor+';margin-bottom:8px;"><i class="ti ti-trending-down"></i> '+prevTxt+'</div>' : '') +
+        (function(){
+          var comprasFil = compras.filter(function(c){ return c.filIdx === fi || (c.tipo==='filamento' && (c.marca||'').toUpperCase()===(f.marca||'').toUpperCase() && (c.corNome||'').toUpperCase()===(f.corNome||'').toUpperCase()); });
+          if(!comprasFil.length) return '';
+          var sorted = comprasFil.slice().sort(function(a,b){ return (b.data||'').localeCompare(a.data||''); });
+          var html2 = '<div style="margin-bottom:8px;">' +
+            '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;"><i class="ti ti-history"></i> Historico de compras</div>' +
+            '<table style="width:100%;border-collapse:collapse;font-size:11px;">' +
+            '<tr style="color:var(--text3);"><th style="text-align:left;padding:2px 6px;">Data</th><th style="text-align:right;padding:2px 6px;">R$/rolo</th><th style="text-align:right;padding:2px 6px;">R$/g</th><th style="text-align:left;padding:2px 6px;">Fornecedor</th></tr>';
+          sorted.forEach(function(c,ci){
+            var precoG = c.preco > 0 && (c.pesoRolo||1000) > 0 ? (c.preco/(c.pesoRolo||1000)).toFixed(3) : '--';
+            var isLast = ci === sorted.length-1;
+            var tendencia = '';
+            if(!isLast && sorted[ci+1].preco > 0 && c.preco > 0) {
+              tendencia = c.preco > sorted[ci+1].preco ? '<span style="color:var(--red-text);"></span>' : c.preco < sorted[ci+1].preco ? '<span style="color:var(--neon);"></span>' : '';
+            }
+            html2 += '<tr style="border-top:1px solid var(--border2);">' +
+              '<td style="padding:3px 6px;">'+fmtD(c.data||'')+'</td>' +
+              '<td style="padding:3px 6px;text-align:right;font-weight:700;">'+fmt(c.preco||0)+' '+tendencia+'</td>' +
+              '<td style="padding:3px 6px;text-align:right;color:var(--text3);">'+precoG+'</td>' +
+              '<td style="padding:3px 6px;color:var(--text3);">'+( c.fornNome||'--')+'</td>' +
+            '</tr>';
+          });
+          html2 += '</table></div>';
+          return html2;
+        })() +
         '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
           (st==='esgotado'||st==='critico' ? '<button onclick="event.stopPropagation();irParaReposicao('+fi+')" class="btn-ok" style="font-size:11px;padding:4px 10px;"><i class="ti ti-shopping-cart"></i> Repor</button>' : '') +
           '<button onclick="event.stopPropagation();showAjusteEstoque('+fi+')" class="btn" style="font-size:11px;padding:4px 10px;"><i class="ti ti-adjustments"></i> Ajuste</button>' +
@@ -9222,6 +9297,7 @@ function showRelSubtab(sub) {
   document.querySelectorAll('#tab-relatorios .subtab').forEach(function(e){ e.style.display='none'; });
   var el = document.getElementById('rel-sub-'+sub);
   if(el) el.style.display = 'block';
+  if(sub==='lucratividade') renderLucratividade();
   document.querySelectorAll('#tab-relatorios .subtab-btn').forEach(function(b){
     if((b.getAttribute('onclick')||'').includes("'"+sub+"'")) b.classList.add('active');
   });
@@ -12308,6 +12384,308 @@ document.addEventListener('DOMContentLoaded', function() {
   baixaRetroativaPedidosConcluidos();
   estornoChaveiroHercules();
   renderHistoricoCalc();
+// ============================================================
+// LUCRATIVIDADE POR PRODUTO (Feature 1)
+// ============================================================
+function renderLucratividade() {
+  var kpisEl = document.getElementById('rel-lucr-kpis');
+  var listaEl = document.getElementById('rel-lucr-lista');
+  if(!kpisEl || !listaEl) return;
+
+  var ordenar = (document.getElementById('lucr-ordenar')||{}).value || 'lucro';
+  var datas = getRelDatas ? getRelDatas() : { de: null, ate: null };
+
+  // Agregar pedidos concluidos por nome de produto
+  var mapa = {};
+  pedidos.filter(function(p){ return p.status === 'concluido'; }).forEach(function(p) {
+    if(datas.de && p.data && p.data < datas.de) return;
+    if(datas.ate && p.data && p.data > datas.ate) return;
+    var key = (p.nome||'SEM NOME').toUpperCase().trim();
+    if(!mapa[key]) mapa[key] = { nome: key, qtd: 0, receitaTotal: 0, custoTotal: 0, horasTotal: 0, pedidos: [] };
+    var rec = (parseFloat(p.preco ? p.preco.replace(/[^0-9,]/g,'').replace(',','.') : 0) || parseFloat(p.precoUnit||0) * (p.qtd||1));
+    var custo = parseFloat(p.custoUnit||0) * (p.qtd||1);
+    var hStr = (p.horas||'0h 0min');
+    var hH = parseFloat((hStr.match(/(\d+)h/)||[0,0])[1])||0;
+    var hM = parseFloat((hStr.match(/(\d+)min/)||[0,0])[1])||0;
+    var horas = (hH + hM/60) * (p.qtd||1);
+    mapa[key].qtd += parseInt(p.qtd||1);
+    mapa[key].receitaTotal += rec;
+    mapa[key].custoTotal += custo;
+    mapa[key].horasTotal += horas;
+    mapa[key].pedidos.push(p.id);
+  });
+
+  var lista = Object.values(mapa).map(function(item) {
+    item.lucro = item.receitaTotal - item.custoTotal;
+    item.margem = item.receitaTotal > 0 ? (item.lucro / item.receitaTotal * 100) : 0;
+    item.lucroHora = item.horasTotal > 0 ? (item.lucro / item.horasTotal) : 0;
+    return item;
+  });
+
+  lista.sort(function(a,b){
+    if(ordenar==='margem') return b.margem - a.margem;
+    if(ordenar==='lucro_hora') return b.lucroHora - a.lucroHora;
+    if(ordenar==='qtd') return b.qtd - a.qtd;
+    return b.lucro - a.lucro;
+  });
+
+  // KPIs agregados
+  var totRec  = lista.reduce(function(s,x){return s+x.receitaTotal;},0);
+  var totCusto= lista.reduce(function(s,x){return s+x.custoTotal;},0);
+  var totLucro= lista.reduce(function(s,x){return s+x.lucro;},0);
+  var totHoras= lista.reduce(function(s,x){return s+x.horasTotal;},0);
+  var margemGeral = totRec>0?(totLucro/totRec*100):0;
+  kpisEl.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:12px;">' +
+    '<div class="metric"><div class="lbl">Produtos</div><div class="val">'+lista.length+'</div></div>' +
+    '<div class="metric"><div class="lbl">Receita</div><div class="val">'+fmt(totRec)+'</div></div>' +
+    '<div class="metric"><div class="lbl">Custo</div><div class="val" style="color:var(--red-text);">'+fmt(totCusto)+'</div></div>' +
+    '<div class="metric"><div class="lbl">Lucro Total</div><div class="val" style="color:var(--neon);">'+fmt(totLucro)+'</div></div>' +
+    '<div class="metric"><div class="lbl">Margem Geral</div><div class="val">'+margemGeral.toFixed(1)+'%</div></div>' +
+    '<div class="metric"><div class="lbl">Lucro/Hora</div><div class="val">'+(totHoras>0?fmt(totLucro/totHoras):'--')+'</div></div>' +
+  '</div>';
+
+  if(!lista.length) { listaEl.innerHTML='<div class="empty"><i class="ti ti-chart-bar"></i> Nenhum pedido concluido no periodo.</div>'; return; }
+
+  listaEl.innerHTML = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+    '<thead><tr style="border-bottom:2px solid var(--border2);color:var(--text3);font-size:10px;text-transform:uppercase;">' +
+      '<th style="text-align:left;padding:6px 8px;">Produto</th>' +
+      '<th style="text-align:center;padding:6px 8px;">Qtd</th>' +
+      '<th style="text-align:right;padding:6px 8px;">Receita</th>' +
+      '<th style="text-align:right;padding:6px 8px;">Custo</th>' +
+      '<th style="text-align:right;padding:6px 8px;">Lucro</th>' +
+      '<th style="text-align:right;padding:6px 8px;">Margem</th>' +
+      '<th style="text-align:right;padding:6px 8px;">Lucro/h</th>' +
+    '</tr></thead><tbody>' +
+    lista.map(function(item, idx) {
+      var barW = Math.min(100, Math.max(0, item.margem)).toFixed(0);
+      var cor = item.margem >= 50 ? 'var(--neon)' : item.margem >= 25 ? 'var(--amber-text)' : 'var(--red-text)';
+      return '<tr style="border-bottom:1px solid var(--border2);">' +
+        '<td style="padding:7px 8px;"><span style="font-size:10px;color:var(--text3);">#'+(idx+1)+'</span> '+item.nome+'</td>' +
+        '<td style="padding:7px 8px;text-align:center;color:var(--text3);">'+item.qtd+'</td>' +
+        '<td style="padding:7px 8px;text-align:right;">'+fmt(item.receitaTotal)+'</td>' +
+        '<td style="padding:7px 8px;text-align:right;color:var(--red-text);">'+fmt(item.custoTotal)+'</td>' +
+        '<td style="padding:7px 8px;text-align:right;font-weight:700;color:var(--neon);">'+fmt(item.lucro)+'</td>' +
+        '<td style="padding:7px 8px;text-align:right;">' +
+          '<div style="display:flex;align-items:center;gap:4px;justify-content:flex-end;">' +
+            '<div style="width:40px;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;">' +
+              '<div style="width:'+barW+'%;height:100%;background:'+cor+';border-radius:3px;"></div></div>' +
+            '<span style="color:'+cor+';font-weight:700;">'+item.margem.toFixed(1)+'%</span>' +
+          '</div>' +
+        '</td>' +
+        '<td style="padding:7px 8px;text-align:right;color:var(--text3);">'+(item.horasTotal>0?fmt(item.lucroHora)+'/h':'--')+'</td>' +
+      '</tr>';
+    }).join('') +
+    '</tbody></table></div>';
+}
+
+// ============================================================
+// AGENDA DE PEDIDOS (Feature 2)
+// ============================================================
+function renderAgendaPedidos() {
+  var el = document.getElementById('agenda-pedidos');
+  if(!el) return;
+
+  var pendentes = pedidos.filter(function(p){ return p.status !== 'concluido' && p.status !== 'cancelado'; });
+  pendentes.sort(function(a,b){ return (a.data||'').localeCompare(b.data||''); });
+
+  if(!pendentes.length) {
+    el.innerHTML = '<div class="empty"><i class="ti ti-calendar"></i> Nenhum pedido em aberto.</div>';
+    return;
+  }
+
+  // Agrupar por semana
+  var semanas = {};
+  pendentes.forEach(function(p) {
+    var d = p.data ? new Date(p.data+'T00:00:00') : new Date();
+    var startOfWeek = new Date(d);
+    startOfWeek.setDate(d.getDate() - d.getDay() + 1);
+    var key = startOfWeek.toISOString().slice(0,10);
+    if(!semanas[key]) semanas[key] = [];
+    semanas[key].push(p);
+  });
+
+  var hoje_str = hoje();
+  var html2 = '';
+
+  // Verificar estoque disponivel para cada pedido
+  function temEstoque(p) {
+    if(!p.filsEstoque || !p.filsEstoque.length) return null;
+    var ok = true;
+    p.filsEstoque.forEach(function(f) {
+      var s = calcEstoqueDisponivel(f.filIdx);
+      if(s.disponivel < f.peso) ok = false;
+    });
+    return ok;
+  }
+
+  Object.keys(semanas).sort().forEach(function(semKey) {
+    var d = new Date(semKey+'T00:00:00');
+    var fim = new Date(d); fim.setDate(d.getDate()+6);
+    var label = 'Semana de ' + d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}) + ' a ' + fim.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
+
+    html2 += '<div style="margin-bottom:16px;">' +
+      '<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;padding:4px 0;border-bottom:1px solid var(--border2);margin-bottom:6px;">'+label+'</div>';
+
+    semanas[semKey].forEach(function(p) {
+      var estoqueOk = temEstoque(p);
+      var estCor = estoqueOk === null ? 'var(--text3)' : estoqueOk ? 'var(--neon)' : 'var(--amber-text)';
+      var estIcon = estoqueOk === null ? 'ti-minus' : estoqueOk ? 'ti-package' : 'ti-alert-triangle';
+      var estTxt = estoqueOk === null ? 'Sem filamento' : estoqueOk ? 'Estoque OK' : 'Estoque insuficiente';
+      var atrasado = p.data && p.data < hoje_str;
+      var ST_COR = {pendente:'var(--amber-text)',imprimindo:'var(--blue-text)',pronto:'var(--neon)'};
+      var ST_LABEL = {pendente:'Pendente',imprimindo:'Imprimindo',pronto:'Pronto'};
+
+      html2 += '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--radius);border:1px solid var(--border2);margin-bottom:4px;background:var(--bg2);flex-wrap:wrap;">' +
+        '<div style="width:8px;height:8px;border-radius:50%;background:'+(ST_COR[p.status]||'var(--text3)')+';flex-shrink:0;"></div>' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+p.nome+'</div>' +
+          '<div style="font-size:11px;color:var(--text3);">'+p.cliente+'  '+fmtD(p.data)+(p.qtd>1?'  '+p.qtd+' un':'')+'  '+fmt(parseFloat((p.preco||'0').replace(/[^0-9.,]/g,'').replace(',','.')))+'</div>' +
+        '</div>' +
+        '<span style="font-size:10px;color:'+estCor+';white-space:nowrap;"><i class="ti '+estIcon+'"></i> '+estTxt+'</span>' +
+        (atrasado ? '<span style="font-size:10px;color:var(--red-text);font-weight:700;white-space:nowrap;"><i class="ti ti-clock-x"></i> Atrasado</span>' : '') +
+        '<span class="tag" style="font-size:9px;color:'+(ST_COR[p.status]||'var(--text3)')+';">'+( ST_LABEL[p.status]||p.status)+'</span>' +
+      '</div>';
+    });
+
+    html2 += '</div>';
+  });
+
+  el.innerHTML = html2;
+}
+
+// ============================================================
+// CONTROLE DE IMPRESSORAS (Feature 4)
+// ============================================================
+function renderImpKpis() {
+  var el = document.getElementById('imp-kpis');
+  if(!el || !impressoras.length) return;
+  var totalVal = impressoras.reduce(function(s,i){ return s+(i.valorCompra||0); },0);
+  var ativas = impressoras.filter(function(i){ return i.ativa!==false; }).length;
+  el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:8px;">' +
+    '<div class="metric"><div class="lbl">Impressoras</div><div class="val">'+impressoras.length+'</div></div>' +
+    '<div class="metric"><div class="lbl">Ativas</div><div class="val" style="color:var(--neon);">'+ativas+'</div></div>' +
+    '<div class="metric"><div class="lbl">Investimento</div><div class="val">'+fmt(totalVal)+'</div></div>' +
+  '</div>';
+}
+
+function renderImpressoras() {
+  var el = document.getElementById('lista-impressoras');
+  if(!el) return;
+
+  if(!impressoras.length) {
+    el.innerHTML = '<div class="empty"><i class="ti ti-printer"></i> Nenhuma impressora cadastrada. Clique em + Nova Impressora.</div>';
+    return;
+  }
+
+  el.innerHTML = impressoras.map(function(imp, i) {
+    var horasPedidos = pedidos.filter(function(p){ return p.status==='concluido' && p.impressoraId===imp.id; }).reduce(function(s,p){
+      var h = (p.horas||'0h 0min'); var hH=parseFloat((h.match(/(\d+)h/)||[0,0])[1])||0; var hM=parseFloat((h.match(/(\d+)min/)||[0,0])[1])||0;
+      return s + hH + hM/60;
+    },0);
+    var horasTotal = parseFloat(imp.horasUso||0) + horasPedidos;
+    var pctVida = imp.vidaHoras > 0 ? Math.min(100, horasTotal/imp.vidaHoras*100) : 0;
+    var custoHora = imp.valorCompra > 0 && imp.vidaHoras > 0 ? (imp.valorCompra/imp.vidaHoras).toFixed(2) : '--';
+    var proximaManut = imp.intervalManut > 0 ? Math.max(0, imp.intervalManut - (horasTotal % imp.intervalManut)) : null;
+    var alertaManut = proximaManut !== null && proximaManut < 20;
+
+    return '<div class="item-card">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
+        '<div>' +
+          '<div style="font-size:15px;font-weight:700;">'+imp.nome+' <span style="font-size:11px;color:var(--text3);">'+imp.modelo+'</span></div>' +
+          '<div style="font-size:11px;color:var(--text3);">'+imp.marca+' | Adquirida em '+fmtD(imp.dataCompra)+' | '+fmt(imp.valorCompra||0)+'</div>' +
+        '</div>' +
+        (alertaManut ? '<span style="font-size:10px;font-weight:700;color:var(--amber-text);"><i class="ti ti-tool"></i> Manut em '+proximaManut.toFixed(0)+'h</span>' : '') +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:10px;">' +
+        '<div><div style="font-size:10px;color:var(--text3);">Horas de uso</div><div style="font-size:15px;font-weight:700;">'+horasTotal.toFixed(0)+'h</div></div>' +
+        '<div><div style="font-size:10px;color:var(--text3);">Vida util</div><div style="font-size:15px;font-weight:700;">'+(imp.vidaHoras||'--')+'h</div></div>' +
+        '<div><div style="font-size:10px;color:var(--text3);">Custo/hora</div><div style="font-size:15px;font-weight:700;">R$'+custoHora+'</div></div>' +
+        '<div><div style="font-size:10px;color:var(--text3);">Status</div><div style="font-size:13px;font-weight:700;color:'+(imp.ativa!==false?'var(--neon)':'var(--text3)')+';">'+(imp.ativa!==false?'Ativa':'Inativa')+'</div></div>' +
+      '</div>' +
+      (imp.vidaHoras > 0 ? '<div style="margin-bottom:8px;"><div style="font-size:10px;color:var(--text3);margin-bottom:2px;">Desgaste da vida util  '+pctVida.toFixed(0)+'%</div><div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;"><div style="width:'+pctVida.toFixed(0)+'%;height:100%;background:'+(pctVida>80?'var(--red-text)':pctVida>50?'var(--amber-text)':'var(--neon)')+';border-radius:3px;"></div></div></div>' : '') +
+      (imp.obs ? '<div style="font-size:11px;color:var(--text3);margin-bottom:8px;">'+imp.obs+'</div>' : '') +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
+        '<button class="btn" onclick="editarImpressora('+i+')" style="font-size:11px;padding:4px 10px;"><i class="ti ti-edit"></i> Editar</button>' +
+        '<button class="btn" onclick="registrarManutencao('+i+')" style="font-size:11px;padding:4px 10px;"><i class="ti ti-tool"></i> Manutencao</button>' +
+        '<button class="btn-del" onclick="delImpressora('+i+')" style="font-size:11px;padding:4px 10px;"><i class="ti ti-trash"></i></button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function abrirFormImpressora(idx) {
+  var form = document.getElementById('form-impressora');
+  if(!form) return;
+  form.style.display = 'block';
+  window._impEditIdx = idx >= 0 ? idx : -1;
+  if(idx >= 0 && impressoras[idx]) {
+    var imp = impressoras[idx];
+    document.getElementById('imp-nome').value = imp.nome||'';
+    document.getElementById('imp-marca').value = imp.marca||'';
+    document.getElementById('imp-modelo').value = imp.modelo||'';
+    document.getElementById('imp-valor').value = imp.valorCompra||'';
+    document.getElementById('imp-data').value = imp.dataCompra||'';
+    document.getElementById('imp-vida').value = imp.vidaHoras||'';
+    document.getElementById('imp-interval').value = imp.intervalManut||'';
+    document.getElementById('imp-horas').value = imp.horasUso||0;
+    document.getElementById('imp-obs').value = imp.obs||'';
+  } else {
+    ['imp-nome','imp-marca','imp-modelo','imp-valor','imp-obs'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+    document.getElementById('imp-data').value = hoje();
+    document.getElementById('imp-vida').value = 5000;
+    document.getElementById('imp-interval').value = 500;
+    document.getElementById('imp-horas').value = 0;
+  }
+}
+
+function salvarImpressora() {
+  var nome = upper((document.getElementById('imp-nome')||{}).value||'');
+  if(!nome) { alert('Informe o nome da impressora.'); return; }
+  var imp = {
+    id: window._impEditIdx >= 0 ? impressoras[window._impEditIdx].id : Date.now(),
+    nome: nome,
+    marca: upper((document.getElementById('imp-marca')||{}).value||''),
+    modelo: upper((document.getElementById('imp-modelo')||{}).value||''),
+    valorCompra: parseFloat((document.getElementById('imp-valor')||{}).value||0),
+    dataCompra: (document.getElementById('imp-data')||{}).value||hoje(),
+    vidaHoras: parseFloat((document.getElementById('imp-vida')||{}).value||5000),
+    intervalManut: parseFloat((document.getElementById('imp-interval')||{}).value||500),
+    horasUso: parseFloat((document.getElementById('imp-horas')||{}).value||0),
+    obs: (document.getElementById('imp-obs')||{}).value||'',
+    ativa: true
+  };
+  if(window._impEditIdx >= 0) impressoras[window._impEditIdx] = imp;
+  else impressoras.unshift(imp);
+  S.set('impressoras', impressoras);
+  document.getElementById('form-impressora').style.display = 'none';
+  window._impEditIdx = -1;
+  renderImpressoras();
+}
+
+function editarImpressora(i) { abrirFormImpressora(i); }
+
+function delImpressora(i) {
+  if(!confirm('Remover a impressora "'+impressoras[i].nome+'"?')) return;
+  impressoras.splice(i,1);
+  S.set('impressoras', impressoras);
+  renderImpressoras();
+}
+
+function registrarManutencao(i) {
+  var imp = impressoras[i];
+  if(!imp) return;
+  var obs = prompt('Registrar manutencao em '+imp.nome+'.\nDescreva o que foi feito:', '');
+  if(obs === null) return;
+  if(!imp.historicoManut) imp.historicoManut = [];
+  imp.historicoManut.push({ data: hoje(), obs: obs });
+  imp.ultimaManutencao = hoje();
+  impressoras[i] = imp;
+  S.set('impressoras', impressoras);
+  renderImpressoras();
+  alert('Manutencao registrada em ' + imp.nome + '!');
+}
+
+
 });
 
 
@@ -12315,5 +12693,40 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 </script>
+
+<!-- IMPRESSORAS -->
+<div id="tab-impressoras" class="tab">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
+    <span class="stitle" style="margin:0;"><i class="ti ti-printer"></i> Controle de Impressoras</span>
+    <button class="btn-ok" onclick="abrirFormImpressora(-1)" style="font-size:12px;padding:6px 12px;"><i class="ti ti-plus"></i> Nova Impressora</button>
+  </div>
+
+  <!-- Form de cadastro -->
+  <div id="form-impressora" style="display:none;" class="card">
+    <div class="stitle" style="font-size:11px;margin-bottom:1rem;"><i class="ti ti-printer"></i> Dados da Impressora</div>
+    <div class="grid2">
+      <div class="field"><label>Nome *</label><input type="text" id="imp-nome" placeholder="Ex: Bambu Lab A1 Mini"></div>
+      <div class="field"><label>Marca</label><input type="text" id="imp-marca" placeholder="Ex: Bambu Lab"></div>
+      <div class="field"><label>Modelo</label><input type="text" id="imp-modelo" placeholder="Ex: A1 Mini"></div>
+      <div class="field"><label>Valor de Compra (R$)</label><input type="number" id="imp-valor" placeholder="Ex: 3500" step="50" min="0"></div>
+      <div class="field"><label>Data de Aquisicao</label><input type="date" id="imp-data"></div>
+      <div class="field"><label>Vida Util (horas)</label><input type="number" id="imp-vida" placeholder="Ex: 5000" step="100" min="0"></div>
+      <div class="field"><label>Intervalo de Manutencao (horas)</label><input type="number" id="imp-interval" placeholder="Ex: 500" step="50" min="0"></div>
+      <div class="field"><label>Horas de uso ja acumuladas</label><input type="number" id="imp-horas" placeholder="0" step="1" min="0" value="0"></div>
+      <div class="field" style="grid-column:1/-1;"><label>Observacoes</label><input type="text" id="imp-obs" placeholder="Notas, configuracoes, acessorios..."></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn-ok" onclick="salvarImpressora()"><i class="ti ti-device-floppy"></i> Salvar</button>
+      <button class="btn" onclick="document.getElementById('form-impressora').style.display='none'">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- KPIs resumo -->
+  <div id="imp-kpis" style="margin-bottom:1rem;"></div>
+
+  <!-- Lista de impressoras -->
+  <div id="lista-impressoras"></div>
+</div>
+
 </body>
 </html>
