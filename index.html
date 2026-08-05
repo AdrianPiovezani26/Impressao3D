@@ -12331,77 +12331,6 @@ function renderImpressoes() {
 
 
 // INIT -- aguarda DOM completo
-document.addEventListener('DOMContentLoaded', function() {
-  if(verificarSessao()) {
-    var s = S.get('sessao');
-    var hu = document.getElementById('header-user');
-    if(hu && s) hu.textContent = s.user;
-  }
-  buildFilSelect();
-  aplicarCfg();
-  checkEstoque();
-  renderFils();
-  if(!movimentacoes) movimentacoes = [];
-  // Inicializar dashboard como pagina inicial
-  var dpDe = document.getElementById('dp-de');
-  var dpAte = document.getElementById('dp-ate');
-  if(dpDe && dpAte) {
-    var hj = new Date();
-    dpAte.value = hoje();
-    var d = new Date(hj); d.setDate(hj.getDate()-6);
-    dpDe.value = d.toISOString().slice(0,10);
-  }
-  setPeriodo('semana');
-  // Inicializar TODAS as tabs: ocultar todas via style, mostrar apenas dashboard
-  document.querySelectorAll('.tab').forEach(function(e){
-    e.style.cssText += ';display:none';
-    e.classList.remove('active');
-  });
-  // Inicializar TODAS as subtabs de compras: ocultar via style
-  document.querySelectorAll('.subtab').forEach(function(e){
-    e.style.cssText += ';display:none';
-    e.classList.remove('active');
-  });
-  // Mostrar dashboard
-  var dashTab = document.getElementById('tab-dashboard');
-  if(dashTab) { dashTab.style.cssText += ';display:block'; dashTab.classList.add('active'); }
-  var dashBtn = document.getElementById('btn-dashboard');
-  if(dashBtn) dashBtn.classList.add('active');
-  // Preparar subtab lancamento como padrao para compras
-  var lancEl = document.getElementById('subtab-compras-lancamento');
-  if(lancEl) { lancEl.style.cssText += ';display:block'; lancEl.classList.add('active'); }
-  // Rotinas de inicializacao de dados
-  oportunidades = S.get('oportunidades') || [];
-  contasPagar = S.get('contas_pagar') || [];
-  // Migrar: contas com dataPagamento devem ter status 'paga'
-  var cpAlterou = false;
-  contasPagar.forEach(function(c){
-    if(c.dataPagamento && c.status !== 'paga') { c.status = 'paga'; cpAlterou = true; }
-  });
-  if(cpAlterou) S.set('contas_pagar', contasPagar);
-  // Normalizar status 'pago' para 'paga' em faturas existentes
-  var normalizouFat = false;
-  faturas.forEach(function(f){ if(f.status==='pago'){ f.status='paga'; normalizouFat=true; } });
-  if(normalizouFat) S.set('faturas', faturas);
-  // Migrar: garantir campo "recebido" em todas as faturas
-  var migrouRecebido = false;
-  faturas.forEach(function(f){
-    if(typeof f.recebido === 'undefined') {
-      f.recebido = (f.status === 'paga') ? f.valor : 0;
-      migrouRecebido = true;
-    }
-  });
-  if(migrouRecebido) S.set('faturas', faturas);
-  consignacoes = S.get('consignacoes') || [];
-  migrarNomesConsignacao();
-  converterDadosParaMaiusculas();
-  migrarOrdemProdutos();
-  sincronizarStatusProdutos();
-  migrarCustoProdutos();
-  limparFaturasOrfas();
-  baixaRetroativaPedidosConcluidos();
-  estornoChaveiroHercules();
-  renderHistoricoCalc();
 // ============================================================
 // LUCRATIVIDADE POR PRODUTO (Feature 1)
 // ============================================================
@@ -12692,6 +12621,78 @@ function registrarManutencao(i) {
   alert('Manutencao registrada em ' + imp.nome + '!');
 }
 
+
+document.addEventListener('DOMContentLoaded', function() {
+  if(verificarSessao()) {
+    var s = S.get('sessao');
+    var hu = document.getElementById('header-user');
+    if(hu && s) hu.textContent = s.user;
+  }
+  buildFilSelect();
+  aplicarCfg();
+  checkEstoque();
+  renderFils();
+  if(!movimentacoes) movimentacoes = [];
+  // Inicializar dashboard como pagina inicial
+  var dpDe = document.getElementById('dp-de');
+  var dpAte = document.getElementById('dp-ate');
+  if(dpDe && dpAte) {
+    var hj = new Date();
+    dpAte.value = hoje();
+    var d = new Date(hj); d.setDate(hj.getDate()-6);
+    dpDe.value = d.toISOString().slice(0,10);
+  }
+  setPeriodo('semana');
+  // Inicializar TODAS as tabs: ocultar todas via style, mostrar apenas dashboard
+  document.querySelectorAll('.tab').forEach(function(e){
+    e.style.cssText += ';display:none';
+    e.classList.remove('active');
+  });
+  // Inicializar TODAS as subtabs de compras: ocultar via style
+  document.querySelectorAll('.subtab').forEach(function(e){
+    e.style.cssText += ';display:none';
+    e.classList.remove('active');
+  });
+  // Mostrar dashboard
+  var dashTab = document.getElementById('tab-dashboard');
+  if(dashTab) { dashTab.style.cssText += ';display:block'; dashTab.classList.add('active'); }
+  var dashBtn = document.getElementById('btn-dashboard');
+  if(dashBtn) dashBtn.classList.add('active');
+  // Preparar subtab lancamento como padrao para compras
+  var lancEl = document.getElementById('subtab-compras-lancamento');
+  if(lancEl) { lancEl.style.cssText += ';display:block'; lancEl.classList.add('active'); }
+  // Rotinas de inicializacao de dados
+  oportunidades = S.get('oportunidades') || [];
+  contasPagar = S.get('contas_pagar') || [];
+  // Migrar: contas com dataPagamento devem ter status 'paga'
+  var cpAlterou = false;
+  contasPagar.forEach(function(c){
+    if(c.dataPagamento && c.status !== 'paga') { c.status = 'paga'; cpAlterou = true; }
+  });
+  if(cpAlterou) S.set('contas_pagar', contasPagar);
+  // Normalizar status 'pago' para 'paga' em faturas existentes
+  var normalizouFat = false;
+  faturas.forEach(function(f){ if(f.status==='pago'){ f.status='paga'; normalizouFat=true; } });
+  if(normalizouFat) S.set('faturas', faturas);
+  // Migrar: garantir campo "recebido" em todas as faturas
+  var migrouRecebido = false;
+  faturas.forEach(function(f){
+    if(typeof f.recebido === 'undefined') {
+      f.recebido = (f.status === 'paga') ? f.valor : 0;
+      migrouRecebido = true;
+    }
+  });
+  if(migrouRecebido) S.set('faturas', faturas);
+  consignacoes = S.get('consignacoes') || [];
+  migrarNomesConsignacao();
+  converterDadosParaMaiusculas();
+  migrarOrdemProdutos();
+  sincronizarStatusProdutos();
+  migrarCustoProdutos();
+  limparFaturasOrfas();
+  baixaRetroativaPedidosConcluidos();
+  estornoChaveiroHercules();
+  renderHistoricoCalc();
 
 });
 
