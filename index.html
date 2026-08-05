@@ -2398,7 +2398,7 @@ function setTipoCalc(tipo) {
   calcular();
 }
 
-const S={get:k=>{try{return JSON.parse(localStorage.getItem('akp3d_'+k)||'null');}catch{return null;}},set:(k,v)=>{localStorage.setItem('akp3d_'+k,JSON.stringify(v));if(typeof window.fbSalvar==='function')window.fbSalvar(k,v).catch(()=>{});}};
+const S={get:k=>{try{return JSON.parse(localStorage.getItem('akp3d_'+k)||'null');}catch{return null;}},set:(k,v)=>{try{localStorage.setItem('akp3d_'+k,JSON.stringify(v));}catch(e){console.error('S.set falhou para '+k+':',e);}if(typeof window.fbSalvar==='function')window.fbSalvar(k,v).catch(()=>{});}};
 let filamentos=S.get('filamentos')||[];
 let produtos=S.get('produtos')||[];
 let pedidos=S.get('pedidos')||[];
@@ -3938,6 +3938,7 @@ function updPedSt(i,v){
   S.set('pedidos',pedidos);
   renderPedidos();
   renderDashboard();
+  renderEstoque();
 }
 function delPed(i) {
   var p = pedidos[i];
@@ -4457,6 +4458,7 @@ function cancelarVenda(i) {
   renderVendas();
   renderContas();
   renderDashboard();
+  renderEstoque();
   alert('Venda cancelada.' + (fatsVinculadas.length > 0 ? '\n' + fatsVinculadas.length + ' fatura(s) cancelada(s) em Contas a Receber.' : ''));
 }
 
@@ -8593,7 +8595,9 @@ function renderFinKPIs() {
   var mesAtual = hj.slice(0,7);
 
   var receitaMes  = vendas.filter(function(v){return (v.data||'').slice(0,7)===mesAtual;}).reduce(function(s,v){return s+v.valor;},0);
-  var despesaMes  = contasPagar.filter(function(cp){return (cp.status==='paga')&&(cp.dataPagamento||'').slice(0,7)===mesAtual;}).reduce(function(s,cp){return s+cp.valor;},0);
+  var despesaCP   = contasPagar.filter(function(cp){return (cp.status==='paga')&&(cp.dataPagamento||'').slice(0,7)===mesAtual;}).reduce(function(s,cp){return s+cp.valor;},0);
+  var despesaComp = compras.filter(function(c){return (c.data||'').slice(0,7)===mesAtual;}).reduce(function(s,c){return s+(c.total||c.preco||0);},0);
+  var despesaMes  = despesaCP + despesaComp;
   var aReceber    = faturas.filter(function(f){return f.status==='pendente';}).reduce(function(s,f){return s+f.valor;},0);
   var aPagar      = contasPagar.filter(function(cp){return cp.status==='pendente'||cp.status==='vencida';}).reduce(function(s,cp){return s+cp.valor;},0);
   var lucroMes    = receitaMes - despesaMes;
