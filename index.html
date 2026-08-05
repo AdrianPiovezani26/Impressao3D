@@ -2538,7 +2538,7 @@ function showTab(t){
   if(t==='impressoes')    { renderImpressoes(); }
   if(t==='contaspagar') { showTab_contaspagar(); }
   if(t==='parceiros')   { showParcSubtab('clientes'); }
-  if(t==='impressoras') { renderImpressoras(); renderImpKpis(); }
+  if(t==='impressoras') { renderImpressoras(); renderImpressorasKpis(); }
 }
 
 /* ---- FILAMENTOS ---- */
@@ -12005,7 +12005,7 @@ function gerarOrcamentoPDF() {
    MODULO IMPRESSOES INTERNAS (testes / prototipos / uso pessoal)
    ===================================================== */
 
-function renderImpKpis() {
+function renderImpKpisInternas() {
   var el = document.getElementById('imp-kpis');
   if(!el) return;
   var total = impressoesInternas.length;
@@ -12022,6 +12022,26 @@ function renderImpKpis() {
     kpiRel('Virou Produto',   String(convertidos),         'var(--blue-text)', 'ti-package') +
   '</div>';
 }
+function renderImpressorasKpis() {
+  var el = document.getElementById('imp-kpis');
+  if(!el) return;
+  if(!impressoras.length) { el.innerHTML = ''; return; }
+  var totalVal = impressoras.reduce(function(s,i){ return s+(i.valorCompra||0); },0);
+  var ativas = impressoras.filter(function(i){ return i.ativa!==false; }).length;
+  var totalHoras = impressoras.reduce(function(s,i){ return s+(parseFloat(i.horasUso)||0); },0);
+  var alertas = impressoras.filter(function(imp){
+    var hTotal = parseFloat(imp.horasUso||0);
+    return imp.intervalManut > 0 && (hTotal % imp.intervalManut) > (imp.intervalManut - 20);
+  }).length;
+  el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:1rem;">' +
+    '<div class="metric"><div class="lbl">Impressoras</div><div class="val">'+impressoras.length+'</div></div>' +
+    '<div class="metric"><div class="lbl">Ativas</div><div class="val" style="color:var(--neon);">'+ativas+'</div></div>' +
+    '<div class="metric"><div class="lbl">Investimento</div><div class="val">'+fmt(totalVal)+'</div></div>' +
+    '<div class="metric"><div class="lbl">Horas totais</div><div class="val">'+totalHoras.toFixed(0)+'h</div></div>' +
+    (alertas > 0 ? '<div class="metric"><div class="lbl">Manutencao</div><div class="val" style="color:var(--amber-text);">'+alertas+' pendente(s)</div></div>' : '') +
+  '</div>';
+}
+
 
 function abrirFormImpressao(idx) {
   _impEditIdx = idx;
@@ -12262,7 +12282,7 @@ function transformarImpressaoEmProduto(idx) {
 }
 
 function renderImpressoes() {
-  renderImpKpis();
+  renderImpKpisInternas();
   var el = document.getElementById('lista-impressoes');
   if(!el) return;
 
@@ -12554,17 +12574,6 @@ function renderAgendaPedidos() {
 // ============================================================
 // CONTROLE DE IMPRESSORAS (Feature 4)
 // ============================================================
-function renderImpKpis() {
-  var el = document.getElementById('imp-kpis');
-  if(!el || !impressoras.length) return;
-  var totalVal = impressoras.reduce(function(s,i){ return s+(i.valorCompra||0); },0);
-  var ativas = impressoras.filter(function(i){ return i.ativa!==false; }).length;
-  el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:8px;">' +
-    '<div class="metric"><div class="lbl">Impressoras</div><div class="val">'+impressoras.length+'</div></div>' +
-    '<div class="metric"><div class="lbl">Ativas</div><div class="val" style="color:var(--neon);">'+ativas+'</div></div>' +
-    '<div class="metric"><div class="lbl">Investimento</div><div class="val">'+fmt(totalVal)+'</div></div>' +
-  '</div>';
-}
 
 function renderImpressoras() {
   var el = document.getElementById('lista-impressoras');
