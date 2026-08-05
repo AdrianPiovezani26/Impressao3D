@@ -12023,7 +12023,7 @@ function renderImpKpisInternas() {
   '</div>';
 }
 function renderImpressorasKpis() {
-  var el = document.getElementById('imp-kpis');
+  var el = document.getElementById('pr-kpis');
   if(!el) return;
   if(!impressoras.length) { el.innerHTML = ''; return; }
   var totalVal = impressoras.reduce(function(s,i){ return s+(i.valorCompra||0); },0);
@@ -12556,38 +12556,38 @@ function abrirFormImpressora(idx) {
   window._impEditIdx = idx >= 0 ? idx : -1;
   if(idx >= 0 && impressoras[idx]) {
     var imp = impressoras[idx];
-    document.getElementById('imp-nome').value = imp.nome||'';
-    document.getElementById('imp-marca').value = imp.marca||'';
-    document.getElementById('imp-modelo').value = imp.modelo||'';
-    document.getElementById('imp-valor').value = imp.valorCompra||'';
-    document.getElementById('imp-data').value = imp.dataCompra||'';
-    document.getElementById('imp-vida').value = imp.vidaHoras||'';
-    document.getElementById('imp-interval').value = imp.intervalManut||'';
-    document.getElementById('imp-horas').value = imp.horasUso||0;
-    document.getElementById('imp-obs').value = imp.obs||'';
+    document.getElementById('pr-nome').value = imp.nome||'';
+    document.getElementById('pr-marca').value = imp.marca||'';
+    document.getElementById('pr-modelo').value = imp.modelo||'';
+    document.getElementById('pr-valor').value = imp.valorCompra||'';
+    document.getElementById('pr-data').value = imp.dataCompra||'';
+    document.getElementById('pr-vida').value = imp.vidaHoras||'';
+    document.getElementById('pr-interval').value = imp.intervalManut||'';
+    document.getElementById('pr-horas').value = imp.horasUso||0;
+    document.getElementById('pr-obs').value = imp.obs||'';
   } else {
-    ['imp-nome','imp-marca','imp-modelo','imp-valor','imp-obs'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
-    document.getElementById('imp-data').value = hoje();
-    document.getElementById('imp-vida').value = 5000;
-    document.getElementById('imp-interval').value = 500;
-    document.getElementById('imp-horas').value = 0;
+    ['pr-nome','pr-marca','pr-modelo','pr-valor','pr-obs'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+    document.getElementById('pr-data').value = hoje();
+    document.getElementById('pr-vida').value = 5000;
+    document.getElementById('pr-interval').value = 500;
+    document.getElementById('pr-horas').value = 0;
   }
 }
 
 function salvarImpressora() {
-  var nome = upper((document.getElementById('imp-nome')||{}).value||'');
+  var nome = upper((document.getElementById('pr-nome')||{}).value||'');
   if(!nome) { alert('Informe o nome da impressora.'); return; }
   var imp = {
     id: window._impEditIdx >= 0 ? impressoras[window._impEditIdx].id : Date.now(),
     nome: nome,
-    marca: upper((document.getElementById('imp-marca')||{}).value||''),
-    modelo: upper((document.getElementById('imp-modelo')||{}).value||''),
-    valorCompra: parseFloat((document.getElementById('imp-valor')||{}).value||0),
-    dataCompra: (document.getElementById('imp-data')||{}).value||hoje(),
-    vidaHoras: parseFloat((document.getElementById('imp-vida')||{}).value||5000),
-    intervalManut: parseFloat((document.getElementById('imp-interval')||{}).value||500),
-    horasUso: parseFloat((document.getElementById('imp-horas')||{}).value||0),
-    obs: (document.getElementById('imp-obs')||{}).value||'',
+    marca: upper((document.getElementById('pr-marca')||{}).value||''),
+    modelo: upper((document.getElementById('pr-modelo')||{}).value||''),
+    valorCompra: parseFloat((document.getElementById('pr-valor')||{}).value||0),
+    dataCompra: (document.getElementById('pr-data')||{}).value||hoje(),
+    vidaHoras: parseFloat((document.getElementById('pr-vida')||{}).value||5000),
+    intervalManut: parseFloat((document.getElementById('pr-interval')||{}).value||500),
+    horasUso: parseFloat((document.getElementById('pr-horas')||{}).value||0),
+    obs: (document.getElementById('pr-obs')||{}).value||'',
     ativa: true
   };
   if(window._impEditIdx >= 0) impressoras[window._impEditIdx] = imp;
@@ -12713,15 +12713,15 @@ document.addEventListener('DOMContentLoaded', function() {
   <div id="form-impressora" style="display:none;" class="card">
     <div class="stitle" style="font-size:11px;margin-bottom:1rem;"><i class="ti ti-printer"></i> Dados da Impressora</div>
     <div class="grid2">
-      <div class="field"><label>Nome *</label><input type="text" id="imp-nome" placeholder="Ex: Bambu Lab A1 Mini"></div>
-      <div class="field"><label>Marca</label><input type="text" id="imp-marca" placeholder="Ex: Bambu Lab"></div>
-      <div class="field"><label>Modelo</label><input type="text" id="imp-modelo" placeholder="Ex: A1 Mini"></div>
-      <div class="field"><label>Valor de Compra (R$)</label><input type="number" id="imp-valor" placeholder="Ex: 3500" step="50" min="0"></div>
-      <div class="field"><label>Data de Aquisicao</label><input type="date" id="imp-data"></div>
-      <div class="field"><label>Vida Util (horas)</label><input type="number" id="imp-vida" placeholder="Ex: 5000" step="100" min="0"></div>
-      <div class="field"><label>Intervalo de Manutencao (horas)</label><input type="number" id="imp-interval" placeholder="Ex: 500" step="50" min="0"></div>
-      <div class="field"><label>Horas de uso ja acumuladas</label><input type="number" id="imp-horas" placeholder="0" step="1" min="0" value="0"></div>
-      <div class="field" style="grid-column:1/-1;"><label>Observacoes</label><input type="text" id="imp-obs" placeholder="Notas, configuracoes, acessorios..."></div>
+      <div class="field"><label>Nome *</label><input type="text" id="pr-nome" placeholder="Ex: Bambu Lab A1 Mini"></div>
+      <div class="field"><label>Marca</label><input type="text" id="pr-marca" placeholder="Ex: Bambu Lab"></div>
+      <div class="field"><label>Modelo</label><input type="text" id="pr-modelo" placeholder="Ex: A1 Mini"></div>
+      <div class="field"><label>Valor de Compra (R$)</label><input type="number" id="pr-valor" placeholder="Ex: 3500" step="50" min="0"></div>
+      <div class="field"><label>Data de Aquisicao</label><input type="date" id="pr-data"></div>
+      <div class="field"><label>Vida Util (horas)</label><input type="number" id="pr-vida" placeholder="Ex: 5000" step="100" min="0"></div>
+      <div class="field"><label>Intervalo de Manutencao (horas)</label><input type="number" id="pr-interval" placeholder="Ex: 500" step="50" min="0"></div>
+      <div class="field"><label>Horas de uso ja acumuladas</label><input type="number" id="pr-horas" placeholder="0" step="1" min="0" value="0"></div>
+      <div class="field" style="grid-column:1/-1;"><label>Observacoes</label><input type="text" id="pr-obs" placeholder="Notas, configuracoes, acessorios..."></div>
     </div>
     <div style="display:flex;gap:8px;margin-top:8px;">
       <button class="btn-ok" onclick="salvarImpressora()"><i class="ti ti-device-floppy"></i> Salvar</button>
@@ -12730,7 +12730,7 @@ document.addEventListener('DOMContentLoaded', function() {
   </div>
 
   <!-- KPIs resumo -->
-  <div id="imp-kpis" style="margin-bottom:1rem;"></div>
+  <div id="pr-kpis" style="margin-bottom:1rem;"></div>
 
   <!-- Lista de impressoras -->
   <div id="lista-impressoras"></div>
