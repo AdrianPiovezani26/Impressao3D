@@ -12148,8 +12148,6 @@ function calcCustoImpressao() {
   var vida    = parseFloat((document.getElementById('c-vida')||{}).value)||5000;
   var manut   = parseFloat((document.getElementById('c-manut')||{}).value)||0;
   var hmes    = parseFloat((document.getElementById('c-hmes')||{}).value)||160;
-  var embal   = parseFloat((document.getElementById('c-embal')||{}).value)||0;
-  var insumos = parseFloat((document.getElementById('c-insumos')||{}).value)||0;
   var impostos= parseFloat((document.getElementById('c-impostos')||{}).value)||0;
   var pctFalhas=parseFloat((document.getElementById('c-falhas')||{}).value)||0;
 
@@ -12160,7 +12158,8 @@ function calcCustoImpressao() {
   var cDep = (vi/vida)*horas;
   var cMt  = (manut/hmes)*horas;
 
-  var cTotalLote = cFilComFalhas + cEn + cMdo + cDep + cMt + insumos + embal;
+  // Insumos e embalagem excluidos das impressoes internas (uso interno, sem embalagem)
+  var cTotalLote = cFilComFalhas + cEn + cMdo + cDep + cMt;
   var cUnit = cTotalLote / qtd;
   var cUnitComImp = impostos > 0 ? cUnit / (1 - impostos/100) : cUnit;
 
@@ -12170,7 +12169,7 @@ function calcCustoImpressao() {
   if(cUnitComImp > 0 || cFil > 0) {
     box.style.display = 'block';
     val.textContent = fmt(cUnitComImp) + (qtd>1 ? ' /un  ('+fmt(cUnitComImp*qtd)+' total)' : '');
-    info.textContent = 'Filamento: '+fmt(cFilComFalhas/qtd)+' | Energia: '+fmt(cEn/qtd)+' | MDO: '+fmt(cMdo/qtd)+' | Deprec.+Manut: '+fmt((cDep+cMt)/qtd)+' | Insumos+Embal: '+fmt((insumos+embal)/qtd);
+    info.textContent = 'Filamento: '+fmt(cFilComFalhas/qtd)+' | Energia: '+fmt(cEn/qtd)+' | MDO: '+fmt(cMdo/qtd)+' | Deprec.+Manut: '+fmt((cDep+cMt)/qtd);
   } else {
     box.style.display = 'none';
   }
