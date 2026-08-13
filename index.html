@@ -12815,7 +12815,12 @@ function renderImpressoras() {
   if(!el) return;
 
   if(!impressoras.length) {
-    el.innerHTML = '<div class="empty"><i class="ti ti-printer"></i> Nenhuma impressora cadastrada. Clique em + Nova Impressora.</div>';
+    el.innerHTML = '<div class="empty" style="padding:2rem;text-align:center;">' +
+      '<i class="ti ti-printer" style="font-size:2rem;display:block;margin-bottom:1rem;"></i>' +
+      '<div style="margin-bottom:1rem;">Nenhuma impressora cadastrada.</div>' +
+      '<button class="btn-ok" onclick="abrirFormImpressora(-1)" style="padding:8px 20px;font-size:13px;">' +
+      '<i class="ti ti-plus"></i> Cadastrar Primeira Impressora</button>' +
+    '</div>';
     return;
   }
 
