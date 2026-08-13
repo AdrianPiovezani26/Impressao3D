@@ -2627,10 +2627,10 @@ function gerarReciboVenda(vendaId) {
       y += 7;
     }
 
-    // Linha total com fundo cinza escuro
-    doc.setFillColor(30,30,30); doc.setDrawColor(0,0,0); doc.setLineWidth(0.4);
+    // Linha total com fundo cinza (igual cabecalho da tabela)
+    doc.setFillColor(220,220,220); doc.setDrawColor(0,0,0); doc.setLineWidth(0.4);
     doc.rect(mL-2, y, cW+4, 10, 'FD');
-    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(255,255,255);
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(0,0,0);
     doc.text('TOTAL:', mL+2, y+7);
     doc.text(fmt(valorLiq), colT, y+7, {align:'right'});
     y += 13;
