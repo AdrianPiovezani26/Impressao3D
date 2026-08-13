@@ -1166,6 +1166,17 @@
       <div class="field"><label>Telefone / WhatsApp</label><input type="text" id="cfg-tel" placeholder="Ex: (45) 99999-9999"></div>
       <div class="field"><label>Cidade / UF</label><input type="text" id="cfg-cidade" placeholder="Ex: Cascavel - PR"></div>
       <div class="field" style="grid-column:1/-1;"><label>Email / Instagram</label><input type="text" id="cfg-email" placeholder="Ex: akp3d@email.com | @akp3d.oficial"></div>
+      <div class="field" style="grid-column:1/-1;">
+        <label>Logo da Empresa (aparece no Recibo e Orcamento)</label>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <input type="file" id="cfg-logo-input" accept="image/*" onchange="carregarLogo(this)"
+            style="font-size:12px;color:var(--text);">
+          <div id="cfg-logo-preview" style="width:80px;height:50px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg3);display:flex;align-items:center;justify-content:center;overflow:hidden;">
+            <span style="font-size:10px;color:var(--text3);">Sem logo</span>
+          </div>
+          <button class="btn-del" onclick="removerLogo()" style="font-size:11px;padding:4px 10px;"><i class="ti ti-trash"></i> Remover</button>
+        </div>
+      </div>
     </div>
     <button class="btn-ok" onclick="salvarCfgEmpresa()" style="margin-top:4px;"><i class="ti ti-device-floppy"></i> Salvar Dados da Empresa</button>
   </div>
@@ -2458,235 +2469,235 @@ function gerarReciboVenda(vendaId) {
   var v = typeof vendaId === 'object' ? vendaId : vendas.find(function(x){ return x.id === vendaId; });
   if(!v) { alert('Venda nao encontrada.'); return; }
 
-  // Verificar jsPDF com fallback
   var jsPDFLib = typeof window._jsPDFLib === 'function' ? window._jsPDFLib() :
                  (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF :
                  (window.jsPDF ? window.jsPDF : null);
-  if(!jsPDFLib) { alert('Biblioteca PDF nao carregada.\nAguarde alguns segundos e tente novamente, ou recarregue a pagina.'); return; }
+  if(!jsPDFLib) { alert('Biblioteca PDF nao carregada.\nAguarde alguns segundos e tente novamente.'); return; }
 
   var doc = new jsPDFLib({ orientation:'p', unit:'mm', format:'a4' });
   var W = 210, H = 297;
-  var mL = 15, mR = 15, mT = 15;
+  var mL = 16, mR = 16, mT = 16;
   var cW = W - mL - mR;
-  var y = mT;
 
-  // Dados da empresa (do cfg)
+  // Dados da empresa
   var empresa = cfg.empresa || 'AKP3D Impressoes 3D';
   var cnpj    = cfg.cnpj    || '';
   var tel     = cfg.tel     || '';
-  var cidade  = cfg.cidade  || 'Cascavel - PR';
+  var cidade  = cfg.cidade  || '';
   var emailEmp= cfg.email   || '';
-
-  // Numero do recibo (baseado no id da venda - ultimos 6 digitos)
-  var numRecibo = 'REC-' + String(v.id).slice(-6);
+  var logo    = cfg.logo    || '';
 
   // Dados da venda
-  var cliente = v.cliente || 'Nao informado';
+  var numRecibo = 'REC-' + String(v.id).slice(-6);
+  var cliente   = v.cliente || 'Nao informado';
   var dataVenda = fmtD(v.data||hoje());
-  var pgto = v.pgto || 'Nao informado';
-  var isPago = v.statusPgto === 'pago' || v.statusPgto === 'paga';
-  var dataPgto = v.dataPagamento ? fmtD(v.dataPagamento) : '';
+  var pgto      = v.pgto || 'Nao informado';
+  var isPago    = v.statusPgto === 'pago' || v.statusPgto === 'paga';
+  var dataPgto  = v.dataPagamento ? fmtD(v.dataPagamento) : '';
 
-  // Faturas para pegar desconto
-  var fatsV = faturas.filter(function(f){ return f.vendaId === v.id; });
+  var fatsV    = faturas.filter(function(f){ return f.vendaId === v.id; });
   var desconto = fatsV.reduce(function(s,f){ return s+(f.valorDesconto||0); },0);
   var valorBruto = (v.valor||0) + desconto;
   var valorLiq   = v.valor||0;
 
-  // ---- FUNDO / BACKGROUND ----
-  doc.setFillColor(10, 10, 10);
+  // Itens
+  var itens = v.itens && v.itens.length ? v.itens :
+    [{nome: v.prodNome||'Produto', qtd: v.qtd||1, precoUnit: v.valor||0, total: v.valor||0}];
+
+  var y = mT;
+
+  // ---- FUNDO BRANCO ----
+  doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, W, H, 'F');
 
-  // ---- LINHA DECORATIVA TOPO ----
-  doc.setDrawColor(57, 255, 20);
-  doc.setLineWidth(1.5);
-  doc.line(mL, mT + 20, W - mR, mT + 20);
-
   // ---- HEADER ----
-  // Logo/Nome empresa
+  // Faixa de topo verde suave
+  doc.setFillColor(39, 174, 96);
+  doc.rect(0, 0, W, 38, 'F');
+
+  // Logo (se existir)
+  var logoW = 0;
+  if(logo) {
+    try {
+      var ext = logo.split(';')[0].split('/')[1].toUpperCase();
+      if(ext === 'JPEG') ext = 'JPEG';
+      doc.addImage(logo, ext, mL, 6, 0, 26);
+      // Calcular largura proporcional (estimativa)
+      logoW = 35;
+    } catch(e) { logoW = 0; }
+  }
+
+  // Nome da empresa
+  var nomeX = mL + logoW + (logoW > 0 ? 6 : 0);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.setTextColor(57, 255, 20);
-  doc.text(empresa, mL, mT + 13);
+  doc.setFontSize(18);
+  doc.setTextColor(255, 255, 255);
+  doc.text(empresa, nomeX, 17);
 
-  // Numero do recibo (direita)
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(100, 100, 100);
-  doc.text('RECIBO DE VENDA', W - mR, mT + 7, {align:'right'});
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.setTextColor(57, 255, 20);
-  doc.text(numRecibo, W - mR, mT + 13, {align:'right'});
-
-  y = mT + 28;
-
-  // ---- DADOS EMPRESA (linha abaixo do header) ----
+  // Subtitulo empresa
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.setTextColor(130, 130, 130);
+  doc.setTextColor(200, 255, 200);
   var infoEmp = [];
   if(cnpj) infoEmp.push('CNPJ: '+cnpj);
-  if(tel)  infoEmp.push('Tel: '+tel);
+  if(tel)  infoEmp.push(tel);
   if(emailEmp) infoEmp.push(emailEmp);
   if(cidade) infoEmp.push(cidade);
-  if(infoEmp.length) {
-    doc.text(infoEmp.join('  |  '), mL, y);
-    y += 7;
-  }
+  if(infoEmp.length) doc.text(infoEmp.join('  |  '), nomeX, 25);
 
-  // ---- SEO CLIENTE / DATA ----
-  y += 4;
-  // Caixa cliente
-  doc.setFillColor(20, 20, 20);
-  doc.roundedRect(mL, y, cW, 22, 2, 2, 'F');
-  doc.setDrawColor(40, 40, 40);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(mL, y, cW, 22, 2, 2, 'S');
-
-  // Metade esquerda - cliente
+  // Numero do recibo (direita)
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(100, 100, 100);
-  doc.text('CLIENTE', mL + 4, y + 5);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor(220, 220, 220);
-  doc.text(cliente.toUpperCase(), mL + 4, y + 13);
-
-  // Metade direita - data e pagamento
-  var col2 = mL + cW/2 + 5;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(100, 100, 100);
-  doc.text('DATA DA VENDA', col2, y + 5);
-  doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  doc.setTextColor(220, 220, 220);
-  doc.text(dataVenda, col2, y + 12);
+  doc.setTextColor(255, 255, 255);
+  doc.text('RECIBO DE VENDA', W - mR, 15, {align:'right'});
+  doc.setFontSize(14);
+  doc.text(numRecibo, W - mR, 24, {align:'right'});
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(100, 100, 100);
-  doc.text('PAGAMENTO', col2 + 35, y + 5);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(220, 220, 220);
-  doc.text(pgto, col2 + 35, y + 12);
-
-  // Status badge
-  var badgeX = mL + cW - 4;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
+  // Status badge (direita)
   if(isPago) {
-    doc.setTextColor(57, 255, 20);
-    doc.text('PAGO' + (dataPgto ? ' em '+dataPgto : ''), badgeX, y + 18, {align:'right'});
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(W - mR - 28, 27, 28, 8, 1.5, 1.5, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(39, 174, 96);
+    doc.text('PAGO', W - mR - 14, 32.5, {align:'center'});
   } else {
-    doc.setTextColor(255, 170, 0);
-    doc.text('PENDENTE', badgeX, y + 18, {align:'right'});
+    doc.setFillColor(255, 193, 7);
+    doc.roundedRect(W - mR - 32, 27, 32, 8, 1.5, 1.5, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(0, 0, 0);
+    doc.text('PENDENTE', W - mR - 16, 32.5, {align:'center'});
   }
 
-  y += 30;
+  y = 50;
+
+  // ---- DADOS DO CLIENTE ----
+  doc.setFillColor(248, 249, 250);
+  doc.roundedRect(mL, y, cW, 24, 2, 2, 'F');
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(mL, y, cW, 24, 2, 2, 'S');
+
+  // Linha verde lateral
+  doc.setFillColor(39, 174, 96);
+  doc.rect(mL, y, 3, 24, 'F');
+
+  var col1 = mL + 8, col2 = mL + cW/2 + 5, col3 = mL + cW*0.75;
+
+  // Cliente
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(120, 120, 120);
+  doc.text('CLIENTE', col1, y + 7);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(30, 30, 30);
+  doc.text(cliente.toUpperCase(), col1, y + 15);
+
+  // Data
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(120, 120, 120);
+  doc.text('DATA', col2, y + 7);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(30, 30, 30);
+  doc.text(dataVenda, col2, y + 15);
+
+  // Pagamento
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(120, 120, 120);
+  doc.text('PAGAMENTO', col3, y + 7);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(30, 30, 30);
+  doc.text(pgto, col3, y + 15);
+
+  // Data pagamento (se pago)
+  if(isPago && dataPgto) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(39, 174, 96);
+    doc.text('Pago em: '+dataPgto, col2, y + 21);
+  }
+
+  y += 32;
 
   // ---- TABELA DE ITENS ----
-  // Cabecalho da tabela
-  doc.setFillColor(20, 20, 20);
+  // Cabecalho
+  doc.setFillColor(39, 174, 96);
   doc.rect(mL, y, cW, 8, 'F');
-  doc.setDrawColor(57, 255, 20);
-  doc.setLineWidth(0.5);
-  doc.line(mL, y, mL + cW, y);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
-  doc.setTextColor(57, 255, 20);
+  doc.setTextColor(255, 255, 255);
   var colDesc = mL + 4;
-  var colQtd  = mL + cW * 0.55;
-  var colPU   = mL + cW * 0.70;
+  var colQtd  = mL + cW * 0.57;
+  var colPU   = mL + cW * 0.73;
   var colTot  = mL + cW - 4;
-  doc.text('DESCRICAO', colDesc, y + 5.5);
+  doc.text('DESCRICAO DO PRODUTO / SERVICO', colDesc, y + 5.5);
   doc.text('QTD', colQtd, y + 5.5, {align:'center'});
-  doc.text('UNIT', colPU, y + 5.5, {align:'center'});
+  doc.text('VL. UNIT.', colPU, y + 5.5, {align:'center'});
   doc.text('TOTAL', colTot, y + 5.5, {align:'right'});
   y += 8;
 
-  doc.setLineWidth(0.3);
-  doc.setDrawColor(40, 40, 40);
-  doc.line(mL, y, mL + cW, y);
-
-  // Itens
-  var itens = v.itens && v.itens.length ? v.itens : [{nome: v.prodNome||'Produto', qtd: v.qtd||1, precoUnit: v.valor||0, total: v.valor||0}];
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-
+  // Linhas de itens
   itens.forEach(function(item, idx) {
-    var bg = idx % 2 === 0 ? [15,15,15] : [12,12,12];
+    var bg = idx % 2 === 0 ? [255,255,255] : [248,249,250];
     doc.setFillColor(bg[0], bg[1], bg[2]);
     doc.rect(mL, y, cW, 9, 'F');
+    doc.setDrawColor(230, 230, 230);
+    doc.setLineWidth(0.2);
+    doc.line(mL, y+9, mL+cW, y+9);
 
-    doc.setTextColor(210, 210, 210);
-    // Quebrar nome longo
     var nomeItem = item.nome || 'Item';
-    if(nomeItem.length > 45) nomeItem = nomeItem.substring(0,43)+'...';
+    if(nomeItem.length > 50) nomeItem = nomeItem.substring(0,48)+'...';
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(30, 30, 30);
     doc.text(nomeItem, colDesc, y + 6);
     doc.text(String(item.qtd||1), colQtd, y + 6, {align:'center'});
     doc.text(fmt(item.precoUnit||0), colPU, y + 6, {align:'center'});
     doc.setFont('helvetica', 'bold');
     doc.text(fmt(item.total||(item.precoUnit||0)*(item.qtd||1)), colTot, y + 6, {align:'right'});
-    doc.setFont('helvetica', 'normal');
     y += 9;
-    doc.setDrawColor(30, 30, 30);
-    doc.line(mL, y, mL + cW, y);
   });
 
-  y += 6;
+  // Borda inferior da tabela
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.5);
+  doc.line(mL, y, mL+cW, y);
+  y += 8;
 
   // ---- TOTAIS ----
-  var totX = mL + cW * 0.55;
-  var totW = cW * 0.45;
-
-  doc.setDrawColor(40, 40, 40);
-  doc.setLineWidth(0.3);
+  var totX = mL + cW * 0.52;
+  var totEnd = mL + cW;
 
   if(desconto > 0) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.setTextColor(160, 160, 160);
+    doc.setTextColor(80, 80, 80);
     doc.text('Subtotal:', totX, y);
-    doc.text(fmt(valorBruto), colTot, y, {align:'right'});
+    doc.text(fmt(valorBruto), totEnd, y, {align:'right'});
     y += 6;
-    doc.setTextColor(255, 120, 120);
+    doc.setTextColor(200, 50, 50);
     doc.text('Desconto:', totX, y);
-    doc.text('-' + fmt(desconto), colTot, y, {align:'right'});
+    doc.text('-' + fmt(desconto), totEnd, y, {align:'right'});
     y += 8;
-    doc.setDrawColor(57, 255, 20);
-    doc.setLineWidth(0.8);
-    doc.line(totX, y - 2, mL + cW, y - 2);
   }
 
-  // Total geral
+  // Linha total
+  doc.setFillColor(39, 174, 96);
+  doc.rect(totX - 2, y - 1, totEnd - totX + 6, 10, 'F');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor(160, 240, 160);
-  doc.text('TOTAL GERAL:', totX, y + 4);
-  doc.setFontSize(15);
-  doc.setTextColor(57, 255, 20);
-  doc.text(fmt(valorLiq), colTot, y + 4, {align:'right'});
-
-  y += 20;
-
-  // ---- LINHA DE ASSINATURA ----
-  doc.setDrawColor(57, 255, 20);
-  doc.setLineWidth(0.5);
-  doc.line(mL, y + 15, mL + 75, y + 15);
-  doc.line(W - mR - 75, y + 15, W - mR, y + 15);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 100, 100);
-  doc.text(empresa, mL + 37, y + 20, {align:'center'});
-  doc.text(cliente.toUpperCase(), W - mR - 37, y + 20, {align:'center'});
-
-  y += 32;
+  doc.setFontSize(11);
+  doc.setTextColor(255, 255, 255);
+  doc.text('TOTAL:', totX + 2, y + 6.5);
+  doc.text(fmt(valorLiq), totEnd, y + 6.5, {align:'right'});
+  y += 18;
 
   // ---- OBSERVACOES ----
   if(v.obs && v.obs.trim()) {
@@ -2694,26 +2705,41 @@ function gerarReciboVenda(vendaId) {
     doc.setFontSize(8);
     doc.setTextColor(100, 100, 100);
     doc.text('Obs: ' + v.obs, mL, y);
-    y += 8;
+    y += 10;
   }
 
+  // ---- ASSINATURAS ----
+  y = Math.max(y + 10, H - 60);
+  doc.setDrawColor(150, 150, 150);
+  doc.setLineWidth(0.4);
+  var sigW = cW * 0.38;
+  doc.line(mL, y, mL + sigW, y);
+  doc.line(W - mR - sigW, y, W - mR, y);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 100, 100);
+  doc.text(empresa, mL + sigW/2, y + 5, {align:'center'});
+  doc.text('Cliente: ' + cliente, W - mR - sigW/2, y + 5, {align:'center'});
+
   // ---- RODAPE ----
-  doc.setDrawColor(40, 40, 40);
-  doc.setLineWidth(0.3);
-  doc.line(mL, H - 15, W - mR, H - 15);
+  doc.setFillColor(248, 249, 250);
+  doc.rect(0, H - 18, W, 18, 'F');
+  doc.setDrawColor(39, 174, 96);
+  doc.setLineWidth(0.8);
+  doc.line(0, H - 18, W, H - 18);
+
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  doc.setTextColor(60, 60, 60);
-  doc.text('Emitido em ' + fmtD(hoje()) + ' pelo sistema AKP3D', W / 2, H - 10, {align:'center'});
-  doc.text('Este recibo nao tem valor fiscal', W / 2, H - 6, {align:'center'});
+  doc.setTextColor(120, 120, 120);
+  doc.text('Emitido em ' + fmtD(hoje()) + ' | ' + empresa, W/2, H - 11, {align:'center'});
+  doc.text('Este documento nao possui valor fiscal', W/2, H - 6, {align:'center'});
 
-  // Salvar
   var nomeArq = 'Recibo_' + numRecibo + '_' + cliente.replace(/\s+/g,'_').substring(0,20) + '.pdf';
   doc.save(nomeArq);
 }
 
 
-// Converter texto para maiusculas padronizado
 function upper(str) {
   return str ? str.toString().toUpperCase().trim() : '';
 }
@@ -5001,9 +5027,37 @@ function salvarConfig(){
 function aplicarCfg(){
   const m={w:'c-watts',kwh:'c-kwh',mdo:'c-mdo',vi:'c-val-imp',vida:'c-vida',manut:'c-manut',hmes:'c-hmes'};
   for(const[k,id] of Object.entries(m)){if(cfg[k]){var el2=document.getElementById(id);if(el2)el2.value=cfg[k];}}
-  // Preencher campos de empresa
   var campos = {empresa:'cfg-empresa', cnpj:'cfg-cnpj', tel:'cfg-tel', cidade:'cfg-cidade', email:'cfg-email'};
   for(var k in campos){ var el=document.getElementById(campos[k]); if(el && cfg[k]) el.value=cfg[k]; }
+  // Restaurar preview da logo
+  if(cfg.logo) {
+    var prev = document.getElementById('cfg-logo-preview');
+    if(prev) prev.innerHTML = '<img src="'+cfg.logo+'" style="max-width:78px;max-height:48px;object-fit:contain;">';
+  }
+}
+
+function carregarLogo(input) {
+  var file = input.files[0];
+  if(!file) return;
+  if(file.size > 500000) { alert('Logo muito grande. Use uma imagem ate 500KB.'); input.value=''; return; }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    cfg.logo = e.target.result;
+    var prev = document.getElementById('cfg-logo-preview');
+    if(prev) prev.innerHTML = '<img src="'+cfg.logo+'" style="max-width:78px;max-height:48px;object-fit:contain;">';
+    S.set('cfg', cfg);
+    alert('Logo carregada! Clique em Salvar Dados da Empresa para confirmar.');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removerLogo() {
+  cfg.logo = '';
+  S.set('cfg', cfg);
+  var prev = document.getElementById('cfg-logo-preview');
+  if(prev) prev.innerHTML = '<span style="font-size:10px;color:var(--text3);">Sem logo</span>';
+  var inp = document.getElementById('cfg-logo-input');
+  if(inp) inp.value = '';
 }
 
 function salvarCfgEmpresa() {
