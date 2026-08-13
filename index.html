@@ -2430,7 +2430,12 @@ function gerarReciboVenda(vendaId) {
   var v = typeof vendaId === 'object' ? vendaId : vendas.find(function(x){ return x.id === vendaId; });
   if(!v) { alert('Venda nao encontrada.'); return; }
 
-  var doc = new window.jspdf.jsPDF({ orientation:'p', unit:'mm', format:'a4' });
+  // Verificar jsPDF com fallback
+  var jsPDFLib = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF :
+                 (window.jsPDF ? window.jsPDF : null);
+  if(!jsPDFLib) { alert('Biblioteca PDF nao carregada. Recarregue a pagina e tente novamente.'); return; }
+
+  var doc = new jsPDFLib({ orientation:'p', unit:'mm', format:'a4' });
   var W = 210, H = 297;
   var mL = 15, mR = 15, mT = 15;
   var cW = W - mL - mR;
