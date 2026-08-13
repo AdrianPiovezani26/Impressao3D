@@ -364,8 +364,36 @@
     })();
   </script>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <!-- jsPDF com multiplos CDNs de fallback -->
+  <script>
+  (function() {
+    function tryLoad(urls, idx, onDone) {
+      if(idx >= urls.length) { console.warn('jsPDF: todos CDNs falharam'); return; }
+      var s = document.createElement('script');
+      s.src = urls[idx];
+      s.onload = function() { if(onDone) onDone(); };
+      s.onerror = function() { tryLoad(urls, idx+1, onDone); };
+      document.head.appendChild(s);
+    }
+    var jspdfUrls = [
+      'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+      'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js',
+      'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'
+    ];
+    var autotableUrls = [
+      'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js',
+      'https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js',
+      'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js'
+    ];
+    tryLoad(jspdfUrls, 0, function() {
+      tryLoad(autotableUrls, 0, null);
+    });
+    window._jsPDFLib = function() {
+      return (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF :
+             (window.jsPDF ? window.jsPDF : null);
+    };
+  })();
+  </script>
 </head>
 <body>
 
@@ -2431,9 +2459,10 @@ function gerarReciboVenda(vendaId) {
   if(!v) { alert('Venda nao encontrada.'); return; }
 
   // Verificar jsPDF com fallback
-  var jsPDFLib = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF :
+  var jsPDFLib = typeof window._jsPDFLib === 'function' ? window._jsPDFLib() :
+                 (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF :
                  (window.jsPDF ? window.jsPDF : null);
-  if(!jsPDFLib) { alert('Biblioteca PDF nao carregada. Recarregue a pagina e tente novamente.'); return; }
+  if(!jsPDFLib) { alert('Biblioteca PDF nao carregada.\nAguarde alguns segundos e tente novamente, ou recarregue a pagina.'); return; }
 
   var doc = new jsPDFLib({ orientation:'p', unit:'mm', format:'a4' });
   var W = 210, H = 297;
@@ -12058,7 +12087,9 @@ function gerarOrcamentoPDF() {
   var numOrc = String(Date.now()).slice(-6);
 
   // Iniciar PDF
-  var doc = new window.jspdf.jsPDF({ orientation:'p', unit:'mm', format:'a4' });
+  var _jsPDF = typeof window._jsPDFLib === 'function' ? window._jsPDFLib() : (window.jspdf && window.jspdf.jsPDF ? window.jspdf.jsPDF : window.jsPDF);
+  if(!_jsPDF) { alert('Biblioteca PDF nao carregada. Aguarde e tente novamente.'); return; }
+  var doc = new _jsPDF({ orientation:'p', unit:'mm', format:'a4' });
   var W = 210, H = 297;
   var marginL = 15, marginR = 15, marginT = 15;
   var y = marginT;
