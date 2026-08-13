@@ -2474,9 +2474,10 @@ function gerarReciboVenda(vendaId) {
                  (window.jsPDF ? window.jsPDF : null);
   if(!jsPDFLib) { alert('Biblioteca PDF nao carregada.\nAguarde alguns segundos e tente novamente.'); return; }
 
-  var doc = new jsPDFLib({ orientation:'p', unit:'mm', format:'a4' });
-  var W = 210, H = 297;
-  var mL = 16, mR = 16, mT = 16;
+  // Meia folha A5 (148 x 210mm)
+  var doc = new jsPDFLib({ orientation:'p', unit:'mm', format:'a5' });
+  var W = 148, H = 210;
+  var mL = 10, mR = 10, mT = 10;
   var cW = W - mL - mR;
 
   // Dados da empresa
@@ -2500,7 +2501,6 @@ function gerarReciboVenda(vendaId) {
   var valorBruto = (v.valor||0) + desconto;
   var valorLiq   = v.valor||0;
 
-  // Itens
   var itens = v.itens && v.itens.length ? v.itens :
     [{nome: v.prodNome||'Produto', qtd: v.qtd||1, precoUnit: v.valor||0, total: v.valor||0}];
 
@@ -2510,233 +2510,179 @@ function gerarReciboVenda(vendaId) {
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, W, H, 'F');
 
-  // ---- HEADER ----
-  // Faixa de topo verde suave
+  // ---- HEADER VERDE ----
   doc.setFillColor(39, 174, 96);
-  doc.rect(0, 0, W, 38, 'F');
+  doc.rect(0, 0, W, 30, 'F');
 
-  // Logo (se existir)
+  // Logo
   var logoW = 0;
   if(logo) {
     try {
       var ext = logo.split(';')[0].split('/')[1].toUpperCase();
       if(ext === 'JPEG') ext = 'JPEG';
-      doc.addImage(logo, ext, mL, 6, 0, 26);
-      // Calcular largura proporcional (estimativa)
-      logoW = 35;
+      doc.addImage(logo, ext, mL, 4, 0, 22);
+      logoW = 30;
     } catch(e) { logoW = 0; }
   }
 
   // Nome da empresa
-  var nomeX = mL + logoW + (logoW > 0 ? 6 : 0);
+  var nomeX = mL + logoW + (logoW > 0 ? 4 : 0);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
+  doc.setFontSize(14);
   doc.setTextColor(255, 255, 255);
-  doc.text(empresa, nomeX, 17);
+  doc.text(empresa, nomeX, 13);
 
-  // Subtitulo empresa
+  // Info empresa
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
+  doc.setFontSize(6.5);
   doc.setTextColor(200, 255, 200);
   var infoEmp = [];
   if(cnpj) infoEmp.push('CNPJ: '+cnpj);
   if(tel)  infoEmp.push(tel);
   if(emailEmp) infoEmp.push(emailEmp);
   if(cidade) infoEmp.push(cidade);
-  if(infoEmp.length) doc.text(infoEmp.join('  |  '), nomeX, 25);
+  if(infoEmp.length) doc.text(infoEmp.join('  |  '), nomeX, 20);
 
-  // Numero do recibo (direita)
+  // Numero recibo (direita)
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
+  doc.setFontSize(7);
   doc.setTextColor(255, 255, 255);
-  doc.text('RECIBO DE VENDA', W - mR, 15, {align:'right'});
-  doc.setFontSize(14);
-  doc.text(numRecibo, W - mR, 24, {align:'right'});
+  doc.text('RECIBO', W - mR, 11, {align:'right'});
+  doc.setFontSize(11);
+  doc.text(numRecibo, W - mR, 19, {align:'right'});
 
-  // Status badge (direita)
+  // Badge status
   if(isPago) {
     doc.setFillColor(255, 255, 255);
-    doc.roundedRect(W - mR - 28, 27, 28, 8, 1.5, 1.5, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7);
-    doc.setTextColor(39, 174, 96);
-    doc.text('PAGO', W - mR - 14, 32.5, {align:'center'});
+    doc.roundedRect(W - mR - 18, 21.5, 18, 6, 1, 1, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(39,174,96);
+    doc.text('PAGO', W - mR - 9, 25.5, {align:'center'});
   } else {
     doc.setFillColor(255, 193, 7);
-    doc.roundedRect(W - mR - 32, 27, 32, 8, 1.5, 1.5, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7);
-    doc.setTextColor(0, 0, 0);
-    doc.text('PENDENTE', W - mR - 16, 32.5, {align:'center'});
+    doc.roundedRect(W - mR - 22, 21.5, 22, 6, 1, 1, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(0,0,0);
+    doc.text('PENDENTE', W - mR - 11, 25.5, {align:'center'});
   }
 
-  y = 50;
+  y = 38;
 
-  // ---- DADOS DO CLIENTE ----
+  // ---- DADOS CLIENTE ----
   doc.setFillColor(248, 249, 250);
-  doc.roundedRect(mL, y, cW, 24, 2, 2, 'F');
-  doc.setDrawColor(220, 220, 220);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(mL, y, cW, 24, 2, 2, 'S');
-
-  // Linha verde lateral
+  doc.roundedRect(mL, y, cW, 20, 1.5, 1.5, 'F');
+  doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.2);
+  doc.roundedRect(mL, y, cW, 20, 1.5, 1.5, 'S');
   doc.setFillColor(39, 174, 96);
-  doc.rect(mL, y, 3, 24, 'F');
+  doc.rect(mL, y, 2.5, 20, 'F');
 
-  var col1 = mL + 8, col2 = mL + cW/2 + 5, col3 = mL + cW*0.75;
+  var c1 = mL + 6, c2 = mL + cW*0.45, c3 = mL + cW*0.72;
 
-  // Cliente
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(120, 120, 120);
-  doc.text('CLIENTE', col1, y + 7);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(30, 30, 30);
-  doc.text(cliente.toUpperCase(), col1, y + 15);
+  doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(120,120,120);
+  doc.text('CLIENTE', c1, y+6);
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(30,30,30);
+  // Truncar cliente se muito longo
+  var nomeCliente = cliente.toUpperCase();
+  if(nomeCliente.length > 22) nomeCliente = nomeCliente.substring(0,20)+'...';
+  doc.text(nomeCliente, c1, y+13);
 
-  // Data
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(120, 120, 120);
-  doc.text('DATA', col2, y + 7);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(30, 30, 30);
-  doc.text(dataVenda, col2, y + 15);
+  doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(120,120,120);
+  doc.text('DATA', c2, y+6);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(30,30,30);
+  doc.text(dataVenda, c2, y+13);
 
-  // Pagamento
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(120, 120, 120);
-  doc.text('PAGAMENTO', col3, y + 7);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(30, 30, 30);
-  doc.text(pgto, col3, y + 15);
+  doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(120,120,120);
+  doc.text('PGTO', c3, y+6);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(30,30,30);
+  doc.text(pgto, c3, y+13);
 
-  // Data pagamento (se pago)
   if(isPago && dataPgto) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(39, 174, 96);
-    doc.text('Pago em: '+dataPgto, col2, y + 21);
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(39,174,96);
+    doc.text('Pago em: '+dataPgto, c2, y+18.5);
   }
 
-  y += 32;
+  y += 27;
 
-  // ---- TABELA DE ITENS ----
-  // Cabecalho
+  // ---- TABELA ITENS ----
   doc.setFillColor(39, 174, 96);
-  doc.rect(mL, y, cW, 8, 'F');
+  doc.rect(mL, y, cW, 7, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(255,255,255);
+  var colD = mL+3, colQ = mL+cW*0.56, colP = mL+cW*0.73, colT = mL+cW-3;
+  doc.text('DESCRICAO', colD, y+4.8);
+  doc.text('QTD', colQ, y+4.8, {align:'center'});
+  doc.text('UNIT.', colP, y+4.8, {align:'center'});
+  doc.text('TOTAL', colT, y+4.8, {align:'right'});
+  y += 7;
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(255, 255, 255);
-  var colDesc = mL + 4;
-  var colQtd  = mL + cW * 0.57;
-  var colPU   = mL + cW * 0.73;
-  var colTot  = mL + cW - 4;
-  doc.text('DESCRICAO DO PRODUTO / SERVICO', colDesc, y + 5.5);
-  doc.text('QTD', colQtd, y + 5.5, {align:'center'});
-  doc.text('VL. UNIT.', colPU, y + 5.5, {align:'center'});
-  doc.text('TOTAL', colTot, y + 5.5, {align:'right'});
-  y += 8;
-
-  // Linhas de itens
   itens.forEach(function(item, idx) {
-    var bg = idx % 2 === 0 ? [255,255,255] : [248,249,250];
-    doc.setFillColor(bg[0], bg[1], bg[2]);
-    doc.rect(mL, y, cW, 9, 'F');
-    doc.setDrawColor(230, 230, 230);
-    doc.setLineWidth(0.2);
-    doc.line(mL, y+9, mL+cW, y+9);
+    var bg = idx%2===0 ? [255,255,255] : [248,249,250];
+    doc.setFillColor(bg[0],bg[1],bg[2]);
+    doc.rect(mL, y, cW, 8, 'F');
+    doc.setDrawColor(235,235,235); doc.setLineWidth(0.2);
+    doc.line(mL, y+8, mL+cW, y+8);
 
-    var nomeItem = item.nome || 'Item';
-    if(nomeItem.length > 50) nomeItem = nomeItem.substring(0,48)+'...';
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(30, 30, 30);
-    doc.text(nomeItem, colDesc, y + 6);
-    doc.text(String(item.qtd||1), colQtd, y + 6, {align:'center'});
-    doc.text(fmt(item.precoUnit||0), colPU, y + 6, {align:'center'});
-    doc.setFont('helvetica', 'bold');
-    doc.text(fmt(item.total||(item.precoUnit||0)*(item.qtd||1)), colTot, y + 6, {align:'right'});
-    y += 9;
+    var nome = item.nome||'Item';
+    if(nome.length > 32) nome = nome.substring(0,30)+'...';
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(30,30,30);
+    doc.text(nome, colD, y+5.5);
+    doc.text(String(item.qtd||1), colQ, y+5.5, {align:'center'});
+    doc.text(fmt(item.precoUnit||0), colP, y+5.5, {align:'center'});
+    doc.setFont('helvetica','bold');
+    doc.text(fmt(item.total||(item.precoUnit||0)*(item.qtd||1)), colT, y+5.5, {align:'right'});
+    y += 8;
   });
 
-  // Borda inferior da tabela
-  doc.setDrawColor(200, 200, 200);
-  doc.setLineWidth(0.5);
+  doc.setDrawColor(180,180,180); doc.setLineWidth(0.4);
   doc.line(mL, y, mL+cW, y);
-  y += 8;
+  y += 6;
 
   // ---- TOTAIS ----
-  var totX = mL + cW * 0.52;
-  var totEnd = mL + cW;
-
+  var totX = mL + cW*0.5;
   if(desconto > 0) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(80, 80, 80);
-    doc.text('Subtotal:', totX, y);
-    doc.text(fmt(valorBruto), totEnd, y, {align:'right'});
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(80,80,80);
+    doc.text('Subtotal:', totX, y); doc.text(fmt(valorBruto), mL+cW, y, {align:'right'});
+    y += 5;
+    doc.setTextColor(200,50,50);
+    doc.text('Desconto:', totX, y); doc.text('-'+fmt(desconto), mL+cW, y, {align:'right'});
     y += 6;
-    doc.setTextColor(200, 50, 50);
-    doc.text('Desconto:', totX, y);
-    doc.text('-' + fmt(desconto), totEnd, y, {align:'right'});
+  }
+
+  doc.setFillColor(39, 174, 96);
+  doc.rect(totX-2, y-1, mL+cW-totX+4, 9, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(255,255,255);
+  doc.text('TOTAL:', totX+2, y+5.5);
+  doc.text(fmt(valorLiq), mL+cW, y+5.5, {align:'right'});
+  y += 16;
+
+  // Obs
+  if(v.obs && v.obs.trim()) {
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(100,100,100);
+    var obsText = 'Obs: '+v.obs;
+    if(obsText.length > 60) obsText = obsText.substring(0,58)+'...';
+    doc.text(obsText, mL, y);
     y += 8;
   }
 
-  // Linha total
-  doc.setFillColor(39, 174, 96);
-  doc.rect(totX - 2, y - 1, totEnd - totX + 6, 10, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(255, 255, 255);
-  doc.text('TOTAL:', totX + 2, y + 6.5);
-  doc.text(fmt(valorLiq), totEnd, y + 6.5, {align:'right'});
-  y += 18;
-
-  // ---- OBSERVACOES ----
-  if(v.obs && v.obs.trim()) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
-    doc.text('Obs: ' + v.obs, mL, y);
-    y += 10;
-  }
-
   // ---- ASSINATURAS ----
-  y = Math.max(y + 10, H - 60);
-  doc.setDrawColor(150, 150, 150);
-  doc.setLineWidth(0.4);
-  var sigW = cW * 0.38;
-  doc.line(mL, y, mL + sigW, y);
-  doc.line(W - mR - sigW, y, W - mR, y);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 100, 100);
-  doc.text(empresa, mL + sigW/2, y + 5, {align:'center'});
-  doc.text('Cliente: ' + cliente, W - mR - sigW/2, y + 5, {align:'center'});
+  y = Math.max(y+6, H-38);
+  doc.setDrawColor(160,160,160); doc.setLineWidth(0.3);
+  var sigW = cW*0.4;
+  doc.line(mL, y, mL+sigW, y);
+  doc.line(W-mR-sigW, y, W-mR, y);
+  doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(100,100,100);
+  var empNome = empresa.length>22 ? empresa.substring(0,20)+'...' : empresa;
+  var cliNome = cliente.length>22 ? cliente.substring(0,20)+'...' : cliente;
+  doc.text(empNome, mL+sigW/2, y+4, {align:'center'});
+  doc.text(cliNome, W-mR-sigW/2, y+4, {align:'center'});
 
   // ---- RODAPE ----
   doc.setFillColor(248, 249, 250);
-  doc.rect(0, H - 18, W, 18, 'F');
-  doc.setDrawColor(39, 174, 96);
-  doc.setLineWidth(0.8);
-  doc.line(0, H - 18, W, H - 18);
+  doc.rect(0, H-14, W, 14, 'F');
+  doc.setDrawColor(39,174,96); doc.setLineWidth(0.6);
+  doc.line(0, H-14, W, H-14);
+  doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(120,120,120);
+  doc.text('Emitido em '+fmtD(hoje())+' | '+empresa, W/2, H-8, {align:'center'});
+  doc.text('Documento sem valor fiscal', W/2, H-4, {align:'center'});
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(120, 120, 120);
-  doc.text('Emitido em ' + fmtD(hoje()) + ' | ' + empresa, W/2, H - 11, {align:'center'});
-  doc.text('Este documento nao possui valor fiscal', W/2, H - 6, {align:'center'});
-
-  var nomeArq = 'Recibo_' + numRecibo + '_' + cliente.replace(/\s+/g,'_').substring(0,20) + '.pdf';
-  doc.save(nomeArq);
+  doc.save('Recibo_'+numRecibo+'_'+cliente.replace(/\s+/g,'_').substring(0,15)+'.pdf');
 }
 
 
