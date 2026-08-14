@@ -1524,7 +1524,11 @@
       </div>
     </div>
     <div class="rel-card">
-      <div class="rel-titulo"><i class="ti ti-shopping-bag"></i> Compras de Filamentos</div>
+      <div class="rel-titulo"><i class="ti ti-arrow-bar-to-down"></i> Ranking de Reposição — Cores Mais Consumidas</div>
+      <div id="rel-fil-repor"></div>
+    </div>
+    <div class="rel-card">
+      <div class="rel-titulo"><i class="ti ti-shopping-bag"></i> Compras de Filamentos no Período</div>
       <div id="rel-compras-fil"></div>
     </div>
     </div><!-- fim rel-fil-geral-wrap -->
@@ -9978,6 +9982,146 @@ function renderRelFilamentos(datas) {
         }).join('')+'</tbody></table>' :
         '<div class="rel-empty" style="color:var(--neon);"><i class="ti ti-check" style="font-size:24px;display:block;"></i>Todos com estoque adequado!</div>';
     }
+
+    // ===== RANKING DE REPOSICAO =====
+    var reporEl = document.getElementById('rel-fil-repor');
+    if(reporEl) {
+      // Calcular dias do periodo para normalizar consumo diario
+      var diasPeriodo = Math.max(1, Math.round(
+        (new Date(datas.ate+'T00:00:00') - new Date(datas.de+'T00:00:00')) / (1000*60*60*24)
+      ) + 1);
+
+      // Consumo no periodo por filamento
+      var consumoPeriodo = {};
+      movimentacoes.filter(function(m){
+        return m.tipo==='saida' && m.data>=datas.de && m.data<=datas.ate;
+      }).forEach(function(m){
+        if(!consumoPeriodo[m.filIdx]) consumoPeriodo[m.filIdx]={total:0,refs:[]};
+        consumoPeriodo[m.filIdx].total += parseFloat(m.qtd||0);
+        if(m.referencia && consumoPeriodo[m.filIdx].refs.indexOf(m.referencia)<0)
+          consumoPeriodo[m.filIdx].refs.push(m.referencia);
+      });
+
+      // Construir ranking com dados de estoque atual
+      var ranking = [];
+      Object.keys(consumoPeriodo).forEach(function(fi){
+        var idx2 = parseInt(fi);
+        var f = filamentos[idx2];
+        if(!f) return;
+        var totalSaida = consumoPeriodo[fi].total;
+        var mediaGdia  = totalSaida / diasPeriodo;
+        var estoqueAtual = parseFloat(f.qtd||0);
+        var diasRestantes = mediaGdia > 0 ? Math.floor(estoqueAtual / mediaGdia) : 9999;
+        var custoGrama = (parseFloat(f.preco)||0) / (parseFloat(f.pesoRolo)||1000);
+        var custoConsumo = totalSaida * custoGrama;
+        ranking.push({
+          filIdx: idx2, f: f,
+          totalSaida: totalSaida,
+          mediaGdia: mediaGdia,
+          estoqueAtual: estoqueAtual,
+          diasRestantes: diasRestantes,
+          custoConsumo: custoConsumo,
+          refs: consumoPeriodo[fi].refs.length
+        });
+      });
+      ranking.sort(function(a,b){ return b.totalSaida - a.totalSaida; });
+
+      if(!ranking.length) {
+        reporEl.innerHTML = '<div class="rel-empty">Nenhuma saida de estoque no periodo selecionado.</div>';
+      } else {
+        var maxSaida = ranking[0].totalSaida;
+        var urgentes  = ranking.filter(function(r){ return r.diasRestantes < 7 && r.diasRestantes < 9999; });
+        var atencao   = ranking.filter(function(r){ return r.diasRestantes >= 7 && r.diasRestantes < 30; });
+
+        var hRepor = '';
+
+        // Alertas de urgencia
+        if(urgentes.length) {
+          hRepor += '<div style="background:rgba(255,50,50,0.08);border:1px solid var(--red-border);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;">' +
+            '<div style="font-size:11px;font-weight:700;color:var(--red-text);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;"><i class="ti ti-alert-triangle"></i> Repor URGENTE (menos de 7 dias de estoque)</div>' +
+            urgentes.map(function(r){
+              return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,50,50,0.15);font-size:12px;">' +
+                '<span style="width:10px;height:10px;border-radius:50%;background:'+r.f.corHex+';display:inline-block;flex-shrink:0;"></span>' +
+                '<span style="flex:1;font-weight:600;">'+r.f.corNome+' '+r.f.marca+' '+r.f.modelo+'</span>' +
+                '<span style="color:var(--red-text);font-weight:700;">'+r.estoqueAtual.toFixed(0)+'g</span>' +
+                '<span style="color:var(--text3);font-size:11px;">'+r.diasRestantes+' dias</span>' +
+                '<button onclick="irParaReposicao('+r.filIdx+')" class="btn-ok" style="font-size:10px;padding:3px 8px;"><i class="ti ti-shopping-cart"></i> Repor</button>' +
+              '</div>';
+            }).join('') +
+          '</div>';
+        }
+        if(atencao.length) {
+          hRepor += '<div style="background:rgba(255,170,0,0.07);border:1px solid var(--amber-border);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;">' +
+            '<div style="font-size:11px;font-weight:700;color:var(--amber-text);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;"><i class="ti ti-clock"></i> Atencao (7 a 30 dias de estoque)</div>' +
+            atencao.map(function(r){
+              return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,170,0,0.15);font-size:12px;">' +
+                '<span style="width:10px;height:10px;border-radius:50%;background:'+r.f.corHex+';display:inline-block;flex-shrink:0;"></span>' +
+                '<span style="flex:1;font-weight:600;">'+r.f.corNome+' '+r.f.marca+' '+r.f.modelo+'</span>' +
+                '<span style="color:var(--amber-text);font-weight:700;">'+r.estoqueAtual.toFixed(0)+'g</span>' +
+                '<span style="color:var(--text3);font-size:11px;">~'+r.diasRestantes+' dias</span>' +
+              '</div>';
+            }).join('') +
+          '</div>';
+        }
+
+        // Tabela ranking completo
+        hRepor += '<div style="overflow-x:auto;">' +
+          '<table class="rel-tabela">' +
+          '<thead><tr>' +
+            '<th class="pos">#</th>' +
+            '<th>Cor / Filamento</th>' +
+            '<th class="num">Saida no periodo</th>' +
+            '<th class="num">Media/dia</th>' +
+            '<th class="num">Estoque atual</th>' +
+            '<th class="num">Dias restantes</th>' +
+            '<th class="num">Custo consumido</th>' +
+            '<th>Prioridade</th>' +
+            '<th></th>' +
+          '</tr></thead><tbody>' +
+          ranking.map(function(r, i){
+            var pct = maxSaida > 0 ? (r.totalSaida/maxSaida*100).toFixed(0) : 0;
+            var prioTag, prioCor;
+            if(r.diasRestantes < 7 && r.diasRestantes < 9999) {
+              prioTag = 'URGENTE'; prioCor = 'tag-red';
+            } else if(r.diasRestantes < 30) {
+              prioTag = 'ATENO'; prioCor = 'tag-amber';
+            } else if(r.diasRestantes < 60) {
+              prioTag = 'PLANEJAR'; prioCor = 'tag-blue';
+            } else {
+              prioTag = 'OK'; prioCor = 'tag-green';
+            }
+            var diasStr = r.diasRestantes >= 9999 ? '--' :
+              (r.diasRestantes > 365 ? '>365 dias' : r.diasRestantes + ' dias');
+            return '<tr>' +
+              '<td class="pos">'+(i+1)+'</td>' +
+              '<td>' +
+                '<div style="display:flex;align-items:center;gap:7px;">' +
+                  '<span style="width:12px;height:12px;border-radius:50%;background:'+r.f.corHex+';border:1px solid var(--border2);flex-shrink:0;"></span>' +
+                  '<div>' +
+                    '<div style="font-weight:600;font-size:12px;">'+r.f.corNome+'</div>' +
+                    '<div style="font-size:10px;color:var(--text3);">'+r.f.marca+' '+r.f.modelo+'</div>' +
+                    '<div style="height:3px;background:var(--bg3);border-radius:2px;margin-top:3px;width:80px;">' +
+                      '<div style="height:3px;background:var(--red-text);border-radius:2px;width:'+pct+'%;"></div>' +
+                    '</div>' +
+                  '</div>' +
+                '</div>' +
+              '</td>' +
+              '<td class="num" style="color:var(--red-text);font-weight:700;">'+r.totalSaida.toFixed(0)+'g</td>' +
+              '<td class="num" style="color:var(--text2);">'+r.mediaGdia.toFixed(1)+'g</td>' +
+              '<td class="num" style="color:'+(r.estoqueAtual<100?'var(--red-text)':r.estoqueAtual<300?'var(--amber-text)':'var(--neon)')+';">'+r.estoqueAtual.toFixed(0)+'g</td>' +
+              '<td class="num" style="color:'+(r.diasRestantes<7&&r.diasRestantes<9999?'var(--red-text)':r.diasRestantes<30?'var(--amber-text)':'var(--text2)')+';">'+diasStr+'</td>' +
+              '<td class="num" style="color:var(--text3);">'+(r.custoConsumo>0?fmt(r.custoConsumo):'--')+'</td>' +
+              '<td><span class="tag '+prioCor+'" style="font-size:10px;">'+prioTag+'</span></td>' +
+              '<td>'+(r.diasRestantes < 30 ? '<button onclick="irParaReposicao('+r.filIdx+')" class="btn" style="font-size:10px;padding:2px 8px;"><i class="ti ti-shopping-cart"></i></button>' : '')+'</td>' +
+            '</tr>';
+          }).join('') +
+          '</tbody></table></div>' +
+          '<div style="margin-top:8px;font-size:11px;color:var(--text3);">Dias restantes calculados com base na media diaria do periodo selecionado. Altere o periodo para refinar a projecao.</div>';
+
+        reporEl.innerHTML = hRepor;
+      }
+    }
+    // ===== FIM RANKING DE REPOSICAO =====
 
     var cmpEl=document.getElementById('rel-compras-fil');
     if(cmpEl){
