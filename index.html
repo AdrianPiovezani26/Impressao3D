@@ -4548,6 +4548,7 @@ function renderVendas(){
         (!isPago ? '<button class="btn-ok" onclick="darBaixaVenda('+i+')" style="font-size:12px;padding:6px 12px;"><i class="ti ti-check"></i> Confirmar Recebimento</button>' :
           '<span style="font-size:12px;color:var(--neon);display:flex;align-items:center;gap:4px;"><i class="ti ti-circle-check"></i> Recebido em '+fmtD(v.dataPagamento||v.data)+'</span>') +
         '<button class="btn" onclick="gerarReciboVenda(vendas['+i+'])" style="font-size:12px;padding:6px 10px;"><i class="ti ti-receipt"></i> Recibo</button>' +
+        '<button class="btn" onclick="editarClienteVenda('+i+')" style="font-size:12px;padding:6px 10px;"><i class="ti ti-user-edit"></i> Editar Cliente</button>' +
         '<button class="btn" onclick="cancelarVenda('+i+')" style="font-size:12px;padding:6px 10px;color:var(--red-text);border-color:var(--red-text);"><i class="ti ti-ban"></i> Cancelar</button>' +
         '<button class="btn-del" onclick="delVenda('+i+')" style="margin-left:auto;"><i class="ti ti-trash"></i> Remover</button>' +
       '</div>' +
@@ -4722,6 +4723,7 @@ function renderContas() {
       '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">' +
         (!isPaga ? '<button class="btn-ok" onclick="darBaixaFatura('+idx+')" style="font-size:12px;padding:6px 12px;background:rgba(0,170,255,0.1);border-color:var(--blue-border);color:var(--blue-text);"><i class="ti ti-cash"></i> '+(isParcial?'Receber Mais':'Pagamento Parcial')+'</button>' : '') +
         (!isPaga ? '<button class="btn-ok" onclick="marcarPaga('+idx+')" style="font-size:12px;padding:6px 12px;"><i class="ti ti-check"></i> Marcar Tudo Pago</button>' : '') +
+        (f.vendaId ? '<button class="btn" onclick="(function(){ var v=vendas.find(function(x){return x.id==='+f.vendaId+';}); if(v) gerarReciboVenda(v); else alert(\'Venda nao encontrada.\'); })()" style="font-size:12px;padding:6px 10px;"><i class="ti ti-receipt"></i> Recibo</button>' : '') +
         '<button class="btn-del" onclick="delFatura('+idx+')" style="margin-left:auto;font-size:12px;padding:6px 10px;"><i class="ti ti-trash"></i></button>' +
       '</div>' +
     '</div>';
@@ -4747,6 +4749,39 @@ function delVenda(i) {
   renderVendas();
   renderContas();
   renderDashboard();
+}
+
+function editarClienteVenda(i) {
+  var v = vendas[i];
+  if(!v) return;
+  var novoCliente = prompt(
+    'Editar nome do cliente:\nVenda #' + (function(){ var s=vendas.slice().sort(function(a,b){return (a.id||0)-(b.id||0);}); var n=s.findIndex(function(x){return x.id===v.id;})+1; return String(n).padStart(3,'0'); })() +
+    '  ' + fmt(v.valor||0),
+    v.cliente || ''
+  );
+  if(novoCliente === null) return;
+  novoCliente = novoCliente.trim();
+  if(!novoCliente) { alert('Informe o nome do cliente.'); return; }
+
+  var nomeAntigo = v.cliente;
+  vendas[i].cliente = novoCliente;
+  S.set('vendas', vendas);
+
+  // Propagar para todas as faturas vinculadas
+  var fatAlteradas = 0;
+  faturas.forEach(function(f) {
+    if(f.vendaId === v.id) {
+      f.cliente = novoCliente;
+      fatAlteradas++;
+    }
+  });
+  if(fatAlteradas > 0) S.set('faturas', faturas);
+
+  renderVendas();
+  renderContas();
+
+  alert('Cliente atualizado!\nDe: ' + nomeAntigo + '\nPara: ' + novoCliente +
+    (fatAlteradas > 0 ? '\n\n' + fatAlteradas + ' fatura(s) em Contas a Receber tambem atualizada(s).' : ''));
 }
 
 function cancelarVenda(i) {
