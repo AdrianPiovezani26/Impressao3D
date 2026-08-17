@@ -12711,91 +12711,42 @@ function salvarImpressao() {
 
   if(_impEditIdx >= 0) {
     var impAntiga = impressoesInternas[_impEditIdx];
-    var impId = impAntiga.id;
 
-    // 1. Estornar saidas antigas: devolver gramas ao filamento
-    var movsAntigas = movimentacoes.filter(function(m){
-      return (m.impId && m.impId === impId) ||
-             (!m.impId && m.tipo === 'saida' && m.referencia && m.referencia === 'Impressao: '+impAntiga.nome);
-    });
-    movsAntigas.forEach(function(m){
-      if(m.filIdx >= 0 && m.filIdx < filamentos.length && parseFloat(m.qtd||0) > 0) {
-        filamentos[m.filIdx].qtd = (parseFloat(filamentos[m.filIdx].qtd)||0) + parseFloat(m.qtd);
-      }
-    });
-    movimentacoes = movimentacoes.filter(function(m){
-      return !((m.impId && m.impId === impId) ||
-               (!m.impId && m.tipo === 'saida' && m.referencia && m.referencia === 'Impressao: '+impAntiga.nome));
-    });
-    S.set('filamentos', filamentos);
-    S.set('movimentacoes', movimentacoes);
+    // 1. Estornar filamentos do registro ANTIGO (entrada = devolucao ao estoque)
+    if(impAntiga.filsEstoque && impAntiga.filsEstoque.length) {
+      impAntiga.filsEstoque.forEach(function(f){
+        if(f.filIdx >= 0 && f.filIdx < filamentos.length && parseFloat(f.peso||0) > 0) {
+          registrarMovimentacao(f.filIdx, 'entrada', parseFloat(f.peso),
+            'Estorno edicao: '+impAntiga.nome, 'Estorno impressao');
+        }
+      });
+    }
 
     // 2. Salvar registro atualizado
     impressoesInternas[_impEditIdx] = registro;
+    S.set('impressoes_internas', impressoesInternas);
 
-    // 3. Registrar novas saidas com impId para rastreamento futuro
+    // 3. Baixar novos filamentos do registro ATUALIZADO
     if(filsEstoque.length) {
       filsEstoque.forEach(function(f){
-        if(filamentos[f.filIdx]) {
-          var antes = parseFloat(filamentos[f.filIdx].qtd)||0;
-          var depois = Math.max(0, antes - f.peso);
-          filamentos[f.filIdx].qtd = depois;
-          movimentacoes.unshift({
-            id: Date.now() + Math.floor(Math.random()*9999),
-            filIdx: f.filIdx,
-            filNome: filamentos[f.filIdx].marca+' '+filamentos[f.filIdx].modelo+' '+filamentos[f.filIdx].corNome,
-            corHex: filamentos[f.filIdx].corHex||'#888',
-            tipo: 'saida', qtd: f.peso,
-            antes: antes.toFixed(0), depois: depois.toFixed(0),
-            motivo: 'Impressao interna (editada): '+nome,
-            referencia: 'Impressao: '+nome,
-            impId: impId,
-            data: hoje(),
-            hora: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
-          });
-        }
+        registrarMovimentacao(f.filIdx, 'saida', f.peso,
+          'Impressao interna: '+nome, 'Impressao: '+nome);
       });
-      S.set('filamentos', filamentos);
-      S.set('movimentacoes', movimentacoes);
     }
-    checkEstoque(); buildFilSelect(); buildFilSelectNpm();
 
-    S.set('impressoes_internas', impressoesInternas);
     document.getElementById('form-impressao').style.display = 'none';
     renderImpressoes(); renderEstoque();
-    alert('Impressao atualizada!' +
-      (movsAntigas.length ? '\n\u21A9 Estorno: '+movsAntigas.length+' saida(s) antiga(s) devolvidas ao estoque.' : '') +
-      (filsEstoque.length ? '\n\u2193 Nova baixa: '+filsEstoque.length+' filamento(s) baixados com quantidades atualizadas.' : '') +
-      '\nCusto: ' + fmt(custoUnit) + (qtd>1?' /un':''));
+    alert('Impressao atualizada!\nEstoque ajustado: estorno do registro anterior e nova baixa aplicada.\nCusto: ' + fmt(custoUnit) + (qtd>1?' /un':''));
     return;
 
   } else {
     impressoesInternas.unshift(registro);
-    // Baixa imediata de estoque ? registra impId para futuras edicoes
+    // Baixa imediata de estoque (novo registro)
     if(filsEstoque.length) {
       filsEstoque.forEach(function(f){
-        if(filamentos[f.filIdx]) {
-          var antes2 = parseFloat(filamentos[f.filIdx].qtd)||0;
-          var depois2 = Math.max(0, antes2 - f.peso);
-          filamentos[f.filIdx].qtd = depois2;
-          movimentacoes.unshift({
-            id: Date.now() + Math.floor(Math.random()*9999),
-            filIdx: f.filIdx,
-            filNome: filamentos[f.filIdx].marca+' '+filamentos[f.filIdx].modelo+' '+filamentos[f.filIdx].corNome,
-            corHex: filamentos[f.filIdx].corHex||'#888',
-            tipo: 'saida', qtd: f.peso,
-            antes: antes2.toFixed(0), depois: depois2.toFixed(0),
-            motivo: 'Impressao interna: '+nome,
-            referencia: 'Impressao: '+nome,
-            impId: registro.id,
-            data: hoje(),
-            hora: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
-          });
-          S.set('filamentos', filamentos);
-          S.set('movimentacoes', movimentacoes);
-        }
+        registrarMovimentacao(f.filIdx, 'saida', f.peso,
+          'Impressao interna: '+nome, 'Impressao: '+nome);
       });
-      checkEstoque(); buildFilSelect(); buildFilSelectNpm();
     }
   }
 
