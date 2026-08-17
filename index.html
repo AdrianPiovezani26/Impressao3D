@@ -2820,9 +2820,24 @@ function buildFilSelectNpm() {
   }
 }
 
+// Select de ajuste: mostra TODOS os filamentos inclusive zerados
+function getFilOptsAll(placeholder) {
+  var ph = placeholder || 'Selecionar filamento...';
+  return '<option value="">'+ph+'</option>' +
+    getFilsOrdenados().map(function(i){
+      var f = filamentos[i];
+      var qtd = parseFloat(f.qtd||0).toFixed(2);
+      return '<option value="'+i+'">'+f.corNome+'  '+f.marca+' '+f.modelo+' ('+qtd+'g)</option>';
+    }).join('');
+}
+
 function buildFilSelect(){
-  // Selects simples (compras, ajuste estoque)
-  [document.getElementById('cp-fil-estoque'), document.getElementById('aj-fil')].forEach(function(s){
+  // Select de ajuste usa getFilOptsAll (mostra inclusive 0g)
+  var ajFil = document.getElementById('aj-fil');
+  if(ajFil) { var v0=ajFil.value; ajFil.innerHTML=getFilOptsAll('Selecionar filamento...'); ajFil.value=v0; }
+
+  // Selects simples de compras
+  [document.getElementById('cp-fil-estoque')].forEach(function(s){
     if(!s) return;
     var v = s.value;
     s.innerHTML = getFilOpts('Selecionar filamento...');
@@ -5430,11 +5445,12 @@ function salvarAjuste() {
   var motivo = upper(document.getElementById('aj-motivo').value);
   if(isNaN(filIdx) || filIdx < 0) { alert('Selecione um filamento'); return; }
   if(qtd <= 0) { alert('Informe a quantidade'); return; }
-  registrarMovimentacao(filIdx, tipo, qtd, motivo || 'Ajuste manual', 'Ajuste manual');
+  registrarMovimentacao(filIdx, tipo, qtd, motivo || 'Ajuste manual', 'Ajuste estoque');
   document.getElementById('form-ajuste').style.display = 'none';
   document.getElementById('aj-qtd').value = '';
   document.getElementById('aj-motivo').value = '';
   renderEstoque();
+  renderMovimentacoes();
   alert('Movimentacao registrada com sucesso!');
 }
 
@@ -5727,7 +5743,9 @@ function renderMovimentacoes() {
   var semGrupo = [];
 
   lista.slice(0,200).forEach(function(m) {
-    if(m.tipo === 'saida' && m.referencia && m.referencia !== '') {
+    var isAjuste = m.referencia === 'Ajuste manual' || m.referencia === 'Ajuste estoque' ||
+                   (m.referencia && m.referencia.indexOf('Estorno') === 0);
+    if(m.tipo === 'saida' && m.referencia && m.referencia !== '' && !isAjuste) {
       if(!grupos[m.referencia]) grupos[m.referencia] = {ref:m.referencia, data:m.data, hora:m.hora||'', itens:[]};
       grupos[m.referencia].itens.push(m);
       // Manter data/hora mais recente do grupo
@@ -11621,7 +11639,7 @@ function getFilOpts(placeholder) {
     }).map(function(i){
       var f = filamentos[i];
       var s = calcEstoqueDisponivel(i);
-      var tag = s.disponivel <= 0 ? ' [RESERVADO]' : s.reservado > 0 || s.preReservado > 0 ? ' [disp:'+s.disponivel.toFixed(0)+'g]' : ' ('+s.fisico.toFixed(0)+'g)';
+      var tag = s.disponivel <= 0 ? ' [RESERVADO]' : s.reservado > 0 || s.preReservado > 0 ? ' [disp:'+s.disponivel.toFixed(2)+'g]' : ' ('+s.fisico.toFixed(2)+'g)';
       return '<option value="'+i+'">'+f.corNome+'  '+f.marca+' '+f.modelo+tag+'</option>';
     }).join('');
 }
