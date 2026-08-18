@@ -1591,6 +1591,7 @@
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
     <span class="stitle" style="margin:0;"><i class="ti ti-package"></i> Controle de Estoque</span>
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button class="btn" onclick="diagnosticarReservas()" style="font-size:12px;padding:6px 12px;color:var(--amber-text);border-color:var(--amber-text);"><i class="ti ti-stethoscope"></i> Diagnosticar</button>
       <button class="btn" onclick="showAjusteEstoque()" style="font-size:12px;padding:6px 12px;"><i class="ti ti-adjustments"></i> Ajuste</button>
       <button class="btn-ok" onclick="renderEstoque()" style="font-size:12px;padding:6px 12px;"><i class="ti ti-refresh"></i> Atualizar</button>
     </div>
@@ -2912,7 +2913,7 @@ function salvarFilamento(){
   var pesoRoloRaw = parseFloat(document.getElementById('f-peso-rolo').value)||1000;
   var pesoRoloEmG = paraGramas(pesoRoloRaw, unidRolo);
   const f={id:editFilIdx>=0?filamentos[editFilIdx].id:Date.now(),marca:upper(marca),modelo:upper(document.getElementById('f-modelo').value),corNome:upper(document.getElementById('f-cor-nome').value)||'NAO INFORMADA',corHex:document.getElementById('f-cor-hex').value,diam:document.getElementById('f-diam').value,qtd:qtdEmG,preco:parseFloat(document.getElementById('f-preco').value)||0,pesoRolo:pesoRoloEmG,temp:document.getElementById('f-temp').value,tempMesa:document.getElementById('f-temp-mesa').value,data:document.getElementById('f-data').value,obs:upper(document.getElementById('f-obs').value)};
-  if(editFilIdx>=0)filamentos[editFilIdx]=f;else filamentos.unshift(f);
+  if(editFilIdx>=0){filamentos[editFilIdx]=f;}else{filamentos.push(f);}
   S.set('filamentos',filamentos);fecharFormFil();renderFils();buildFilSelect();checkEstoque();
 }
 function renderFils(){
@@ -6124,6 +6125,29 @@ function limparFormCompra() {
   addItemCompra('filamento');
 }
 
+// Diagnostico: detecta pedidos com filIdx que aponta para filamento errado
+function diagnosticarReservas() {
+  var problemas = [];
+  pedidos.forEach(function(p, pi) {
+    if(!p.filsEstoque || !p.filsEstoque.length) return;
+    if(['aguardando','producao'].indexOf(p.status) < 0) return;
+    p.filsEstoque.forEach(function(f) {
+      var fil = filamentos[f.filIdx];
+      if(!fil) { problemas.push('Pedido "'+p.nome+'": filIdx '+f.filIdx+' nao existe'); return; }
+      // Verificar se o filNome salvo bate com o filamento atual no indice
+      if(f.filNome && fil.marca && f.filNome.indexOf(fil.marca) < 0) {
+        problemas.push('Pedido "'+p.nome+'" (idx '+pi+'): filIdx '+f.filIdx+
+          ' aponta para "'+fil.marca+' '+fil.modelo+' '+fil.corNome+
+          '" mas filNome salvo e "'+f.filNome+'" ? INDICE DESLOCADO');
+      }
+    });
+  });
+  if(!problemas.length) { alert('Nenhuma reserva fantasma detectada. Indices parecem consistentes.'); return; }
+  alert('PROBLEMAS DETECTADOS:\n\n' + problemas.join('\n\n') +
+    '\n\nSe houver indices deslocados, edite os pedidos afetados e corrija o filamento selecionado.');
+  console.log('Diagnostico reservas:', problemas);
+}
+
 function salvarCompra() {
   var container = document.getElementById('cp-itens-lista');
   if(!container || !container.querySelectorAll('div[id^="cpitem_"]').length) {
@@ -6190,7 +6214,7 @@ function salvarCompra() {
           estoqueAtualizado.push(filamentos[filIdx].marca+' '+filamentos[filIdx].modelo);
           S.set('filamentos', filamentos);
         } else if(marca) {
-          // Filamento novo  cadastrar automaticamente
+          // Filamento novo ? cadastrar ao final do array (push, nao unshift) para nao deslocar indices existentes
           var novoFil = {
             id: Date.now() + Math.floor(Math.random()*1000),
             marca: marca, modelo: modelo, corNome: corNome || 'NAO INFORMADA',
@@ -6199,12 +6223,13 @@ function salvarCompra() {
             temp: temp, tempMesa: tempMesa, obs: obs,
             data: dataCp
           };
-          filamentos.unshift(novoFil);
+          filamentos.push(novoFil);
+          var novoFilIdx = filamentos.length - 1;
           S.set('filamentos', filamentos);
-          Object.assign(compra, { filIdx: 0 }); // recem inserido na posicao 0
+          Object.assign(compra, { filIdx: novoFilIdx });
           estoqueAtualizado.push(marca + ' ' + modelo + ' (novo cadastro)');
           // Registrar movimentacao de entrada (ela que atualiza o qtd)
-          registrarMovimentacao(0, 'entrada', rolos * pesoRolo, 'Compra de filamento  novo cadastro', nf ? 'NF: '+nf : 'Compra');
+          registrarMovimentacao(novoFilIdx, 'entrada', rolos * pesoRolo, 'Compra de filamento ? novo cadastro', nf ? 'NF: '+nf : 'Compra');
         }
       }
 
@@ -6816,11 +6841,11 @@ function cadastrarFilamentoDoXML(desc, gramas, vUnit, nNF, emitente, data) {
       data:     data || hoje(),
       obs:      'Cadastrado via importacao XML NF ' + nNF
     };
-    filamentos.unshift(novoFil);
+    filamentos.push(novoFil);
     S.set('filamentos', filamentos);
-    // Apos unshift, o novo filamento esta no indice 0
+    var novoFilIdxXml = filamentos.length - 1;
     // Registrar entrada (somara as gramas ao qtd=0)
-    registrarMovimentacao(0, 'entrada', gramas,
+    registrarMovimentacao(novoFilIdxXml, 'entrada', gramas,
       'Cadastro via XML NF-e NF ' + nNF,
       'NF: ' + nNF + ' - ' + emitente);
     // Salvar vinculo no mapa pelo ID do filamento, nao pelo indice
