@@ -5593,11 +5593,17 @@ function renderEstoque() {
         (function(){
           var saldo = calcEstoqueDisponivel(fi);
           return (saldo.reservado > 0 || saldo.preReservado > 0) ?
-            '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;background:var(--bg3);border-radius:var(--radius);padding:8px;">' +
+            '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px;background:var(--bg3);border-radius:var(--radius);padding:8px;">' +
               '<div style="text-align:center;"><div style="font-size:9px;color:var(--text3);text-transform:uppercase;">Fisico</div><div style="font-size:16px;font-weight:700;">'+saldo.fisico.toFixed(0)+'g</div></div>' +
               '<div style="text-align:center;"><div style="font-size:9px;color:var(--amber-text);text-transform:uppercase;">Reservado</div><div style="font-size:16px;font-weight:700;color:var(--amber-text);">'+(saldo.reservado+saldo.preReservado).toFixed(0)+'g</div>'+(saldo.preReservado>0?'<div style="font-size:9px;color:var(--text3);">'+saldo.reservado.toFixed(0)+'g ped+'+saldo.preReservado.toFixed(0)+'g orc</div>':'')+'</div>' +
               '<div style="text-align:center;"><div style="font-size:9px;color:var(--neon);text-transform:uppercase;">Disponivel</div><div style="font-size:16px;font-weight:700;color:var(--neon);">'+saldo.disponivel.toFixed(0)+'g</div></div>' +
-            '</div>' : '';
+            '</div>' +
+            '<div style="text-align:center;margin-bottom:10px;">' +
+              '<button onclick="verOrigensReserva('+fi+')" style="font-size:11px;padding:4px 14px;background:rgba(255,170,0,0.12);border:1px solid var(--amber-text);color:var(--amber-text);border-radius:var(--radius);cursor:pointer;">' +
+                '<i class="ti ti-search"></i> Ver origens da reserva' +
+              '</button>' +
+            '</div>'
+            : '';
         })() +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:10px;">' +
           '<div><div style="font-size:10px;color:var(--text3);">Saldo fisico</div><div style="font-size:14px;font-weight:700;color:'+cor+';">'+qtd.toFixed(2)+'g</div></div>' +
@@ -6126,6 +6132,178 @@ function limparFormCompra() {
 }
 
 // Diagnostico: detecta pedidos com filIdx que aponta para filamento errado
+function verOrigensReserva(filIdx) {
+  var f = filamentos[filIdx];
+  if(!f) return;
+
+  // Coletar origens
+  var origens = { pedidos: [], impressoes: [], orcamentos: [] };
+
+  pedidos.forEach(function(p, pi) {
+    if(p.status === 'concluido' || p.status === 'cancelado') return;
+    (p.filsEstoque||[]).forEach(function(fs) {
+      if(fs.filIdx === filIdx && parseFloat(fs.peso||0) > 0) {
+        origens.pedidos.push({ idx: pi, p: p, peso: parseFloat(fs.peso) });
+      }
+    });
+  });
+
+  impressoesInternas.forEach(function(imp, ii) {
+    if(imp.status === 'concluida' || imp.status === 'cancelada') return;
+    (imp.filsEstoque||[]).forEach(function(fs) {
+      if(fs.filIdx === filIdx && parseFloat(fs.peso||0) > 0) {
+        origens.impressoes.push({ idx: ii, imp: imp, peso: parseFloat(fs.peso) });
+      }
+    });
+  });
+
+  _histCalc.forEach(function(h, hi) {
+    if(!h.reservado) return;
+    (h.filsEstoque||[]).forEach(function(fs) {
+      if(fs.filIdx === filIdx && parseFloat(fs.peso||0) > 0) {
+        origens.orcamentos.push({ idx: hi, h: h, id: h.id, peso: parseFloat(fs.peso) });
+      }
+    });
+  });
+
+  var totalPed  = origens.pedidos.reduce(function(s,o){ return s+o.peso; }, 0);
+  var totalImp  = origens.impressoes.reduce(function(s,o){ return s+o.peso; }, 0);
+  var totalOrc  = origens.orcamentos.reduce(function(s,o){ return s+o.peso; }, 0);
+  var totalGeral = totalPed + totalImp + totalOrc;
+
+  // Status badge helper
+  var ST_LABEL = {aguardando:'Aguardando',producao:'Em Producao',concluido:'Concluido',cancelado:'Cancelado'};
+  var ST_TAG   = {aguardando:'tag-amber',producao:'tag-blue',concluido:'tag-green',cancelado:'tag-red'};
+
+  var h = '';
+
+  // Cabecalho
+  h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">' +
+    '<span style="width:16px;height:16px;border-radius:50%;background:'+(f.corHex||'#888')+';border:2px solid var(--border2);flex-shrink:0;"></span>' +
+    '<div>' +
+      '<div style="font-weight:700;font-size:15px;">'+f.corNome+' '+f.marca+' '+f.modelo+'</div>' +
+      '<div style="font-size:12px;color:var(--text3);">Total reservado: <strong style="color:var(--amber-text);">'+totalGeral.toFixed(2)+'g</strong> de '+parseFloat(f.qtd||0).toFixed(2)+'g fisico</div>' +
+    '</div>' +
+  '</div>';
+
+  if(!totalGeral) {
+    h += '<div style="text-align:center;padding:2rem;color:var(--text3);">Nenhuma reserva ativa encontrada para este filamento.</div>';
+  }
+
+  // PEDIDOS
+  if(origens.pedidos.length) {
+    h += '<div style="margin-bottom:14px;">' +
+      '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;border-bottom:1px solid var(--border2);padding-bottom:4px;">'+
+        '<i class="ti ti-clipboard-list"></i> Pedidos ('+totalPed.toFixed(0)+'g)</div>';
+    origens.pedidos.forEach(function(o) {
+      h += '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg3);border-radius:var(--radius);margin-bottom:4px;">' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-weight:600;font-size:13px;">'+o.p.nome+'</div>' +
+          '<div style="font-size:11px;color:var(--text3);">'+(o.p.cliente||'Cliente nao informado')+' &bull; '+fmtD(o.p.dataEntrega||o.p.data||'')+'</div>' +
+        '</div>' +
+        '<span class="tag '+(ST_TAG[o.p.status]||'tag-blue')+'" style="font-size:10px;white-space:nowrap;">'+(ST_LABEL[o.p.status]||o.p.status)+'</span>' +
+        '<div style="text-align:right;flex-shrink:0;">' +
+          '<div style="font-weight:700;color:var(--amber-text);font-size:14px;">'+o.peso.toFixed(2)+'g</div>' +
+        '</div>' +
+        '<button onclick="fecharModalReservas();irParaPedido('+o.idx+')" style="font-size:10px;padding:3px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);cursor:pointer;white-space:nowrap;">'+
+          '<i class="ti ti-arrow-right"></i> Ver pedido</button>' +
+      '</div>';
+    });
+    h += '</div>';
+  }
+
+  // IMPRESSOES INTERNAS
+  if(origens.impressoes.length) {
+    h += '<div style="margin-bottom:14px;">' +
+      '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;border-bottom:1px solid var(--border2);padding-bottom:4px;">'+
+        '<i class="ti ti-printer"></i> Impressoes Internas ('+totalImp.toFixed(0)+'g)</div>';
+    origens.impressoes.forEach(function(o) {
+      h += '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg3);border-radius:var(--radius);margin-bottom:4px;">' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-weight:600;font-size:13px;">'+o.imp.nome+'</div>' +
+          '<div style="font-size:11px;color:var(--text3);">'+fmtD(o.imp.dataIso||o.imp.data||'')+(o.imp.horas&&o.imp.horas!='--'?' &bull; '+o.imp.horas:'')+'</div>' +
+        '</div>' +
+        '<div style="text-align:right;flex-shrink:0;">' +
+          '<div style="font-weight:700;color:var(--amber-text);font-size:14px;">'+o.peso.toFixed(2)+'g</div>' +
+        '</div>' +
+        '<button onclick="fecharModalReservas();irParaImpressao('+o.idx+')" style="font-size:10px;padding:3px 10px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);cursor:pointer;white-space:nowrap;">'+
+          '<i class="ti ti-arrow-right"></i> Ver</button>' +
+      '</div>';
+    });
+    h += '</div>';
+  }
+
+  // ORCAMENTOS PRE-RESERVADOS
+  if(origens.orcamentos.length) {
+    h += '<div style="margin-bottom:14px;">' +
+      '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;border-bottom:1px solid var(--border2);padding-bottom:4px;">'+
+        '<i class="ti ti-calculator"></i> Pre-Reservas / Orcamentos ('+totalOrc.toFixed(0)+'g)</div>';
+    origens.orcamentos.forEach(function(o) {
+      h += '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg3);border-radius:var(--radius);margin-bottom:4px;">' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-weight:600;font-size:13px;">'+(o.h.nome||'Orcamento')+'</div>' +
+          '<div style="font-size:11px;color:var(--text3);">'+fmtD(o.h.data||'')+(o.h.cliente?' &bull; '+o.h.cliente:'')+'</div>' +
+        '</div>' +
+        '<span class="tag tag-amber" style="font-size:10px;">Pre-reservado</span>' +
+        '<div style="text-align:right;flex-shrink:0;">' +
+          '<div style="font-weight:700;color:var(--amber-text);font-size:14px;">'+o.peso.toFixed(2)+'g</div>' +
+        '</div>' +
+        '<button onclick="liberarReservaHistCalc('+o.id+');fecharModalReservas();renderEstoque();" style="font-size:10px;padding:3px 10px;background:rgba(255,50,50,0.1);border:1px solid var(--red-text);color:var(--red-text);border-radius:var(--radius);cursor:pointer;white-space:nowrap;">'+
+          '<i class="ti ti-lock-open"></i> Liberar</button>' +
+      '</div>';
+    });
+    h += '</div>';
+  }
+
+  // Montar modal
+  var existing = document.getElementById('modal-reservas');
+  if(existing) existing.remove();
+
+  var modal = document.createElement('div');
+  modal.id = 'modal-reservas';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
+  modal.innerHTML =
+    '<div style="background:var(--bg1);border:1px solid var(--border2);border-radius:var(--radius);max-width:600px;width:100%;max-height:85vh;overflow-y:auto;padding:20px;box-shadow:0 8px 32px rgba(0,0,0,.4);">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+        '<div style="font-size:13px;font-weight:700;color:var(--amber-text);"><i class="ti ti-lock"></i> Origens da Reserva de Estoque</div>' +
+        '<button onclick="fecharModalReservas()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text3);line-height:1;">&times;</button>' +
+      '</div>' +
+      h +
+    '</div>';
+  modal.addEventListener('click', function(e){ if(e.target===modal) fecharModalReservas(); });
+  document.body.appendChild(modal);
+}
+
+function fecharModalReservas() {
+  var m = document.getElementById('modal-reservas');
+  if(m) m.remove();
+}
+
+function irParaPedido(pedidoIdx) {
+  switchTab('pedidos');
+  setTimeout(function() {
+    var cards = document.querySelectorAll('#lista-pedidos .item-card, #lista-kanban .kanban-card');
+    if(cards[pedidoIdx]) {
+      cards[pedidoIdx].scrollIntoView({behavior:'smooth', block:'center'});
+      cards[pedidoIdx].style.outline = '2px solid var(--amber-text)';
+      setTimeout(function(){ cards[pedidoIdx].style.outline=''; }, 3000);
+    }
+  }, 300);
+}
+
+function irParaImpressao(impIdx) {
+  switchTab('impressoes');
+  setTimeout(function() {
+    var cards = document.querySelectorAll('#lista-impressoes .item-card');
+    if(cards[impIdx]) {
+      cards[impIdx].scrollIntoView({behavior:'smooth', block:'center'});
+      cards[impIdx].style.outline = '2px solid var(--amber-text)';
+      setTimeout(function(){ cards[impIdx].style.outline=''; }, 3000);
+    }
+  }, 300);
+}
+
+
 function diagnosticarReservas() {
   var problemas = [];
   pedidos.forEach(function(p, pi) {
@@ -6134,11 +6312,10 @@ function diagnosticarReservas() {
     p.filsEstoque.forEach(function(f) {
       var fil = filamentos[f.filIdx];
       if(!fil) { problemas.push('Pedido "'+p.nome+'": filIdx '+f.filIdx+' nao existe'); return; }
-      // Verificar se o filNome salvo bate com o filamento atual no indice
       if(f.filNome && fil.marca && f.filNome.indexOf(fil.marca) < 0) {
         problemas.push('Pedido "'+p.nome+'" (idx '+pi+'): filIdx '+f.filIdx+
           ' aponta para "'+fil.marca+' '+fil.modelo+' '+fil.corNome+
-          '" mas filNome salvo e "'+f.filNome+'" ? INDICE DESLOCADO');
+          '" mas filNome salvo e "'+f.filNome+'" - INDICE DESLOCADO');
       }
     });
   });
@@ -6147,6 +6324,7 @@ function diagnosticarReservas() {
     '\n\nSe houver indices deslocados, edite os pedidos afetados e corrija o filamento selecionado.');
   console.log('Diagnostico reservas:', problemas);
 }
+
 
 function salvarCompra() {
   var container = document.getElementById('cp-itens-lista');
