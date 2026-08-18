@@ -1592,6 +1592,7 @@
     <span class="stitle" style="margin:0;"><i class="ti ti-package"></i> Controle de Estoque</span>
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
       <button class="btn" onclick="diagnosticarReservas()" style="font-size:12px;padding:6px 12px;color:var(--amber-text);border-color:var(--amber-text);"><i class="ti ti-stethoscope"></i> Diagnosticar</button>
+      <button class="btn" onclick="if(confirm('Corrigir automaticamente referencias de filamento deslocadas em Pedidos, Impressoes e Orcamentos?\n\nO sistema usara o nome salvo em cada registro para encontrar o filamento correto.')) repararIndicesDeslocados();" style="font-size:12px;padding:6px 12px;color:var(--red-text);border-color:var(--red-text);"><i class="ti ti-tool"></i> Reparar Indices</button>
       <button class="btn" onclick="showAjusteEstoque()" style="font-size:12px;padding:6px 12px;"><i class="ti ti-adjustments"></i> Ajuste</button>
       <button class="btn-ok" onclick="renderEstoque()" style="font-size:12px;padding:6px 12px;"><i class="ti ti-refresh"></i> Atualizar</button>
     </div>
@@ -6303,6 +6304,69 @@ function irParaImpressao(impIdx) {
   }, 300);
 }
 
+
+function repararIndicesDeslocados() {
+  var corrigidos = 0, naoencontrados = [];
+
+  function encontrarFilIdx(filNome) {
+    if(!filNome) return -1;
+    var nome = filNome.toUpperCase();
+    // Busca exata por marca+modelo+cor
+    var idx = filamentos.findIndex(function(f){
+      var candidato = ((f.marca||'')+' '+(f.modelo||'')+' '+(f.corNome||'')).toUpperCase();
+      return candidato.trim() === nome.trim();
+    });
+    if(idx >= 0) return idx;
+    // Busca parcial: verifica se marca e corNome estao no nome
+    idx = filamentos.findIndex(function(f){
+      var m = (f.marca||'').toUpperCase();
+      var c = (f.corNome||'').toUpperCase();
+      return m && c && nome.indexOf(m) >= 0 && nome.indexOf(c) >= 0;
+    });
+    return idx;
+  }
+
+  function corrigirLista(lista, tipo) {
+    lista.forEach(function(reg) {
+      if(!reg.filsEstoque || !reg.filsEstoque.length) return;
+      reg.filsEstoque.forEach(function(fs) {
+        if(!fs.filNome) return;
+        var filAtual = filamentos[fs.filIdx];
+        var nomeAtual = filAtual ? ((filAtual.marca||'')+' '+(filAtual.modelo||'')+' '+(filAtual.corNome||'')).toUpperCase() : '';
+        var nomeEsperado = fs.filNome.toUpperCase();
+        // Se o filamento no indice nao bate com o nome salvo, corrigir
+        if(nomeAtual !== nomeEsperado) {
+          var novoIdx = encontrarFilIdx(fs.filNome);
+          if(novoIdx >= 0) {
+            console.log('Corrigindo '+tipo+' "'+reg.nome+'": filIdx '+fs.filIdx+' -> '+novoIdx+' ('+fs.filNome+')');
+            fs.filIdx = novoIdx;
+            corrigidos++;
+          } else {
+            naoencontrados.push(tipo+' "'+reg.nome+'": "'+fs.filNome+'" nao encontrado');
+          }
+        }
+      });
+    });
+  }
+
+  corrigirLista(pedidos, 'Pedido');
+  S.set('pedidos', pedidos);
+
+  corrigirLista(impressoesInternas, 'Impressao');
+  S.set('impressoes_internas', impressoesInternas);
+
+  corrigirLista(_histCalc, 'Orcamento');
+  S.set('hist_calc', _histCalc);
+
+  renderEstoque();
+  renderPedidos ? renderPedidos() : null;
+  renderImpressoes ? renderImpressoes() : null;
+
+  var msg = 'Reparo concluido!\n' + corrigidos + ' referencia(s) corrigida(s).';
+  if(naoencontrados.length) msg += '\n\nNao encontrados (' + naoencontrados.length + '):\n' + naoencontrados.join('\n');
+  else msg += '\nTodas as referencias foram normalizadas com sucesso.';
+  alert(msg);
+}
 
 function diagnosticarReservas() {
   var problemas = [];
