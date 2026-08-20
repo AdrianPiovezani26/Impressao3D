@@ -2828,7 +2828,7 @@ function getFilOptsAll(placeholder) {
   return '<option value="">'+ph+'</option>' +
     getFilsOrdenados().map(function(i){
       var f = filamentos[i];
-      var qtd = parseFloat(f.qtd||0).toFixed(2);
+      var qtd = parseFloat(f.qtd||0).toFixed(3);
       return '<option value="'+i+'">'+f.corNome+'  '+f.marca+' '+f.modelo+' ('+qtd+'g)</option>';
     }).join('');
 }
@@ -2935,7 +2935,7 @@ function renderFils(){
       var cg=(f.preco>0&&f.pesoRolo>0)?(f.preco/f.pesoRolo).toFixed(3):'--';
       const pct=f.pesoRolo>0?(f.qtd/f.pesoRolo*100):0;
       const[sc,sl]=pct>50?['tag-green','Ok']:pct>15?['tag-amber','Baixo']:['tag-red','Critico'];
-      h+=`<tr><td><span class="cor-dot" style="background:${f.corHex};"></span></td><td><strong>${f.marca}</strong></td><td>${f.corNome}</td><td>${f.diam}mm</td><td><span class="tag ${sc}">${f.qtd}g - ${sl}</span></td><td>${fmt(f.preco)}</td><td>R$ ${cg}/g</td><td>${f.temp?f.temp+'C':'--'}${f.tempMesa?' / '+f.tempMesa+'C':''}</td><td style="font-size:11px;color:var(--text2);">${fmtD(f.data)}</td><td style="font-size:11px;color:var(--text2);max-width:100px;">${f.obs||'--'}</td><td><div class="row-actions"><button class="btn-edit" onclick="showFormFil(${idx})"><i class="ti ti-edit"></i></button><button class="btn-del" onclick="delFil(${idx})"><i class="ti ti-trash"></i></button></div></td></tr>`;
+      h+=`<tr><td><span class="cor-dot" style="background:${f.corHex};"></span></td><td><strong>${f.marca}</strong></td><td>${f.corNome}</td><td>${f.diam}mm</td><td><span class="tag ${sc}">${parseFloat(f.qtd||0).toFixed(3)}g - ${sl}</span></td><td>${fmt(f.preco)}</td><td>R$ ${cg}/g</td><td>${f.temp?f.temp+'C':'--'}${f.tempMesa?' / '+f.tempMesa+'C':''}</td><td style="font-size:11px;color:var(--text2);">${fmtD(f.data)}</td><td style="font-size:11px;color:var(--text2);max-width:100px;">${f.obs||'--'}</td><td><div class="row-actions"><button class="btn-edit" onclick="showFormFil(${idx})"><i class="ti ti-edit"></i></button><button class="btn-del" onclick="delFil(${idx})"><i class="ti ti-trash"></i></button></div></td></tr>`;
     });
     h+='</tbody></table></div></div>';
   });
@@ -3032,7 +3032,7 @@ function addFilProdInline(i, filIdx, pesoVal) {
   var sel = document.createElement('select');
   sel.style.cssText = 'flex:2;min-width:150px;border:1px solid var(--border2);border-radius:var(--radius);padding:5px 8px;font-size:12px;background:var(--bg2);color:var(--text);';
   sel.innerHTML = '<option value="">-- Sem filamento --</option>' +
-    filamentos.filter(function(f){ return parseFloat(f.qtd||0)>0; }).map(function(f){ var fi=filamentos.indexOf(f); return '<option value="'+fi+'">'+f.corNome+' '+f.marca+' '+f.modelo+' ('+parseFloat(f.qtd||0).toFixed(0)+'g)</option>'; }).join('');
+    filamentos.filter(function(f){ return parseFloat(f.qtd||0)>0; }).map(function(f){ var fi=filamentos.indexOf(f); return '<option value="'+fi+'">'+f.corNome+'  '+f.marca+' '+f.modelo+' ('+parseFloat(f.qtd||0).toFixed(3)+'g)</option>'; }).join('');
   if(filIdx !== undefined && filIdx >= 0) sel.value = filIdx;
   var inp = document.createElement('input');
   inp.type='number'; inp.placeholder='Peso (g)'; inp.min='0'; inp.step='1';
@@ -5433,7 +5433,7 @@ function previewAjuste() {
 function showAjusteEstoque() {
   const s = document.getElementById('aj-fil');
   s.innerHTML = '<option value="">Selecionar filamento...</option>' +
-    filamentos.map((f,i) => `<option value="${i}">${f.marca} ${f.modelo} -- ${f.corNome} (${f.qtd}g)</option>`).join('');
+    filamentos.map((f,i) => `<option value="${i}">${f.corNome}  ${f.marca} ${f.modelo} (${parseFloat(f.qtd||0).toFixed(3)}g)</option>`).join('');
   document.getElementById('form-ajuste').style.display = 'block';
   document.getElementById('form-ajuste').scrollIntoView({behavior:'smooth'});
 }
@@ -5565,7 +5565,7 @@ function renderEstoque() {
       var pct  = f.pesoRolo > 0 ? Math.min(100, qtd/parseFloat(f.pesoRolo||1000)*100) : 0;
       var st   = getStatus(f);
       var cor  = STATUS_COR[st];
-      var custoG = f.preco > 0 && f.pesoRolo > 0 ? (parseFloat(f.preco)/parseFloat(f.pesoRolo)).toFixed(2) : '--';
+      var custoG = f.preco > 0 && f.pesoRolo > 0 ? (parseFloat(f.preco)/parseFloat(f.pesoRolo)).toFixed(3) : '--';
       var movsFil  = movimentacoes.filter(function(m){ return m.filIdx === fi; });
       var totalEnt = movsFil.filter(function(m){return m.tipo==='entrada';}).reduce(function(s,m){return s+parseFloat(m.qtd||0);},0);
       var totalSai = movsFil.filter(function(m){return m.tipo==='saida';}).reduce(function(s,m){return s+parseFloat(m.qtd||0);},0);
@@ -11906,7 +11906,7 @@ function getFilOpts(placeholder) {
     }).map(function(i){
       var f = filamentos[i];
       var s = calcEstoqueDisponivel(i);
-      var tag = s.disponivel <= 0 ? ' [RESERVADO]' : s.reservado > 0 || s.preReservado > 0 ? ' [disp:'+s.disponivel.toFixed(2)+'g]' : ' ('+s.fisico.toFixed(2)+'g)';
+      var tag = s.disponivel <= 0 ? ' [RESERVADO]' : s.reservado > 0 || s.preReservado > 0 ? ' [disp:'+s.disponivel.toFixed(3)+'g]' : ' ('+s.fisico.toFixed(3)+'g)';
       return '<option value="'+i+'">'+f.corNome+'  '+f.marca+' '+f.modelo+tag+'</option>';
     }).join('');
 }
