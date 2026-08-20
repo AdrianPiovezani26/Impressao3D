@@ -13035,6 +13035,41 @@ function salvarImpressao() {
   alert('Impressao registrada!' + (filsEstoque.length ? '\n' + filsEstoque.length + ' filamento(s) baixado(s) do estoque.' : '') + '\nCusto: ' + fmt(custoUnit) + (qtd>1?' /un':''));
 }
 
+// Migracao: define status e estoqueBaixado nas impressoes internas antigas
+function migrarImpressoesInternas() {
+  var alterados = 0;
+  impressoesInternas.forEach(function(imp, i) {
+    // Ja migrado ? pular
+    if(imp.status && imp.status !== '') return;
+
+    // Se nao tem filamentos vinculados, considera concluida (sem baixa de estoque necessaria)
+    if(!imp.filsEstoque || !imp.filsEstoque.length) {
+      impressoesInternas[i].status = 'concluida';
+      impressoesInternas[i].estoqueBaixado = false;
+      alterados++;
+      return;
+    }
+
+    // Verificar se existe movimentacao de saida com referencia a esta impressao
+    var nomeProcurado = 'Impressao: ' + imp.nome;
+    var movBaixada = movimentacoes.some(function(m) {
+      return m.tipo === 'saida' && (
+        m.referencia === nomeProcurado ||
+        (m.motivo && m.motivo.indexOf('Impressao interna: '+imp.nome) >= 0)
+      );
+    });
+
+    impressoesInternas[i].status = movBaixada ? 'concluida' : 'ativa';
+    impressoesInternas[i].estoqueBaixado = movBaixada;
+    alterados++;
+  });
+
+  if(alterados > 0) {
+    S.set('impressoes_internas', impressoesInternas);
+    console.log('migrarImpressoesInternas: ' + alterados + ' registros migrados.');
+  }
+}
+
 function baixarEstoqueImpressao(idx) {
   var imp = impressoesInternas[idx];
   if(!imp) return;
@@ -13582,6 +13617,7 @@ document.addEventListener('DOMContentLoaded', function() {
   limparFaturasOrfas();
   baixaRetroativaPedidosConcluidos();
   estornoChaveiroHercules();
+  migrarImpressoesInternas();
   renderHistoricoCalc();
 
 });
