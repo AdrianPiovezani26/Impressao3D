@@ -12991,54 +12991,105 @@ function salvarImpressao() {
     custoUnit: custoUnit,
     filsEstoque: filsEstoque,
     filNome: filsEstoque.length ? filsEstoque.map(function(f){ return f.filNome+' ('+parseFloat(f.peso||0).toFixed(2)+'g)'; }).join(', ') : '--',
-    produtoCriado: _impEditIdx >= 0 ? (impressoesInternas[_impEditIdx].produtoCriado||false) : false
+    produtoCriado: _impEditIdx >= 0 ? (impressoesInternas[_impEditIdx].produtoCriado||false) : false,
+    estoqueBaixado: _impEditIdx >= 0 ? (impressoesInternas[_impEditIdx].estoqueBaixado || false) : false,
+    status: _impEditIdx >= 0 ? (impressoesInternas[_impEditIdx].status || 'ativa') : 'ativa'
   };
 
   if(_impEditIdx >= 0) {
     var impAntiga = impressoesInternas[_impEditIdx];
 
-    // 1. Estornar filamentos do registro ANTIGO (entrada = devolucao ao estoque)
-    if(impAntiga.filsEstoque && impAntiga.filsEstoque.length) {
-      impAntiga.filsEstoque.forEach(function(f){
-        if(f.filIdx >= 0 && f.filIdx < filamentos.length && parseFloat(f.peso||0) > 0) {
-          registrarMovimentacao(f.filIdx, 'entrada', parseFloat(f.peso),
-            'Estorno edicao: '+impAntiga.nome, 'Estorno impressao');
-        }
-      });
+    // So estorna se o estoque ja foi efetivamente baixado
+    if(impAntiga.estoqueBaixado === true) {
+      // 1. Estornar filamentos do registro ANTIGO
+      if(impAntiga.filsEstoque && impAntiga.filsEstoque.length) {
+        impAntiga.filsEstoque.forEach(function(f){
+          if(f.filIdx >= 0 && f.filIdx < filamentos.length && parseFloat(f.peso||0) > 0) {
+            registrarMovimentacao(f.filIdx, 'entrada', parseFloat(f.peso),
+              'Estorno edicao: '+impAntiga.nome, 'Estorno impressao');
+          }
+        });
+      }
+      // 2. Baixar novos filamentos
+      if(filsEstoque.length) {
+        filsEstoque.forEach(function(f){
+          registrarMovimentacao(f.filIdx, 'saida', f.peso,
+            'Impressao interna: '+nome, 'Impressao: '+nome);
+        });
+      }
     }
+    // (se nao baixado: apenas atualiza filsEstoque, sem mexer no estoque fisico)
 
-    // 2. Salvar registro atualizado
+    // Salvar registro atualizado em ambos os casos
     impressoesInternas[_impEditIdx] = registro;
-    S.set('impressoes_internas', impressoesInternas);
-
-    // 3. Baixar novos filamentos do registro ATUALIZADO
-    if(filsEstoque.length) {
-      filsEstoque.forEach(function(f){
-        registrarMovimentacao(f.filIdx, 'saida', f.peso,
-          'Impressao interna: '+nome, 'Impressao: '+nome);
-      });
-    }
-
-    document.getElementById('form-impressao').style.display = 'none';
-    renderImpressoes(); renderEstoque();
-    alert('Impressao atualizada!\nEstoque ajustado: estorno do registro anterior e nova baixa aplicada.\nCusto: ' + fmt(custoUnit) + (qtd>1?' /un':''));
-    return;
 
   } else {
     impressoesInternas.unshift(registro);
-    // Baixa imediata de estoque (novo registro)
-    if(filsEstoque.length) {
-      filsEstoque.forEach(function(f){
-        registrarMovimentacao(f.filIdx, 'saida', f.peso,
-          'Impressao interna: '+nome, 'Impressao: '+nome);
-      });
-    }
+    // Estoque NAO e baixado imediatamente ? fica como "Reservado"
+    // O usuario confirma com o botao "Baixar Estoque" quando a impressao for concluida
   }
 
   S.set('impressoes_internas', impressoesInternas);
   document.getElementById('form-impressao').style.display = 'none';
   renderImpressoes();
   alert('Impressao registrada!' + (filsEstoque.length ? '\n' + filsEstoque.length + ' filamento(s) baixado(s) do estoque.' : '') + '\nCusto: ' + fmt(custoUnit) + (qtd>1?' /un':''));
+}
+
+function baixarEstoqueImpressao(idx) {
+  var imp = impressoesInternas[idx];
+  if(!imp) return;
+  if(imp.status === 'concluida') { alert('Esta impressao ja foi concluida.'); return; }
+  if(imp.status === 'cancelada') { alert('Esta impressao foi cancelada.'); return; }
+
+  var filNomes = (imp.filsEstoque||[]).map(function(f){
+    var fil = filamentos[f.filIdx];
+    return '  ' + (fil ? fil.corNome+' '+fil.marca+' '+fil.modelo : 'Filamento #'+f.filIdx) +
+           ': ' + parseFloat(f.peso||0).toFixed(3) + 'g';
+  }).join('\n');
+
+  if(!confirm('Baixar estoque e concluir a impressao "'+imp.nome+'"?\n\n' +
+    (filNomes ? 'Filamentos que serao deduzidos:\n'+filNomes : 'Sem filamento vinculado.') +
+    '\n\nEsta acao e irreversivel.')) return;
+
+  // Deduzir estoque de cada filamento (se ainda nao foi baixado)
+  if(!imp.estoqueBaixado) {
+    (imp.filsEstoque||[]).forEach(function(f){
+      if(f.filIdx >= 0 && f.filIdx < filamentos.length && parseFloat(f.peso||0) > 0) {
+        registrarMovimentacao(f.filIdx, 'saida', parseFloat(f.peso),
+          'Impressao interna: '+imp.nome, 'Impressao: '+imp.nome);
+      }
+    });
+  }
+
+  impressoesInternas[idx].status = 'concluida';
+  impressoesInternas[idx].estoqueBaixado = true;
+  S.set('impressoes_internas', impressoesInternas);
+  renderImpressoes();
+  renderEstoque();
+  alert('Impressao concluida!\n' +
+    (imp.estoqueBaixado ? '' : (imp.filsEstoque||[]).length + ' filamento(s) deduzido(s) do estoque.'));
+}
+
+function cancelarImpressao(idx) {
+  var imp = impressoesInternas[idx];
+  if(!imp) return;
+  if(imp.status === 'concluida' && imp.estoqueBaixado) {
+    if(!confirm('ATENCAO: esta impressao ja teve o estoque baixado.\nCancelar vai estornar os filamentos de volta ao estoque.\n\nContinuar?')) return;
+    // Estornar filamentos de volta ao estoque
+    (imp.filsEstoque||[]).forEach(function(f){
+      if(f.filIdx >= 0 && f.filIdx < filamentos.length && parseFloat(f.peso||0) > 0) {
+        registrarMovimentacao(f.filIdx, 'entrada', parseFloat(f.peso),
+          'Cancelamento impressao: '+imp.nome, 'Estorno impressao');
+      }
+    });
+  } else {
+    if(!confirm('Cancelar a impressao "'+imp.nome+'"? A reserva de estoque sera liberada.')) return;
+  }
+  impressoesInternas[idx].status = 'cancelada';
+  impressoesInternas[idx].estoqueBaixado = false;
+  S.set('impressoes_internas', impressoesInternas);
+  renderImpressoes();
+  renderEstoque();
 }
 
 function delImpressao(idx) {
@@ -13119,9 +13170,38 @@ function renderImpressoes() {
         '</div>' +
       '</div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">' +
-        (!imp.produtoCriado ? '<button class="btn-ok" onclick="transformarImpressaoEmProduto('+idx+')" style="font-size:11px;padding:5px 10px;background:rgba(0,170,255,0.08);border-color:var(--blue-border);color:var(--blue-text);"><i class="ti ti-package"></i> Transformar em Produto</button>' : '') +
-        '<button class="btn" onclick="abrirFormImpressao('+idx+')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-edit"></i> Editar</button>' +
-        '<button class="btn-del" onclick="delImpressao('+idx+')" style="font-size:11px;padding:5px 10px;margin-left:auto;"><i class="ti ti-trash"></i></button>' +
+        (function(){
+          var st = imp.status || 'ativa';
+          var baixado = imp.estoqueBaixado === true;
+          var btns = '';
+          // Badge de status
+          if(st === 'concluida')
+            btns += '<span class="tag tag-green" style="font-size:10px;"><i class="ti ti-check"></i> Concluida</span>';
+          else if(st === 'cancelada')
+            btns += '<span class="tag tag-red" style="font-size:10px;"><i class="ti ti-ban"></i> Cancelada</span>';
+          else
+            btns += '<span class="tag tag-amber" style="font-size:10px;"><i class="ti ti-clock"></i> Aguardando Baixa</span>';
+
+          // Botao principal: Baixar Estoque (so se ativa)
+          if(st !== 'concluida' && st !== 'cancelada')
+            btns += '<button class="btn-ok" onclick="baixarEstoqueImpressao('+idx+')" style="font-size:11px;padding:5px 12px;background:rgba(0,220,100,0.1);border-color:var(--neon);color:var(--neon);"><i class="ti ti-arrow-bar-to-down"></i> Baixar Estoque</button>';
+
+          // Transformar em produto
+          if(!imp.produtoCriado && st === 'concluida')
+            btns += '<button class="btn-ok" onclick="transformarImpressaoEmProduto('+idx+')" style="font-size:11px;padding:5px 10px;background:rgba(0,170,255,0.08);border-color:var(--blue-border);color:var(--blue-text);"><i class="ti ti-package"></i> Transformar em Produto</button>';
+
+          // Editar (so se ativa)
+          if(st !== 'concluida' && st !== 'cancelada')
+            btns += '<button class="btn" onclick="abrirFormImpressao('+idx+')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-edit"></i> Editar</button>';
+
+          // Cancelar (se ativa) ou Excluir (se concluida/cancelada)
+          if(st !== 'concluida' && st !== 'cancelada')
+            btns += '<button class="btn" onclick="cancelarImpressao('+idx+')" style="font-size:11px;padding:5px 10px;color:var(--red-text);border-color:var(--red-text);margin-left:auto;"><i class="ti ti-ban"></i> Cancelar</button>';
+          else
+            btns += '<button class="btn-del" onclick="delImpressao('+idx+')" style="font-size:11px;padding:5px 10px;margin-left:auto;"><i class="ti ti-trash"></i></button>';
+
+          return btns;
+        })() +
       '</div>' +
     '</div>';
   }).join('');
