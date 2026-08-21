@@ -11039,10 +11039,19 @@ function recarregarDados() {
   parceiros=S.get('parceiros')||[];clientes=S.get('clientes')||[];
   contasPagar=S.get('contas_pagar')||[];movimentacoes=S.get('movimentacoes')||[];
   _histCalc=S.get('hist_calc')||[];cfg=S.get('cfg')||{};
+  impressoesInternas=S.get('impressoes_internas')||[];
+  impressoras=S.get('impressoras')||[];
   converterDadosParaMaiusculas();sincronizarStatusProdutos();
-  limparFaturasOrfas();checkEstoque();renderFils();buildFilSelect();
-  renderHistoricoCalc();renderDashboard();
-  console.log('Firebase: dados sincronizados');
+  migrarImpressoesInternas();
+  limparFaturasOrfas();checkEstoque();buildFilSelect();
+  renderFils();renderDashboard();renderHistoricoCalc();
+  if(typeof renderImpressoes==='function') renderImpressoes();
+  if(typeof renderPedidos==='function') renderPedidos();
+  if(typeof renderVendas==='function') renderVendas();
+  if(typeof renderContas==='function') renderContas();
+  if(typeof renderImpressoras==='function') renderImpressoras();
+  aplicarCfg();
+  console.log('[Firebase] recarregado: imp='+impressoesInternas.length+' ped='+pedidos.length+' fil='+filamentos.length);
 }
 /* ===== FIM FIREBASE SYNC ===== */
 
@@ -13619,6 +13628,12 @@ document.addEventListener('DOMContentLoaded', function() {
   estornoChaveiroHercules();
   migrarImpressoesInternas();
   renderHistoricoCalc();
+
+  // Sincronizar Firebase automaticamente ao carregar
+  // Firebase tem prioridade quando tem >= registros que o local
+  if(typeof window.fbSincronizar === 'function') {
+    window.fbSincronizar();
+  }
 
 });
 
