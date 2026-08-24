@@ -3468,7 +3468,7 @@ function splitAutomatico(filIdxAtual, pesoTotal) {
 function getFilsCalc() {
   var items = document.getElementById('c-fils-lista').querySelectorAll('.fil-multi-item');
   var total = 0;
-  var detalhes = [];
+  var detalhesRaw = [];
   items.forEach(function(item) {
     var inputs = item.querySelectorAll('input');
     var peso     = parseFloat(inputs[0].value) || 0;
@@ -3479,10 +3479,25 @@ function getFilsCalc() {
     var nome     = (!isNaN(idx) && filamentos[idx]) ? filamentos[idx].marca + ' ' + filamentos[idx].modelo + ' ' + filamentos[idx].corNome : 'Manual';
     var custo    = peso > 0 && pesoRolo > 0 ? (peso / pesoRolo) * precoRolo : 0;
     if(peso > 0) {
-      total += custo;
-      detalhes.push({ nome: nome, filIdx: isNaN(idx) ? -1 : idx, peso: peso, custo: custo });
+      detalhesRaw.push({ nome: nome, filIdx: isNaN(idx) ? -1 : idx, peso: peso, custo: custo, precoRolo: precoRolo, pesoRolo: pesoRolo });
     }
   });
+
+  // Mesclar linhas com o mesmo filamento (mesmo filIdx > 0)
+  var merged = {};
+  var manualCount = 0;
+  detalhesRaw.forEach(function(d) {
+    var key = d.filIdx >= 0 ? 'fil_'+d.filIdx : 'manual_'+(manualCount++);
+    if(d.filIdx >= 0 && merged[key]) {
+      merged[key].peso  += d.peso;
+      merged[key].custo += d.custo;
+    } else {
+      merged[key] = Object.assign({}, d);
+    }
+  });
+
+  var detalhes = Object.values(merged);
+  detalhes.forEach(function(d) { total += d.custo; });
   return { total: total, detalhes: detalhes };
 }
 
@@ -3491,15 +3506,24 @@ function calcular(){
   var cFil = filsData.total;
 
   // Verificar saldo disponivel de cada filamento e montar alertas
-  var alertasEstoque = [];
+  // Agregar quantidades pelo mesmo filIdx antes de checar saldo
+  var pesosPorFil = {};
   filsData.detalhes.forEach(function(d) {
     if(d.filIdx < 0) return;
-    var v = verificarSaldoFil(d.filIdx, d.peso);
+    if(!pesosPorFil[d.filIdx]) pesosPorFil[d.filIdx] = { nome: d.nome, peso: 0 };
+    pesosPorFil[d.filIdx].peso += d.peso;
+  });
+
+  var alertasEstoque = [];
+  Object.keys(pesosPorFil).forEach(function(filIdxStr) {
+    var filIdx = parseInt(filIdxStr);
+    var entry  = pesosPorFil[filIdx];
+    var v = verificarSaldoFil(filIdx, entry.peso);
     if(!v.ok) {
       alertasEstoque.push({
-        filIdx: d.filIdx,
-        nome: d.nome,
-        pesoNecessario: d.peso,
+        filIdx: filIdx,
+        nome: entry.nome,
+        pesoNecessario: entry.peso,
         disponivel: v.disponivel,
         falta: v.falta,
         sugestoes: v.sugestoes
