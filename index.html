@@ -11611,17 +11611,41 @@ function salvarAcerto() {
   });
   if(tudo) consignacoes[idx].status = 'acertado';
 
-  // Lancar em Contas a Receber
+  // Criar VENDA para aparecer no Faturamento e Dashboard
+  var vendaId = Date.now() + 2;
+  var descItens = itensAcerto.filter(function(it){ return it.qtdVendida > 0; })
+    .map(function(it){ return it.qtdVendida+'x '+it.prodNome; }).join(', ');
+  if(meuValor > 0) {
+    var novaVenda = {
+      id: vendaId,
+      data: dataAcerto,
+      cliente: l.parceiroNome,
+      prodNome: 'Consignacao: ' + descItens,
+      qtd: itensAcerto.reduce(function(s,it){ return s+(it.qtdVendida||0); }, 0),
+      valor: meuValor,
+      pgto: 'Consignacao',
+      statusPgto: 'pendente',
+      tipo: 'consignacao',
+      consigId: l.id,
+      itens: itensAcerto.filter(function(it){ return it.qtdVendida > 0; })
+        .map(function(it){ return { nome: it.prodNome, qtd: it.qtdVendida, precoUnit: it.valorVendido/(it.qtdVendida||1), total: it.valorVendido }; })
+    };
+    vendas.unshift(novaVenda);
+    S.set('vendas', vendas);
+  }
+
+  // Lancar em Contas a Receber vinculado a venda
   if(meuValor > 0) {
     faturas.unshift({
       id: Date.now()+1,
       tipo: 'consignacao',
       cliente: l.parceiroNome,
-      descricao: 'Consignacao  Acerto de '+itensAcerto.reduce(function(s,it){return s+it.qtdVendida;},0)+' itens',
+      descricao: 'Consignacao - Acerto de '+itensAcerto.reduce(function(s,it){return s+it.qtdVendida;},0)+' itens',
       valor: meuValor,
       venc: dataAcerto,
       data: dataAcerto,
-      status: 'pendente'
+      status: 'pendente',
+      vendaId: vendaId
     });
     S.set('faturas', faturas);
   }
@@ -11629,8 +11653,10 @@ function salvarAcerto() {
   S.set('consignacoes', consignacoes);
   document.getElementById('ca-itens-wrap').style.display = 'none';
   renderLotes(); renderKpisConsig();
+  if(typeof renderVendas === 'function') renderVendas();
+  if(typeof renderDashboard === 'function') renderDashboard();
   showConsigSubtab('lotes');
-  alert('Acerto registrado!\n\nTotal vendido: '+fmt(totalVend)+'\nComissao ('+l.comissao+'%): '+fmt(totalComis)+'\nVoce recebe: '+fmt(meuValor)+'\n\nLancado em Contas a Receber.');
+  alert('Acerto registrado!\n\nTotal vendido: '+fmt(totalVend)+'\nComissao ('+l.comissao+'%): '+fmt(totalComis)+'\nVoce recebe: '+fmt(meuValor)+'\n\nLancado em Vendas e Contas a Receber.');
 }
 
 /* ----- ENCERRAR / DELETAR ----- */
