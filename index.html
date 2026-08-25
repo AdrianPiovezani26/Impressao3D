@@ -2429,8 +2429,11 @@
       <input type="file" id="orc-img-input" accept="image/*" multiple style="display:none;" onchange="adicionarImgsOrcamento(this.files)">
     </div>
     <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap;">
-      <button class="btn-ok" onclick="gerarOrcamentoPDF()" style="background:rgba(255,170,0,0.12);border-color:var(--amber-border);color:var(--amber-text);flex:1;">
-        <i class="ti ti-download"></i> Baixar PDF
+      <button class="btn-ok" onclick="gerarOrcamentoPDF('consumidor')" style="background:rgba(0,170,255,0.12);border-color:var(--blue-border);color:var(--blue-text);flex:1;">
+        <i class="ti ti-user"></i> Consumidor Final
+      </button>
+      <button class="btn-ok" onclick="gerarOrcamentoPDF('lojista')" style="background:rgba(255,170,0,0.12);border-color:var(--amber-border);color:var(--amber-text);flex:1;">
+        <i class="ti ti-building-store"></i> Lojista
       </button>
       <button class="btn" onclick="document.getElementById('modal-orcamento').style.display='none'">Cancelar</button>
     </div>
@@ -3780,6 +3783,7 @@ function calcular(){
   if(qtd > 1) {
     if(lojistaEl) {
       lojistaEl.textContent = fmt(precoLojLote);
+      lojistaEl.dataset.unitValue = precoLojista.toFixed(2);
       lojistaEl.style.fontSize = '32px';
       lojistaEl.style.textShadow = '0 0 15px rgba(255,170,0,0.6)';
     }
@@ -7970,7 +7974,7 @@ function coletarDadosCalc() {
   // Sempre usar data-attribute (valor unitario) se disponivel, senao ler textContent
   var custo    = custoEl2 ? (parseFloat(custoEl2.dataset.unitValue) || parseFloat(custoEl2.textContent.replace('R$ ','').replace(',','.')) || 0) : 0;
   var precoUnit= precoEl2 ? (parseFloat(precoEl2.dataset.unitValue) || parseFloat(precoEl2.textContent.replace('R$ ','').replace(',','.')) || 0) : 0;
-  var precoLoj = precoLojEl2 ? parseFloat(precoLojEl2.textContent.replace('R$ ','').replace(',','.')) || 0 : 0;
+  var precoLoj = precoLojEl2 ? (parseFloat(precoLojEl2.dataset.unitValue) || parseFloat(precoLojEl2.textContent.replace('R$ ','').replace(',','.')) || 0) : 0;
   // Coletar detalhes completos dos filamentos para restaurar depois
   var filsDetalhes = [];
   var listaFils = document.getElementById('c-fils-lista');
@@ -12660,12 +12664,22 @@ document.addEventListener('paste', function(e){
   }
 });
 
-function gerarOrcamentoPDF() {
+function gerarOrcamentoPDF(tipo) {
+  tipo = tipo || 'consumidor';
+  var isLojista = tipo === 'lojista';
   var cliente = document.getElementById('orc-cliente').value.trim();
   if(!cliente) { alert('Informe o nome do cliente.'); return; }
 
-  // Coletar itens do orcamento
+  // Coletar itens ? usar precoLojista se tipo=lojista
   var itens = _orcItens.length ? _orcItens : [coletarDadosCalc()];
+  itens = itens.map(function(it) {
+    if(!isLojista) return it;
+    // Calcular precoLojista se nao estiver salvo
+    var descLoj = it.descLojista || parseFloat((document.getElementById('c-desc-lojista')||{}).value) || 30;
+    var pLoj = it.precoLojista > 0 ? it.precoLojista : (it.precoUnit * (1 - descLoj/100));
+    return Object.assign({}, it, { precoUnit: pLoj, precoLojista: pLoj, _descLojista: descLoj });
+  });
+
   var totalBruto = itens.reduce(function(s,it){ return s + (it.precoUnit||0)*(it.qtd||1); }, 0);
   var pctDesc = parseFloat((document.getElementById('orc-desconto')||{}).value)||0;
   var valDesc = totalBruto * (pctDesc/100);
@@ -12720,10 +12734,16 @@ function gerarOrcamentoPDF() {
   doc.setTextColor(57,255,20);
   doc.setFontSize(11);
   doc.setFont('helvetica','bold');
-  doc.text('ORCAMENTO N.' + numOrc, W - marginR, 18, {align:'right'});
+  doc.text((isLojista ? 'ORCAMENTO LOJISTA N.' : 'ORCAMENTO N.') + numOrc, W - marginR, 18, {align:'right'});
   doc.setFont('helvetica','normal');
   doc.setTextColor(160,240,160);
   doc.setFontSize(8);
+  if(isLojista) {
+    doc.setTextColor(255,170,0);
+    doc.setFontSize(7);
+    doc.text('Preco com desconto lojista', W - marginR, 24, {align:'right'});
+    doc.setTextColor(160,240,160);
+  }
   doc.text('Emitido: ' + fmtData(hoje_d), W - marginR, 26, {align:'right'});
   doc.text('Valido ate: ' + fmtData(validade), W - marginR, 33, {align:'right'});
 
