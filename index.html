@@ -8314,11 +8314,18 @@ function renderHistoricoCalc() {
     var lucroUnit  = (h.precoUnit||0) - (h.custoUnit||0);
     var margemReal = h.precoUnit > 0 ? (lucroUnit/h.precoUnit*100).toFixed(1) : '0';
     var markupReal = h.custoUnit > 0 ? ((h.precoUnit-h.custoUnit)/h.custoUnit*100).toFixed(1) : '0';
+    var qtd = h.qtd || 1;
+    var custoTotal  = (h.custoUnit||0) * qtd;
+    var precoTotal  = (h.precoUnit||0) * qtd;
+    var lojTotal    = (h.precoLojista||0) * qtd;
+    var subCusto    = qtd > 1 ? '<div style="font-size:10px;color:var(--text3);">' + qtd + ' un x ' + fmt(h.custoUnit||0) + '</div>' : '';
+    var subCons     = qtd > 1 ? '<div style="font-size:10px;color:var(--text3);">' + qtd + ' un x ' + fmt(h.precoUnit||0) + '</div>' : '';
+    var subLoj      = qtd > 1 ? '<div style="font-size:10px;color:var(--text3);">' + qtd + ' un x ' + fmt(h.precoLojista||0) + '</div>' : '';
     return '<div class="hist-card">' +
       '<div class="hist-card-top">' +
         '<div style="flex:1;min-width:0;">' +
           '<strong style="font-size:14px;">' + h.nome + '</strong>' +
-          '<span class="tag tag-blue" style="margin-left:8px;font-size:10px;">' + (h.qtd||1) + ' un</span>' +
+          '<span class="tag tag-blue" style="margin-left:8px;font-size:10px;">' + qtd + ' un</span>' +
           '<span class="tag ' + (h.tipoCalc==='markup'?'tag-amber':'tag-green') + '" style="margin-left:4px;font-size:10px;">' + (h.tipoCalc==='markup'?'Markup':'Margem') + ' ' + (h.markup||0) + '%</span>' +
           '<br><span style="font-size:11px;color:var(--text3);">' +
             fmtD(h.data) + ' ' + (h.hora||'') +
@@ -8329,17 +8336,20 @@ function renderHistoricoCalc() {
       '</div>' +
       '<div class="hist-preco-grid">' +
         '<div class="hist-preco-item">' +
-          '<div class="hist-preco-label">Custo Unit.</div>' +
-          '<div class="hist-preco-val" style="color:var(--text);">' + fmt(h.custoUnit||0) + '</div>' +
+          '<div class="hist-preco-label">Custo' + (qtd>1?' Lote':'') + '</div>' +
+          '<div class="hist-preco-val" style="color:var(--text);">' + fmt(custoTotal) + '</div>' +
+          subCusto +
         '</div>' +
         '<div class="hist-preco-item" style="border:1px solid var(--blue-border);">' +
-          '<div class="hist-preco-label" style="color:var(--blue-text);">Consumidor</div>' +
-          '<div class="hist-preco-val" style="color:var(--blue-text);">' + fmt(h.precoUnit||0) + '</div>' +
+          '<div class="hist-preco-label" style="color:var(--blue-text);">Consumidor' + (qtd>1?' Lote':'') + '</div>' +
+          '<div class="hist-preco-val" style="color:var(--blue-text);">' + fmt(precoTotal) + '</div>' +
+          subCons +
           '<div style="font-size:10px;color:var(--text3);">Margem: ' + margemReal + '% | Markup: ' + markupReal + '%</div>' +
         '</div>' +
         '<div class="hist-preco-item" style="border:1px solid var(--amber-border);">' +
-          '<div class="hist-preco-label" style="color:var(--amber-text);">Lojista (-' + (h.descLojista||30) + '%)</div>' +
-          '<div class="hist-preco-val" style="color:var(--amber-text);">' + fmt(h.precoLojista||0) + '</div>' +
+          '<div class="hist-preco-label" style="color:var(--amber-text);">Lojista (-' + (h.descLojista||30) + '%)' + (qtd>1?' Lote':'') + '</div>' +
+          '<div class="hist-preco-val" style="color:var(--amber-text);">' + fmt(lojTotal) + '</div>' +
+          subLoj +
         '</div>' +
       '</div>' +
       '<div class="hist-acoes">' +
