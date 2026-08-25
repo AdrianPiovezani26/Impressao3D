@@ -8023,6 +8023,63 @@ function coletarDadosCalc() {
   };
 }
 
+function buscarPrecificacao(termo) {
+  termo = (termo||'').toUpperCase().trim();
+  if(!termo) { alert('Informe um termo para buscar.'); return; }
+
+  var resultados = [];
+
+  // 1. Hist_calc atual
+  _histCalc.forEach(function(h, i) {
+    if((h.nome||'').toUpperCase().indexOf(termo) >= 0) {
+      resultados.push({ origem: 'Historico de Precificacao', idx: i, id: h.id,
+        nome: h.nome, data: h.data, hora: h.hora,
+        precoUnit: h.precoUnit, custoUnit: h.custoUnit,
+        fils: h.fils, qtd: h.qtd });
+    }
+  });
+
+  // 2. Pedidos
+  pedidos.forEach(function(p, i) {
+    if((p.nome||'').toUpperCase().indexOf(termo) >= 0) {
+      resultados.push({ origem: 'Pedidos', idx: i, nome: p.nome,
+        data: p.data, precoUnit: p.precoUnit, custoUnit: p.custoUnit,
+        fils: (p.filsEstoque||[]).map(function(f){ return (f.filNome||'')+' ('+f.peso+'g)'; }).join(', '),
+        qtd: p.qtd });
+    }
+  });
+
+  // 3. Produtos
+  produtos.forEach(function(pr, i) {
+    if((pr.nome||'').toUpperCase().indexOf(termo) >= 0) {
+      resultados.push({ origem: 'Produtos', idx: i, nome: pr.nome,
+        data: pr.data, precoUnit: pr.preco, custoUnit: pr.custo,
+        fils: pr.filNome || '--', qtd: 1 });
+    }
+  });
+
+  if(!resultados.length) {
+    alert('Nenhum resultado encontrado para "' + termo + '" em Historico, Pedidos ou Produtos.\n\nSe o registro foi sobrescrito, a recuperacao pode nao ser possivel.');
+    return;
+  }
+
+  var msg = 'Resultados para "' + termo + '":\n\n';
+  resultados.forEach(function(r) {
+    msg += '>>> ' + r.origem.toUpperCase() + '\n';
+    msg += 'Nome: ' + r.nome + '\n';
+    msg += 'Data: ' + (r.data||'--') + (r.hora ? ' ' + r.hora : '') + '\n';
+    msg += 'Preco unit: ' + fmt(r.precoUnit||0) + '\n';
+    msg += 'Custo unit: ' + fmt(r.custoUnit||0) + '\n';
+    msg += 'Filamentos: ' + (r.fils||'--') + '\n';
+    msg += 'Qtd: ' + (r.qtd||1) + '\n\n';
+  });
+
+  alert(msg);
+  console.log('buscarPrecificacao resultado:', resultados);
+  return resultados;
+}
+
+
 function salvarNoHistorico() {
   if(!document.getElementById('resultado') || document.getElementById('resultado').style.display === 'none') {
     alert('Calcule o preco primeiro antes de salvar no historico.');
