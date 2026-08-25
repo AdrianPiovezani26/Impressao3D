@@ -899,6 +899,7 @@
       <button class="btn-ok" onclick="salvarComoPedido()"><i class="ti ti-plus"></i> Salvar como Pedido</button>
       <button class="btn" onclick="salvarComoProduto()"><i class="ti ti-box"></i> Salvar nos Produtos</button>
       <button class="btn" onclick="salvarNoHistorico()"><i class="ti ti-history"></i> Salvar no Historico</button>
+      <button class="btn" onclick="limparFormCalc()" style="color:var(--text3);border-color:var(--border2);"><i class="ti ti-plus"></i> Nova Precificacao</button>
       <button class="btn-ok" onclick="abrirModalOrcamento()" style="background:rgba(255,170,0,0.12);border-color:var(--amber-border);color:var(--amber-text);"><i class="ti ti-file-invoice"></i> Gerar Orcamento PDF</button>
       <button class="btn-del" onclick="limparCalc()" style="margin-left:auto;"><i class="ti ti-refresh"></i> Limpar</button>
     </div>
@@ -8133,7 +8134,53 @@ function salvarNoHistorico() {
   S.set('hist_calc', _histCalc);
   renderHistoricoCalc();
   alert('Salvo no historico: ' + dados.nome);
+  limparFormCalc();
 }
+
+function limparFormCalc() {
+  // Limpar campos da PECA (mudam a cada produto)
+  var nomePeca = document.getElementById('c-nome-peca');
+  if(nomePeca) nomePeca.value = '';
+
+  var qtd = document.getElementById('c-qtd');
+  if(qtd) qtd.value = '1';
+
+  var hH = document.getElementById('c-horas-h');
+  var hM = document.getElementById('c-horas-m');
+  if(hH) hH.value = '0';
+  if(hM) hM.value = '0';
+
+  // Resetar lista de filamentos para uma linha vazia
+  var listaFils = document.getElementById('c-fils-lista');
+  if(listaFils) {
+    listaFils.innerHTML = '';
+    addFilCalc(); // adiciona uma linha vazia
+  }
+
+  // Esconder resultado
+  var res = document.getElementById('resultado');
+  var semRes = document.getElementById('sem-resultado');
+  if(res) res.style.display = 'none';
+  if(semRes) semRes.style.display = 'block';
+
+  // Resetar modo de edicao
+  _histEditId = null;
+  var btnSalvar = document.querySelector('#tab-calc .btn-ok[onclick*="salvarNoHistorico"]');
+  if(btnSalvar) {
+    btnSalvar.innerHTML = '<i class="ti ti-device-floppy"></i> Salvar no Historico';
+    btnSalvar.style.background = '';
+    btnSalvar.style.borderColor = '';
+    btnSalvar.style.color = '';
+  }
+
+  // Scroll para o topo da aba
+  var tabCalc = document.getElementById('tab-calc');
+  if(tabCalc) tabCalc.scrollTo(0, 0);
+
+  // Campos de custo fixo NAO sao limpos (kwh, mdo, impostos, embal, insumos, markup, desc-lojista)
+  // pois sao os mesmos para todos os produtos
+}
+
 
 function salvarNoHistoricoSilencioso() {
   if(!document.getElementById('resultado') || document.getElementById('resultado').style.display === 'none') return;
