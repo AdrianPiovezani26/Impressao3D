@@ -862,7 +862,12 @@
               <i class="ti ti-building-store"></i> Preco Lojista
             </div>
           </div>
-          <div style="font-size:28px;font-weight:700;color:var(--amber-text);text-shadow:0 0 10px rgba(255,170,0,0.3);margin-bottom:.5rem;" id="r-preco-lojista">R$ 0,00</div>
+          <div style="font-size:28px;font-weight:700;color:var(--amber-text);text-shadow:0 0 10px rgba(255,170,0,0.3);margin-bottom:.25rem;" id="r-preco-lojista">R$ 0,00</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:.5rem;" id="r-preco-lojista-label">preco unitario</div>
+          <div id="r-preco-lojista-total-box" style="display:none;background:rgba(255,170,0,0.06);border:1px solid var(--amber-border);border-radius:var(--radius);padding:6px 10px;margin-bottom:.5rem;">
+            <div style="font-size:11px;color:var(--text3);" id="r-preco-lojista-total-info">preco unitario</div>
+            <div style="font-size:14px;font-weight:700;color:var(--amber-text);" id="r-preco-lojista-total">R$ 0,00</div>
+          </div>
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:.75rem;">
             <span style="font-size:11px;color:var(--text3);">Desconto:</span>
             <input type="number" id="c-desc-lojista" value="30" min="0" max="80" step="5"
@@ -3764,9 +3769,34 @@ function calcular(){
   var precoLojista = pVendaUnit * (1 - descLojista/100);
   var lucroLojista = precoLojista - cUnit;
   var margemLojista = precoLojista > 0 ? (lucroLojista/precoLojista*100) : 0;
-  var lojistaEl = document.getElementById('r-preco-lojista');
-  if(lojistaEl) lojistaEl.textContent = fmt(precoLojista);
-  var lojistaInfoEl = document.getElementById('r-lojista-info');
+  var lojistaEl      = document.getElementById('r-preco-lojista');
+  var lojistaLblEl   = document.getElementById('r-preco-lojista-label');
+  var lojistaTotalBox= document.getElementById('r-preco-lojista-total-box');
+  var lojistaTotalEl = document.getElementById('r-preco-lojista-total');
+  var lojistaTotalInfo=document.getElementById('r-preco-lojista-total-info');
+  var lojistaInfoEl  = document.getElementById('r-lojista-info');
+  var precoLojLote   = precoLojista * qtd;
+
+  if(qtd > 1) {
+    if(lojistaEl) {
+      lojistaEl.textContent = fmt(precoLojLote);
+      lojistaEl.style.fontSize = '32px';
+      lojistaEl.style.textShadow = '0 0 15px rgba(255,170,0,0.6)';
+    }
+    if(lojistaLblEl)    lojistaLblEl.textContent = 'total lote (' + qtd + ' unidades)';
+    if(lojistaTotalBox) lojistaTotalBox.style.display = 'block';
+    if(lojistaTotalEl)  lojistaTotalEl.textContent = fmt(precoLojista);
+    if(lojistaTotalInfo)lojistaTotalInfo.textContent = 'preco unitario | ' + qtd + ' un x ' + fmt(precoLojista);
+  } else {
+    if(lojistaEl) {
+      lojistaEl.textContent = fmt(precoLojista);
+      lojistaEl.style.fontSize = '28px';
+      lojistaEl.style.textShadow = '0 0 10px rgba(255,170,0,0.3)';
+    }
+    if(lojistaLblEl)    lojistaLblEl.textContent = 'preco unitario';
+    if(lojistaTotalBox) lojistaTotalBox.style.display = 'none';
+  }
+
   if(lojistaInfoEl) {
     if(lucroLojista >= 0) {
       lojistaInfoEl.textContent = 'Lucro: ' + fmt(lucroLojista) + ' | Margem: ' + margemLojista.toFixed(1) + '%';
@@ -3775,7 +3805,6 @@ function calcular(){
       lojistaInfoEl.textContent = 'ATENCAO: preco abaixo do custo!';
       lojistaInfoEl.style.color = 'var(--red-text)';
     }
-    if(qtd > 1) lojistaInfoEl.textContent += ' | Lote: ' + fmt(precoLojista * qtd);
   }
 
   // ---- Rodape ----
