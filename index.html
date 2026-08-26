@@ -8353,6 +8353,7 @@ function renderHistoricoCalc() {
         '</div>' +
       '</div>' +
       '<div class="hist-acoes">' +
+        '<button class="btn-ok" onclick="abrirModalOrcamentoHist(' + h.id + ')" style="font-size:11px;padding:5px 10px;background:rgba(0,220,130,0.1);border-color:var(--neon);color:var(--neon);"><i class="ti ti-file-text"></i> Orcamento PDF</button>' +
         '<button class="btn-ok" onclick="editarHistCalc(' + h.id + ')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-edit"></i> Editar / Recalcular</button>' +
         '<button class="btn-ok" onclick="pedidoHistCalc(' + h.id + ')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-plus"></i> Salvar como Pedido</button>' +
         '<button class="btn" onclick="produtoHistCalc(' + h.id + ')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-box"></i> Salvar nos Produtos</button>' +
@@ -12624,6 +12625,37 @@ function criarPedidoDeOportunidade(idx) {
    ===================================================== */
 var _orcImgs = [];
 var _orcItens = []; // itens do histCalc adicionados ao orcamento
+
+function abrirModalOrcamentoHist(histId) {
+  var h = _histCalc.find(function(x){ return x.id === histId; });
+  if(!h) { alert('Registro nao encontrado.'); return; }
+
+  // Montar _orcItens com os dados deste hist_calc
+  _orcItens = [{
+    nome:        h.nome || 'SEM NOME',
+    qtd:         h.qtd || 1,
+    precoUnit:   h.precoUnit   || 0,
+    precoLojista:h.precoLojista|| 0,
+    custoUnit:   h.custoUnit   || 0,
+    descLojista: h.descLojista || 30,
+    tipoCalc:    h.tipoCalc    || 'markup',
+    markup:      h.markup      || 0,
+    filsEstoque: h.filsEstoque || [],
+    fils:        h.fils        || '--',
+    tempoStr:    h.tempoStr    || '--'
+  }];
+
+  // Abrir o modal de orcamento
+  var modal = document.getElementById('modal-orcamento');
+  if(modal) {
+    modal.style.display = 'flex';
+    // Focar no campo cliente
+    setTimeout(function(){
+      var cl = document.getElementById('orc-cliente');
+      if(cl) cl.focus();
+    }, 100);
+  }
+}
 
 function abrirModalOrcamento() {
   var res = document.getElementById('resultado');
