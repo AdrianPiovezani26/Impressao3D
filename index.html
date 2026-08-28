@@ -2490,6 +2490,15 @@
       </div>
       <div class="field"><label>Preco por Unidade (R$)</label>
         <input type="number" id="mp-preco-unit" placeholder="0.00" step="0.01" min="0" oninput="calcTotalModal()">
+        <input type="hidden" id="mp-preco-consumidor-val">
+        <input type="hidden" id="mp-preco-lojista-val">
+        <div id="mp-tipo-preco-wrap" style="display:none;margin-top:6px;">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Tipo de preco para a venda:</div>
+          <div style="display:flex;gap:6px;">
+            <button type="button" id="mp-btn-consumidor" onclick="setTipoPrecoModal('consumidor')" class="btn-ok" style="font-size:11px;padding:4px 10px;flex:1;"><i class="ti ti-user"></i> Consumidor</button>
+            <button type="button" id="mp-btn-lojista" onclick="setTipoPrecoModal('lojista')" class="btn" style="font-size:11px;padding:4px 10px;flex:1;color:var(--amber-text);border-color:var(--amber-border);"><i class="ti ti-building-store"></i> Lojista</button>
+          </div>
+        </div>
       </div>
     </div>
     <div style="padding:8px 12px;background:var(--bg3);border-radius:var(--radius);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
@@ -8533,7 +8542,16 @@ function abrirEdicaoPedido(idx) {
   document.getElementById('mp-qtd').value        = p.qtd       || 1;
   document.getElementById('mp-preco-unit').value = p.precoUnit || 0;
   var mpCusto = document.getElementById('mp-custo-unit');
-  if(mpCusto) mpCusto.value = p.custoUnit || 0;
+  if(mpCusto) mpCusto.value = p.custoUnit || p.custo || 0;
+
+  // Popular precos e toggle consumidor/lojista
+  var hidCons = document.getElementById('mp-preco-consumidor-val');
+  var hidLoj  = document.getElementById('mp-preco-lojista-val');
+  var wrap    = document.getElementById('mp-tipo-preco-wrap');
+  if(hidCons) hidCons.value = p.precoUnit || 0;
+  if(hidLoj)  hidLoj.value  = p.precoLojista || 0;
+  if(wrap) wrap.style.display = (p.precoLojista && p.precoLojista > 0) ? 'block' : 'none';
+  setTipoPrecoModal('consumidor');o.value = p.custoUnit || 0;
 
   // Horas e minutos separados
   var horasStr = p.horas || '';
@@ -8579,6 +8597,27 @@ function abrirEdicaoPedido(idx) {
 
   calcTotalModal();
   document.getElementById('modal-pedido').style.display = 'flex';
+}
+
+function setTipoPrecoModal(tipo) {
+  var precoEl  = document.getElementById('mp-preco-unit');
+  var hidCons  = document.getElementById('mp-preco-consumidor-val');
+  var hidLoj   = document.getElementById('mp-preco-lojista-val');
+  var btnCons  = document.getElementById('mp-btn-consumidor');
+  var btnLoj   = document.getElementById('mp-btn-lojista');
+  var lojVal   = parseFloat((hidLoj  || {}).value) || 0;
+  var consVal  = parseFloat((hidCons || {}).value) || 0;
+
+  if(tipo === 'lojista' && lojVal > 0) {
+    if(precoEl) precoEl.value = lojVal.toFixed(2);
+    if(btnCons) { btnCons.className = 'btn'; btnCons.style.color = ''; btnCons.style.borderColor = ''; }
+    if(btnLoj)  { btnLoj.className  = 'btn-ok'; btnLoj.style.background = 'rgba(255,170,0,0.15)'; btnLoj.style.borderColor = 'var(--amber-border)'; btnLoj.style.color = 'var(--amber-text)'; }
+  } else {
+    if(precoEl) precoEl.value = consVal.toFixed(2);
+    if(btnCons) { btnCons.className = 'btn-ok'; btnCons.style.background = ''; btnCons.style.borderColor = ''; btnCons.style.color = ''; }
+    if(btnLoj)  { btnLoj.className  = 'btn'; btnLoj.style.background = ''; }
+  }
+  if(typeof calcTotalModal === 'function') calcTotalModal();
 }
 
 function calcTotalModal() {
