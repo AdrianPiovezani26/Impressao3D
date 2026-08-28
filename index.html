@@ -8471,12 +8471,14 @@ function pedidoHistCalc(id) {
   });
 
   pedidos.unshift({
-    id:        Date.now(),
-    nome:      h.nome,
-    qtd:       qtd,
-    precoUnit: precoUnit,
-    custoUnit: custoUnit,
-    preco:     fmt(precoUnit * qtd),
+    id:           Date.now(),
+    nome:         h.nome,
+    qtd:          qtd,
+    precoUnit:    precoUnit,
+    custoUnit:    custoUnit,
+    precoLojista: parseFloat(h.precoLojista)||0,
+    descLojista:  parseFloat(h.descLojista)||30,
+    preco:        fmt(precoUnit * qtd),
     data:      new Date().toLocaleDateString('pt-BR'),
     status:    'pendente',
     horas:     h.tempoStr || '--',
@@ -8551,7 +8553,7 @@ function abrirEdicaoPedido(idx) {
   if(hidCons) hidCons.value = p.precoUnit || 0;
   if(hidLoj)  hidLoj.value  = p.precoLojista || 0;
   if(wrap) wrap.style.display = (p.precoLojista && p.precoLojista > 0) ? 'block' : 'none';
-  setTipoPrecoModal('consumidor');o.value = p.custoUnit || 0;
+  setTipoPrecoModal('consumidor');
 
   // Horas e minutos separados
   var horasStr = p.horas || '';
