@@ -1651,6 +1651,7 @@
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
     <span class="stitle" style="margin:0;"><i class="ti ti-package"></i> Controle de Estoque</span>
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button class="btn" onclick="corrigirReservasImpressoes()" style="font-size:12px;padding:6px 12px;color:var(--neon);border-color:var(--neon);"><i class="ti ti-lock-open"></i> Liberar Reservas</button>
       <button class="btn" onclick="diagnosticarReservas()" style="font-size:12px;padding:6px 12px;color:var(--amber-text);border-color:var(--amber-text);"><i class="ti ti-stethoscope"></i> Diagnosticar</button>
       <button class="btn" onclick="if(confirm('Corrigir automaticamente referencias de filamento deslocadas em Pedidos, Impressoes e Orcamentos?\n\nO sistema usara o nome salvo em cada registro para encontrar o filamento correto.')) repararIndicesDeslocados();" style="font-size:12px;padding:6px 12px;color:var(--red-text);border-color:var(--red-text);"><i class="ti ti-tool"></i> Reparar Indices</button>
       <button class="btn" onclick="showAjusteEstoque()" style="font-size:12px;padding:6px 12px;"><i class="ti ti-adjustments"></i> Ajuste</button>
@@ -13419,6 +13420,48 @@ function migrarImpressoesInternas() {
   }
 }
 
+function concluirSemBaixa(idx) {
+  var imp = impressoesInternas[idx];
+  if(!imp) return;
+  if(!confirm('Marcar "'+imp.nome+'" como Concluida?\n\nEsta opcao NAO deduz o estoque ? use quando o filamento ja foi descontado anteriormente ou por ajuste manual.\n\nA reserva sera liberada.')) return;
+  impressoesInternas[idx].status = 'concluida';
+  impressoesInternas[idx].estoqueBaixado = true;
+  S.set('impressoes_internas', impressoesInternas);
+  renderImpressoes();
+  renderEstoque();
+}
+
+function corrigirReservasImpressoes() {
+  var ativas = impressoesInternas.filter(function(imp) {
+    return imp.status !== 'concluida' && imp.status !== 'cancelada' &&
+           imp.filsEstoque && imp.filsEstoque.length > 0;
+  });
+  if(!ativas.length) {
+    alert('Nenhuma impressao interna ativa com reserva de estoque encontrada.');
+    return;
+  }
+  var lista = ativas.map(function(imp) {
+    var peso = (imp.filsEstoque||[]).reduce(function(s,f){ return s+parseFloat(f.peso||0); }, 0);
+    return '  - '+imp.nome+' ('+fmtD(imp.dataIso||imp.data||'')+') ? '+peso.toFixed(2)+'g reservado';
+  }).join('\n');
+
+  if(!confirm(ativas.length+' impressao(oes) ativa(s) com reserva encontrada(s):\n\n'+lista+
+    '\n\nMarcar TODAS como Concluidas?\n\nUse esta opcao se o estoque ja foi descontado pelo sistema anterior ou manualmente.\nNenhuma nova deducao sera feita.')) return;
+
+  var marcadas = 0;
+  impressoesInternas.forEach(function(imp, i) {
+    if(imp.status !== 'concluida' && imp.status !== 'cancelada') {
+      impressoesInternas[i].status = 'concluida';
+      impressoesInternas[i].estoqueBaixado = true;
+      marcadas++;
+    }
+  });
+  S.set('impressoes_internas', impressoesInternas);
+  renderImpressoes();
+  renderEstoque();
+  alert(marcadas+' impressao(oes) concluida(s).\nReservas de estoque liberadas!');
+}
+
 function baixarEstoqueImpressao(idx) {
   var imp = impressoesInternas[idx];
   if(!imp) return;
@@ -13569,6 +13612,9 @@ function renderImpressoes() {
           // Botao principal: Baixar Estoque (so se ativa)
           if(st !== 'concluida' && st !== 'cancelada')
             btns += '<button class="btn-ok" onclick="baixarEstoqueImpressao('+idx+')" style="font-size:11px;padding:5px 12px;background:rgba(0,220,100,0.1);border-color:var(--neon);color:var(--neon);"><i class="ti ti-arrow-bar-to-down"></i> Baixar Estoque</button>';
+
+          if(st !== 'concluida' && st !== 'cancelada')
+            btns += '<button class="btn" onclick="concluirSemBaixa('+idx+')" style="font-size:11px;padding:5px 10px;color:var(--text3);border-color:var(--border2);" title="Marcar como concluida sem deduzir estoque (para impressoes ja descontadas)"><i class="ti ti-check"></i> Concluir</button>';
 
           // Transformar em produto
           if(!imp.produtoCriado && st === 'concluida')
