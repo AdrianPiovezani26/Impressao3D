@@ -5624,31 +5624,44 @@ function renderEstoque() {
   if(alertasEl) {
     var hA = '';
     if(esgotados.length||criticos.length) {
-      var totalAlert = esgotados.length + criticos.length;
-      hA += '<div style="border:1px solid var(--amber-border);border-radius:var(--radius);overflow:hidden;">' +
-        '<div onclick="var b=document.getElementById(\'alerta-body\');b.style.display=b.style.display===\'none\'?\'block\':\'none\';" ' +
-          'style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,170,0,0.08);cursor:pointer;">' +
-          '<i class="ti ti-alert-triangle" style="color:var(--amber-text);"></i>' +
-          '<span style="font-size:12px;font-weight:700;color:var(--amber-text);">'+totalAlert+' filamento(s) precisam de reposicao</span>' +
-          '<i class="ti ti-chevron-down" style="margin-left:auto;color:var(--text3);font-size:11px;"></i>' +
-        '</div>' +
-        '<div id="alerta-body" style="display:none;padding:8px 12px;display:grid;gap:4px;">';
-      esgotados.forEach(function(f){
-        hA += '<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0;">' +
-          '<span style="color:var(--red-text);font-size:10px;font-weight:700;">ESGOTADO</span>' +
-          '<span style="flex:1;">'+f.corNome+' '+f.marca+' '+f.modelo+'</span>' +
-          '<button onclick="irParaReposicao('+filamentos.indexOf(f)+')" class="btn" style="font-size:10px;padding:2px 8px;"><i class="ti ti-shopping-cart"></i> Repor</button>' +
-        '</div>';
-      });
-      criticos.forEach(function(f){
-        var pct = f.pesoRolo>0?((parseFloat(f.qtd||0)/parseFloat(f.pesoRolo||1000))*100).toFixed(0):0;
-        hA += '<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0;">' +
-          '<span style="color:var(--amber-text);font-size:10px;font-weight:700;">CRITICO '+pct+'%</span>' +
-          '<span style="flex:1;">'+f.corNome+' '+f.marca+' '+f.modelo+'  '+parseFloat(f.qtd||0).toFixed(0)+'g</span>' +
-          '<button onclick="irParaReposicao('+filamentos.indexOf(f)+')" class="btn" style="font-size:10px;padding:2px 8px;"><i class="ti ti-shopping-cart"></i> Repor</button>' +
-        '</div>';
-      });
-      hA += '</div></div>';
+      // BOTAO ESGOTADO
+      if(esgotados.length > 0) {
+        hA += '<div style="margin-bottom:4px;">' +
+          '<button onclick="toggleRepoBadge(\'rep-esgotado-body\')" style="width:100%;display:flex;align-items:center;gap:6px;padding:7px 12px;background:rgba(255,50,50,0.08);border:1px solid var(--red-border);border-radius:var(--radius);cursor:pointer;">' +
+            '<i class=\"ti ti-package-off\" style=\"color:var(--red-text);\"></i>' +
+            '<span style=\"font-size:12px;font-weight:700;color:var(--red-text);\">Esgotado (' + esgotados.length + ')</span>' +
+            '<i class=\"ti ti-chevron-down\" style=\"margin-left:auto;color:var(--text3);font-size:10px;\"></i>' +
+          '</button>' +
+          '<div id=\"rep-esgotado-body\" style=\"display:none;border:1px solid var(--red-border);border-top:none;border-radius:0 0 var(--radius) var(--radius);padding:6px 10px;\"></div></div>';
+        esgotados.forEach(function(f) {
+          var fi = filamentos.indexOf(f);
+          hA += '<div style=\"display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 0;border-bottom:1px solid rgba(255,50,50,0.1);\">' +
+            '<span style=\"width:8px;height:8px;border-radius:50%;background:' + (f.corHex||'#888') + ';flex-shrink:0;\"></span>' +
+            '<span style=\"flex:1;\">' + f.corNome + ' <span style=\"color:var(--text3);\">'+f.marca+' '+f.modelo+'</span></span>' +
+            '<button onclick=\"irParaReposicao(' + fi + ')\" class=\"btn\" style=\"font-size:10px;padding:2px 8px;\"><i class=\"ti ti-shopping-cart\"></i> Repor</button>' +
+          '</div>';
+        });
+      }
+      // BOTAO CRITICO
+      if(criticos.length > 0) {
+        hA += '<div>' +
+          '<button onclick="toggleRepoBadge(\'rep-critico-body\')" style="width:100%;display:flex;align-items:center;gap:6px;padding:7px 12px;background:rgba(255,170,0,0.08);border:1px solid var(--amber-border);border-radius:var(--radius);cursor:pointer;">' +
+            '<i class=\"ti ti-alert-triangle\" style=\"color:var(--amber-text);\"></i>' +
+            '<span style=\"font-size:12px;font-weight:700;color:var(--amber-text);\">Critico (' + criticos.length + ')</span>' +
+            '<i class=\"ti ti-chevron-down\" style=\"margin-left:auto;color:var(--text3);font-size:10px;\"></i>' +
+          '</button>' +
+          '<div id=\"rep-critico-body\" style=\"display:none;border:1px solid var(--amber-border);border-top:none;border-radius:0 0 var(--radius) var(--radius);padding:6px 10px;\"></div></div>';
+        criticos.forEach(function(f) {
+          var fi = filamentos.indexOf(f);
+          var pct = f.pesoRolo>0?((parseFloat(f.qtd||0)/parseFloat(f.pesoRolo||1000))*100).toFixed(0):0;
+          hA += '<div style=\"display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 0;border-bottom:1px solid rgba(255,170,0,0.1);\">' +
+            '<span style=\"width:8px;height:8px;border-radius:50%;background:' + (f.corHex||'#888') + ';flex-shrink:0;\"></span>' +
+            '<span style=\"flex:1;\">' + f.corNome + ' <span style=\"color:var(--text3);\">'+f.marca+' '+f.modelo+'</span></span>' +
+            '<span style=\"color:var(--amber-text);font-size:10px;font-weight:700;\">' + parseFloat(f.qtd||0).toFixed(0) + 'g ('+pct+'%)</span>' +
+            '<button onclick=\"irParaReposicao(' + fi + ')\" class=\"btn\" style=\"font-size:10px;padding:2px 8px;\"><i class=\"ti ti-shopping-cart\"></i> Repor</button>' +
+          '</div>';
+        });
+      }
     }
     alertasEl.innerHTML = hA;
   }
@@ -5794,6 +5807,21 @@ function estToggle(fi) {
   if(row) row.style.borderColor = aberto ? 'transparent' : 'var(--border2)';
 }
 
+
+function toggleRepoBadge(id) {
+  var el = document.getElementById(id);
+  if(!el) return;
+  // Percorrer filhos do pai para montar a lista dentro do div body (esta vazio no HTML gerado)
+  var isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : 'block';
+  // Atualizar chevron do botao anterior
+  var btn = el.previousElementSibling;
+  if(btn) {
+    var chev = btn.querySelector('.ti-chevron-down, .ti-chevron-up');
+    if(chev) { chev.className = chev.className.replace('ti-chevron-down','ti-chevron-up').replace('ti-chevron-up ti-chevron-up','ti-chevron-up'); }
+    if(isOpen && chev) chev.className = chev.className.replace('ti-chevron-up','ti-chevron-down');
+  }
+}
 
 function irParaReposicao(filIdx) {
   showTab('compras');
