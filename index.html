@@ -950,6 +950,7 @@
       <select id="filtro-ped" onchange="renderPedidos()" style="padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);">
         <option value="">Todos</option><option value="pendente">Pendente</option><option value="imprimindo">Imprimindo</option><option value="concluido">Concluido</option>
       </select>
+      <button class="btn" onclick="verificarBaixaEstoquePedidos()" style="font-size:12px;padding:6px 12px;color:var(--neon);border-color:var(--neon);"><i class="ti ti-shield-check"></i> Auditar Estoque</button>
       <button class="btn" id="btn-toggle-kanban" onclick="toggleKanban()" title="Alternar Kanban/Lista" style="padding:7px 10px;"><i class="ti ti-layout-columns"></i></button>
       <button class="btn-ok" onclick="toggleFormPedido()"><i class="ti ti-plus"></i> Novo Pedido</button>
     </div>
@@ -9077,6 +9078,90 @@ function converterDadosParaMaiusculas() {
 }
 
 /* ===== BAIXA RETROATIVA PEDIDOS CONCLUIDOS ===== */
+function verificarBaixaEstoquePedidos() {
+  var concluidos = pedidos.filter(function(p){ return p.status === 'concluido'; });
+  if(!concluidos.length) { alert('Nenhum pedido concluido encontrado.'); return; }
+
+  var comBaixa = [], semBaixa = [], semFil = [], atualizados = 0;
+
+  concluidos.forEach(function(p) {
+    var idx = pedidos.indexOf(p);
+    var fils = p.filsEstoque || [];
+
+    if(!fils.length || fils.every(function(f){ return parseFloat(f.peso||0) <= 0; })) {
+      semFil.push(p); return;
+    }
+
+    if(p.estoquesBaixados === true) {
+      comBaixa.push({ p:p, idx:idx }); return;
+    }
+
+    // Fallback: verificar se ha movimentacao com referencia a este pedido
+    var nomeUP = (p.nome||'').toUpperCase().substring(0,15);
+    var movFound = movimentacoes.some(function(m) {
+      return m.tipo === 'saida' &&
+        (m.referencia === 'Pedido: '+p.nome ||
+         (m.referencia && m.referencia.toUpperCase().indexOf(nomeUP) >= 0 &&
+          m.referencia.toUpperCase().indexOf('CONCLUIDO') >= 0) ||
+         (m.motivo && m.motivo.toUpperCase().indexOf(nomeUP) >= 0 &&
+          (m.motivo.toUpperCase().indexOf('PEDIDO') >= 0 || m.motivo.toUpperCase().indexOf('PRODUCAO') >= 0)));
+    });
+
+    if(movFound) {
+      pedidos[idx].estoquesBaixados = true;
+      comBaixa.push({ p:p, idx:idx });
+      atualizados++;
+    } else {
+      semBaixa.push({ p:p, idx:idx });
+    }
+  });
+
+  if(atualizados > 0) S.set('pedidos', pedidos);
+
+  // Montar relatorio
+  var msg = '=== AUDITORIA DE ESTOQUE ? Pedidos Concluidos ===\n\n';
+  msg += 'Total analisado: ' + concluidos.length + ' pedidos\n';
+  msg += '  OK com baixa: ' + comBaixa.length + '\n';
+  msg += '  Sem filamento: ' + semFil.length + '\n';
+  msg += '  PENDENTES: ' + semBaixa.length + '\n';
+  if(atualizados > 0) msg += '  ('+atualizados+' flags atualizados retroativamente por movimentacao)\n';
+
+  if(!semBaixa.length) {
+    alert(msg + '\nTudo certo! Todos os pedidos com filamento tiveram o estoque baixado.');
+    return;
+  }
+
+  msg += '\nPEDIDOS SEM BAIXA DE ESTOQUE:\n';
+  semBaixa.forEach(function(item) {
+    var p = item.p;
+    var peso = (p.filsEstoque||[]).reduce(function(s,f){ return s+parseFloat(f.peso||0); },0);
+    var filNomes = (p.filsEstoque||[]).map(function(f){ return (f.filNome||'?')+' ('+parseFloat(f.peso||0).toFixed(2)+'g)'; }).join(', ');
+    msg += '\n  ' + p.nome + ' | ' + (p.data||'--') + ' | ' + peso.toFixed(2) + 'g total\n';
+    msg += '    Fils: ' + filNomes + '\n';
+  });
+
+  msg += '\nDeseja baixar o estoque de TODOS os ' + semBaixa.length + ' pedidos pendentes agora?';
+
+  if(!confirm(msg)) return;
+
+  var baixados = 0;
+  semBaixa.forEach(function(item) {
+    var p = item.p;
+    (p.filsEstoque||[]).forEach(function(f) {
+      if(f.filIdx >= 0 && f.filIdx < filamentos.length && parseFloat(f.peso||0) > 0) {
+        registrarMovimentacao(f.filIdx, 'saida', parseFloat(f.peso),
+          'Producao de peca', 'Pedido: '+p.nome+' (retroativo)');
+      }
+    });
+    pedidos[item.idx].estoquesBaixados = true;
+    baixados++;
+  });
+
+  S.set('pedidos', pedidos);
+  renderEstoque(); renderPedidos();
+  alert(baixados + ' pedido(s) tiveram o estoque baixado retroativamente!\nVerifique o estoque dos filamentos afetados.');
+}
+
 function baixaRetroativaPedidosConcluidos() {
   // Verificar se ja foi executada para nao duplicar
   var jaExecutou = localStorage.getItem('akp3d_baixa_retroativa_v1');
