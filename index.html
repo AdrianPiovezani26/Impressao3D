@@ -14145,17 +14145,31 @@ document.addEventListener('DOMContentLoaded', function() {
       container: '#prec-import-btn',
       rotulo: 'Importar Gcode',
       filamentos: function() {
-        return filamentos.map(function(f, i) {
-          return {
-            id: i,
-            nomeCor: f.corNome || '',
-            marca:   f.marca   || '',
-            tipo:    f.modelo  || '',
-            hex:     f.corHex  || null,
-            precoRolo: parseFloat(f.preco   || 0),
-            pesoRolo:  parseFloat(f.pesoRolo|| 1000),
-          };
-        });
+        return filamentos
+          .map(function(f, i) {
+            var saldo = (typeof calcEstoqueDisponivel === 'function')
+              ? calcEstoqueDisponivel(i).disponivel
+              : parseFloat(f.qtd || 0);
+            return {
+              id:        i,
+              nomeCor:   f.corNome  || '',
+              marca:     f.marca    || '',
+              tipo:      f.modelo   || '',
+              hex:       f.corHex   || null,
+              precoRolo: parseFloat(f.preco    || 0),
+              pesoRolo:  parseFloat(f.pesoRolo || 1000),
+              _saldo:    saldo,
+            };
+          })
+          .filter(function(f) { return f._saldo > 0; })
+          .sort(function(a, b) {
+            return (a.nomeCor || '').localeCompare(b.nomeCor || '', 'pt-BR');
+          })
+          .map(function(f) {
+            // Adiciona saldo entre parenteses no rotulo da cor
+            f.nomeCor = f.nomeCor + ' (' + f._saldo.toFixed(0) + 'g)';
+            return f;
+          });
       },
       onAplicar: function(d) {
         // 1. Preencher tempo
