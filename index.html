@@ -1588,6 +1588,10 @@
       </div>
     </div>
     <div class="rel-card">
+      <div class="rel-titulo"><i class="ti ti-eye"></i> Compras por Cor — Visão Rápida</div>
+      <div id="rel-compras-por-cor"></div>
+    </div>
+    <div class="rel-card">
       <div class="rel-titulo"><i class="ti ti-arrow-bar-to-down"></i> Ranking de Reposição — Cores Mais Consumidas</div>
       <div id="rel-fil-repor"></div>
     </div>
@@ -10548,6 +10552,88 @@ function renderRelClientes(datas) {
   }
 }
 
+function renderComprasPorCor() {
+  var el = document.getElementById('rel-compras-por-cor');
+  if(!el) return;
+
+  if(!filamentos.length) {
+    el.innerHTML = '<div class="rel-empty">Nenhum filamento cadastrado.</div>';
+    return;
+  }
+
+  // Agrupar por corNome
+  var grupos = {};
+  filamentos.forEach(function(f, i) {
+    var cor = (f.corNome || 'SEM COR').toUpperCase().trim();
+    if(!grupos[cor]) grupos[cor] = { cor: cor, hex: f.corHex || null, itens: [] };
+    var saldo = calcEstoqueDisponivel(i);
+    var pct = parseFloat(f.pesoRolo||1000) > 0 ? (saldo.fisico / parseFloat(f.pesoRolo||1000) * 100) : 0;
+    var status = saldo.fisico <= 0 ? 'esgotado'
+               : pct < 15          ? 'critico'
+               : pct < 40          ? 'baixo'
+               :                     'ok';
+    grupos[cor].itens.push({ idx:i, f:f, fisico:saldo.fisico, pct:pct, status:status });
+    if(!grupos[cor].hex && f.corHex) grupos[cor].hex = f.corHex;
+  });
+
+  var prio = { esgotado:0, critico:1, baixo:2, ok:3 };
+  var lista = Object.values(grupos).sort(function(a, b) {
+    var pA = Math.min.apply(null, a.itens.map(function(it){ return prio[it.status]; }));
+    var pB = Math.min.apply(null, b.itens.map(function(it){ return prio[it.status]; }));
+    return pA !== pB ? pA - pB : a.cor.localeCompare(b.cor, 'pt-BR');
+  });
+
+  var SC = {
+    esgotado: { bg:'rgba(255,50,50,0.08)',  bd:'var(--red-border)',    tx:'var(--red-text)',   lb:'ESGOTADO', ic:'ti-package-off'    },
+    critico:  { bg:'rgba(255,120,0,0.08)', bd:'var(--amber-border)',  tx:'var(--amber-text)', lb:'CRITICO',  ic:'ti-alert-triangle' },
+    baixo:    { bg:'rgba(255,200,0,0.06)', bd:'rgba(255,200,0,0.3)',  tx:'#f0c040',           lb:'BAIXO',    ic:'ti-trending-down'  },
+    ok:       { bg:'rgba(0,220,130,0.04)', bd:'var(--border2)',       tx:'var(--neon)',        lb:'OK',       ic:'ti-check'          },
+  };
+
+  var totE=0,totC=0,totB=0;
+  lista.forEach(function(g){ g.itens.forEach(function(it){
+    if(it.status==='esgotado') totE++;
+    else if(it.status==='critico') totC++;
+    else if(it.status==='baixo') totB++;
+  });});
+
+  var h = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">';
+  if(totE) h += '<span style="background:rgba(255,50,50,0.12);border:1px solid var(--red-border);border-radius:var(--radius);padding:5px 10px;font-size:12px;font-weight:700;color:var(--red-text);"><i class="ti ti-package-off"></i> '+totE+' esgotado(s)</span>';
+  if(totC) h += '<span style="background:rgba(255,120,0,0.1);border:1px solid var(--amber-border);border-radius:var(--radius);padding:5px 10px;font-size:12px;font-weight:700;color:var(--amber-text);"><i class="ti ti-alert-triangle"></i> '+totC+' critico(s)</span>';
+  if(totB) h += '<span style="background:rgba(255,200,0,0.08);border:1px solid rgba(255,200,0,0.3);border-radius:var(--radius);padding:5px 10px;font-size:12px;font-weight:700;color:#f0c040;"><i class="ti ti-trending-down"></i> '+totB+' baixo(s)</span>';
+  if(!totE&&!totC&&!totB) h += '<span style="color:var(--neon);font-size:12px;padding:5px 0;"><i class="ti ti-check"></i> Todas as cores com estoque adequado</span>';
+  h += '</div>';
+
+  h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px;">';
+  lista.forEach(function(g) {
+    var pior = g.itens.reduce(function(w,it){ return prio[it.status]<prio[w]?it.status:w; }, 'ok');
+    var sc = SC[pior];
+    h += '<div style="background:'+sc.bg+';border:1px solid '+sc.bd+';border-radius:var(--radius);padding:10px 12px;">';
+    h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">';
+    h += '<span style="width:13px;height:13px;border-radius:50%;background:'+(g.hex||'#555')+';border:1px solid var(--border2);flex-shrink:0;"></span>';
+    h += '<span style="font-weight:700;font-size:13px;flex:1;">'+g.cor+'</span>';
+    h += '<span style="font-size:10px;font-weight:700;color:'+sc.tx+';"><i class="ti '+sc.ic+'"></i> '+sc.lb+'</span>';
+    h += '</div>';
+    g.itens.forEach(function(it) {
+      var isc = SC[it.status];
+      var bar = Math.min(100, it.pct);
+      h += '<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-top:1px solid rgba(255,255,255,0.05);">';
+      h += '<div style="flex:1;min-width:0;">';
+      h += '<div style="font-size:11px;color:var(--text2);">'+it.f.marca+' <span style="color:var(--text3);">'+it.f.modelo+'</span></div>';
+      h += '<div style="height:3px;background:var(--bg3);border-radius:2px;margin-top:3px;"><div style="height:3px;background:'+isc.tx+';border-radius:2px;width:'+bar+'%;"></div></div>';
+      h += '</div>';
+      h += '<div style="text-align:right;flex-shrink:0;">';
+      h += '<div style="font-size:12px;font-weight:700;color:'+isc.tx+';">'+it.fisico.toFixed(0)+'g</div>';
+      h += '<div style="font-size:9px;color:var(--text3);">'+it.pct.toFixed(0)+'%</div>';
+      h += '</div></div>';
+    });
+    h += '</div>';
+  });
+  h += '</div>';
+  h += '<div style="margin-top:8px;font-size:11px;color:var(--text3);">Ordenado por urgencia: Esgotado > Critico > Baixo (&lt;40% do rolo) > OK. Cada card lista todas as marcas dessa cor.</div>';
+  el.innerHTML = h;
+}
+
 function renderRelFilamentos(datas) {
   var filtFilSel  = (document.getElementById('rel-fil-sel')||{}).value||'';
   var filtTipoMov = (document.getElementById('rel-fil-tipo-mov')||{}).value||'';
@@ -10659,6 +10745,9 @@ function renderRelFilamentos(datas) {
         }).join('')+'</tbody></table>' :
         '<div class="rel-empty" style="color:var(--neon);"><i class="ti ti-check" style="font-size:24px;display:block;"></i>Todos com estoque adequado!</div>';
     }
+
+    // Compras por Cor
+    renderComprasPorCor();
 
     // ===== RANKING DE REPOSICAO =====
     var reporEl = document.getElementById('rel-fil-repor');
