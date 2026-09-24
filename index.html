@@ -386,7 +386,12 @@
                   clearTimeout(recarregarTimeout);
                   recarregarTimeout = setTimeout(function() {
                     if(typeof recarregarDados === 'function') {
+                      // Bloquear temporariamente o fbSalvar durante recarregarDados
+                      // para evitar que migrations escrevam de volta para Firebase
+                      var eraSyncCompleto = window._fbSyncCompleto;
+                      window._fbSyncCompleto = false;
                       recarregarDados();
+                      setTimeout(function(){ window._fbSyncCompleto = eraSyncCompleto; }, 2000);
                       var ind = document.getElementById('fb-sync-status');
                       if(ind) {
                         ind.style.display='flex';
@@ -409,12 +414,17 @@
         setTimeout(function() {
           // Sync inicial: Firebase -> local
           window.fbSincronizar().then(function() {
-            // Depois do sync inicial, ativar listeners em tempo real
+            // Liberar escrita para Firebase SOMENTE após sync inicial completo
+            window._fbSyncCompleto = true;
+            console.log('[Firebase] sync inicial completo — escritas habilitadas');
             window.fbIniciarListeners();
           }).catch(function() {
-            // Mesmo sem sync inicial, tentar listeners
+            // Mesmo com erro no sync, habilitar após timeout de segurança
+            window._fbSyncCompleto = true;
             window.fbIniciarListeners();
           });
+          // Fallback: liberar após 10s mesmo se o sync travar
+          setTimeout(function() { window._fbSyncCompleto = true; }, 10000);
         }, 1200);
       });
     })();
@@ -2793,7 +2803,10 @@ function setTipoCalc(tipo) {
   calcular();
 }
 
-const S={get:k=>{try{return JSON.parse(localStorage.getItem('akp3d_'+k)||'null');}catch{return null;}},set:(k,v)=>{try{localStorage.setItem('akp3d_'+k,JSON.stringify(v));}catch(e){console.error('S.set falhou para '+k+':',e);}if(typeof window.fbSalvar==='function')window.fbSalvar(k,v).catch(()=>{});}};
+const S={get:k=>{try{return JSON.parse(localStorage.getItem('akp3d_'+k)||'null');}catch{return null;}},set:(k,v)=>{try{localStorage.setItem('akp3d_'+k,JSON.stringify(v));}catch(e){console.error('S.set falhou para '+k+':',e);}if(window._fbSyncCompleto && typeof window.fbSalvar==='function')window.fbSalvar(k,v).catch(()=>{});}};
+// Protecao: so sincroniza com Firebase apos o sync inicial estar completo
+// Evita que migrations na carga inicial sobrescrevam Firebase com arrays vazios
+window._fbSyncCompleto = false;
 let filamentos=S.get('filamentos')||[];
 let produtos=S.get('produtos')||[];
 let pedidos=S.get('pedidos')||[];
