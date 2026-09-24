@@ -2460,7 +2460,13 @@
   </div>
 </div>
 
-<!-- MODAL SELETOR DE PEDIDOS -->
+<!-- AVISO DE BACKUP PENDENTE -->
+<div id="aviso-backup" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99998;background:rgba(255,120,0,0.95);color:#fff;padding:10px 20px;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">
+  <i class="ti ti-alert-triangle" style="font-size:18px;flex-shrink:0;"></i>
+  <span id="aviso-backup-msg" style="flex:1;font-size:13px;font-weight:600;"></span>
+  <button onclick="fazerBackup()" style="background:#fff;color:#e65100;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;"><i class="ti ti-download"></i> Fazer Backup Agora</button>
+  <button onclick="document.getElementById('aviso-backup').style.display='none'" style="background:none;border:none;color:#fff;cursor:pointer;font-size:18px;padding:0 4px;">×</button>
+</div>
 <div id="modal-sel-pedidos" class="modal-overlay" style="display:none;" onclick="if(event.target===this)this.style.display='none'">
   <div class="modal-box" style="max-width:520px;max-height:85vh;overflow-y:auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
@@ -5219,14 +5225,13 @@ function checkEstoque(){
 function fazerBackup() {
   var dados = {};
   var chaves = ['filamentos','produtos','pedidos','vendas','faturas','compras',
-                'parceiros','movimentacoes','cfg','mapa_xml','hist_calc'];
+                'parceiros','clientes','movimentacoes','cfg','mapa_xml','hist_calc',
+                'impressoes_internas','consignacoes','oportunidades','contas_pagar',
+                'impressoras'];
   chaves.forEach(function(k) {
     var val = S.get(k);
     if(val !== null) dados['akp3d_'+k] = val;
   });
-  var total = Object.keys(dados).reduce(function(s,k){
-    return s + (Array.isArray(dados[k]) ? dados[k].length : 1);
-  }, 0);
   var json = JSON.stringify(dados, null, 2);
   var blob = new Blob([json], {type:'application/json'});
   var a = document.createElement('a');
@@ -5236,15 +5241,34 @@ function fazerBackup() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(a.href);
-  // Mostrar confirmacao
+  // Registrar data do backup
+  localStorage.setItem('akp3d_ultimo_backup', Date.now().toString());
+  // Esconder aviso se visivel
+  var av = document.getElementById('aviso-backup');
+  if(av) av.style.display = 'none';
   var resumo = [
     (dados['akp3d_filamentos']||[]).length + ' filamentos',
-    (dados['akp3d_compras']||[]).length + ' compras',
-    (dados['akp3d_parceiros']||[]).length + ' parceiros',
     (dados['akp3d_pedidos']||[]).length + ' pedidos',
-    (dados['akp3d_movimentacoes']||[]).length + ' movimentacoes'
+    (dados['akp3d_vendas']||[]).length + ' vendas',
+    (dados['akp3d_movimentacoes']||[]).length + ' movimentacoes',
+    (dados['akp3d_impressoes_internas']||[]).length + ' impressoes'
   ].join(' | ');
-  alert('Backup salvo com sucesso!\n\n' + resumo + '\n\nArquivo: AKP3D_backup_' + hoje() + '.json');
+  alert('Backup salvo!\n\n' + resumo + '\n\nArquivo: AKP3D_backup_' + hoje() + '.json\n\nGuarde em lugar seguro (Google Drive, e-mail para si mesmo).');
+}
+
+function verificarBackupPendente() {
+  var ultimo = parseInt(localStorage.getItem('akp3d_ultimo_backup') || '0');
+  var diasSemBackup = ultimo ? Math.floor((Date.now() - ultimo) / 86400000) : 999;
+  var av = document.getElementById('aviso-backup');
+  if(!av) return;
+  if(diasSemBackup >= 7) {
+    var msg = ultimo ? 'Ultimo backup ha ' + diasSemBackup + ' dias!' : 'Nenhum backup feito ainda!';
+    var msgEl = document.getElementById('aviso-backup-msg');
+    if(msgEl) msgEl.textContent = msg;
+    av.style.display = 'flex';
+  } else {
+    av.style.display = 'none';
+  }
 }
 
 function exportarDados(){
@@ -14240,6 +14264,7 @@ document.addEventListener('DOMContentLoaded', function() {
   estornoChaveiroHercules();
   migrarImpressoesInternas();
   renderHistoricoCalc();
+  verificarBackupPendente();
 
   // Inicializar importador de fatiamento na aba Precificacao
   if(typeof AKP3D !== 'undefined' && AKP3D.montarImportacao) {
