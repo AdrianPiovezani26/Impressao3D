@@ -1684,7 +1684,7 @@
   <div id="estoque-alertas" style="margin-bottom:.75rem;"></div>
 
   <!-- Barra de busca e filtros -->
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;align-items:center;">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:.5rem;align-items:center;">
     <input type="text" id="est-busca" placeholder="Buscar filamento..." oninput="renderEstoque()"
       style="flex:1;min-width:160px;padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);">
     <select id="est-filtro" onchange="renderEstoque()"
@@ -1695,6 +1695,27 @@
       <option value="critico">Critico</option>
       <option value="esgotado">Esgotado</option>
     </select>
+  </div>
+
+  <!-- Filtros por status -->
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:1rem;align-items:center;padding:8px 12px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);">
+    <span style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Mostrar:</span>
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--neon);">
+      <input type="checkbox" id="cb-st-ok" checked onchange="renderEstoque()" style="accent-color:var(--neon);width:14px;height:14px;">
+      <i class="ti ti-check" style="font-size:11px;"></i> OK
+    </label>
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:#f0c040;">
+      <input type="checkbox" id="cb-st-baixo" checked onchange="renderEstoque()" style="accent-color:#f0c040;width:14px;height:14px;">
+      <i class="ti ti-trending-down" style="font-size:11px;"></i> Baixo
+    </label>
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--amber-text);">
+      <input type="checkbox" id="cb-st-critico" checked onchange="renderEstoque()" style="accent-color:var(--amber-text);width:14px;height:14px;">
+      <i class="ti ti-alert-triangle" style="font-size:11px;"></i> Crítico
+    </label>
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text3);">
+      <input type="checkbox" id="cb-st-esgotado" onchange="renderEstoque()" style="accent-color:var(--red-text);width:14px;height:14px;">
+      <i class="ti ti-package-off" style="font-size:11px;"></i> Esgotado
+    </label>
   </div>
 
   <!-- Form ajuste manual -->
@@ -5762,6 +5783,18 @@ function renderEstoque() {
   filamentos.forEach(function(f){
     var st = getStatus(f);
     if(filtro && st !== filtro) return;
+    // Filtro por checkboxes de status
+    var cbOk       = document.getElementById('cb-st-ok');
+    var cbBaixo    = document.getElementById('cb-st-baixo');
+    var cbCritico  = document.getElementById('cb-st-critico');
+    var cbEsgotado = document.getElementById('cb-st-esgotado');
+    var stAtivo = {
+      ok:       !cbOk       || cbOk.checked,
+      baixo:    !cbBaixo    || cbBaixo.checked,
+      critico:  !cbCritico  || cbCritico.checked,
+      esgotado: !cbEsgotado || cbEsgotado.checked,
+    };
+    if(!stAtivo[st]) return;
     if(busca && !(f.marca+' '+f.modelo+' '+f.corNome).toUpperCase().includes(busca)) return;
     var k = f.modelo || 'Outro';
     if(!ag[k]) ag[k] = [];
