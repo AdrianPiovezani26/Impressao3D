@@ -1702,7 +1702,8 @@
     <div class="stitle" style="font-size:11px;margin-bottom:1rem;">Ajuste Manual de Estoque</div>
     <div class="grid2">
       <div class="field"><label>Filamento</label>
-        <select id="aj-fil"><option value="">Selecionar filamento...</option></select>
+        <select id="aj-fil" onchange="atualizarInfoAjuste()"><option value="">Selecionar filamento...</option></select>
+        <div id="aj-fil-label" style="font-size:11px;color:var(--neon);margin-top:4px;min-height:16px;"></div>
       </div>
       <div class="field"><label>Tipo de movimentacao</label>
         <select id="aj-tipo">
@@ -5597,12 +5598,41 @@ function previewAjuste() {
   }
 }
 
-function showAjusteEstoque() {
-  const s = document.getElementById('aj-fil');
-  s.innerHTML = '<option value="">Selecionar filamento...</option>' +
-    filamentos.map((f,i) => `<option value="${i}">${f.corNome}  ${f.marca} ${f.modelo} (${parseFloat(f.qtd||0).toFixed(3)}g)</option>`).join('');
+function showAjusteEstoque(filIdx) {
+  var s = document.getElementById('aj-fil');
+  // Ordenar por cor usando getFilsOrdenados (mesma ordem do estoque)
+  s.innerHTML = getFilOptsAll('Selecionar filamento...');
+
+  // Pre-selecionar e pre-preencher se chamado de um card especifico
+  if(filIdx !== undefined && filIdx >= 0 && filamentos[filIdx]) {
+    s.value = String(filIdx);
+    var f = filamentos[filIdx];
+    // Pre-preencher campos fixos do filamento
+    var motEl = document.getElementById('aj-motivo');
+    if(motEl && !motEl.value) motEl.value = '';
+    // Mostrar nome do filamento selecionado no titulo do form
+    var lblEl = document.getElementById('aj-fil-label');
+    if(lblEl) lblEl.textContent = f.corNome + ' ' + f.marca + ' ' + f.modelo + ' ? saldo atual: ' + parseFloat(f.qtd||0).toFixed(0) + 'g';
+  }
+
   document.getElementById('form-ajuste').style.display = 'block';
   document.getElementById('form-ajuste').scrollIntoView({behavior:'smooth'});
+}
+
+function atualizarInfoAjuste() {
+  var s = document.getElementById('aj-fil');
+  var lblEl = document.getElementById('aj-fil-label');
+  if(!lblEl) return;
+  var filIdx = parseInt(s.value);
+  if(isNaN(filIdx) || filIdx < 0 || !filamentos[filIdx]) {
+    lblEl.textContent = '';
+    return;
+  }
+  var f = filamentos[filIdx];
+  var saldo = calcEstoqueDisponivel(filIdx);
+  lblEl.textContent = f.corNome + ' ' + f.marca + ' ' + f.modelo +
+    ' ? saldo fisico: ' + parseFloat(f.qtd||0).toFixed(0) + 'g' +
+    (saldo.reservado > 0 ? ' (disponivel: ' + saldo.disponivel.toFixed(0) + 'g, reservado: ' + saldo.reservado.toFixed(0) + 'g)' : '');
 }
 
 function salvarAjuste() {
