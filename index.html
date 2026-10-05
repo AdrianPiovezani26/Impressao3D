@@ -1326,6 +1326,7 @@
       <label>Filamentos Utilizados</label>
       <div style="display:flex;justify-content:flex-end;margin-bottom:6px;">
         <button class="btn" onclick="addFilImpressao()" style="font-size:11px;padding:4px 10px;"><i class="ti ti-plus"></i> Add Filamento</button>
+        <span id="imp-import-btn" style="display:inline-block;"></span>
       </div>
       <div id="imp-fils-lista" style="display:flex;flex-direction:column;gap:6px;"></div>
     </div>
@@ -14328,6 +14329,81 @@ document.addEventListener('DOMContentLoaded', function() {
   migrarImpressoesInternas();
   renderHistoricoCalc();
   verificarBackupPendente();
+
+  // Inicializar importador de fatiamento nas Impressoes Internas
+  if(typeof AKP3D !== 'undefined' && AKP3D.montarImportacao) {
+    AKP3D.montarImportacao({
+      container: '#imp-import-btn',
+      rotulo: 'Importar Gcode',
+      filamentos: function() {
+        return filamentos
+          .map(function(f, i) {
+            var saldo = (typeof calcEstoqueDisponivel === 'function')
+              ? calcEstoqueDisponivel(i).disponivel
+              : parseFloat(f.qtd || 0);
+            return {
+              id: i, nomeCor: f.corNome || '', marca: f.marca || '',
+              tipo: f.modelo || '', hex: f.corHex || null,
+              precoRolo: parseFloat(f.preco || 0),
+              pesoRolo:  parseFloat(f.pesoRolo || 1000),
+              _saldo: saldo,
+            };
+          })
+          .filter(function(f) { return f._saldo > 0; })
+          .sort(function(a, b) { return (a.nomeCor || '').localeCompare(b.nomeCor || '', 'pt-BR'); })
+          .map(function(f) { f.nomeCor = f.nomeCor + ' (' + f._saldo.toFixed(0) + 'g)'; return f; });
+      },
+      onAplicar: function(d) {
+        // Preencher tempo
+        var hEl = document.getElementById('imp-horas-h');
+        var mEl = document.getElementById('imp-horas-m');
+        if(hEl) hEl.value = d.tempoHoras   || 0;
+        if(mEl) mEl.value = d.tempoMinutos || 0;
+
+        // Limpar e repopular filamentos
+        var lista = document.getElementById('imp-fils-lista');
+        if(lista) lista.innerHTML = '';
+
+        var linhadas = 0;
+        d.linhas.forEach(function(linha) {
+          var filIdx = (linha.filamentoId !== null && linha.filamentoId !== undefined)
+            ? parseInt(linha.filamentoId) : -1;
+          var f = filIdx >= 0 ? filamentos[filIdx] : null;
+
+          addFilImpressao();
+          var itens = document.getElementById('imp-fils-lista').querySelectorAll('.imp-fil-item');
+          var ultimo = itens[itens.length - 1];
+          if(!ultimo) return;
+
+          var sel    = ultimo.querySelector('select');
+          var inputs = ultimo.querySelectorAll('input[type="number"], input:not([type])');
+
+          if(sel && filIdx >= 0) {
+            sel.value = String(filIdx);
+            sel.dispatchEvent(new Event('change'));
+          }
+          if(inputs[0]) inputs[0].value = linha.gramas.toFixed(3);
+
+          linhadas++;
+        });
+
+        if(!document.getElementById('imp-fils-lista').querySelectorAll('.imp-fil-item').length)
+          addFilImpressao();
+
+        if(typeof calcCustoImpressao === 'function') calcCustoImpressao();
+
+        // Toast
+        var toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--bg1);' +
+          'border:1px solid var(--neon);border-radius:var(--radius);padding:10px 16px;' +
+          'color:var(--neon);font-size:13px;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,.4);';
+        toast.innerHTML = '<i class="ti ti-check"></i> ' + linhadas + ' filamento(s) importados &bull; ' +
+          (d.tempoHoras||0) + 'h ' + (d.tempoMinutos||0) + 'min';
+        document.body.appendChild(toast);
+        setTimeout(function(){ toast.remove(); }, 3500);
+      },
+    });
+  }
 
   // Inicializar importador de fatiamento na aba Precificacao
   if(typeof AKP3D !== 'undefined' && AKP3D.montarImportacao) {
