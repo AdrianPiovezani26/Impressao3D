@@ -774,6 +774,18 @@
       <div id="c-fil-custo-total" style="display:none;font-size:12px;color:var(--neon);margin-bottom:10px;padding:6px 10px;background:var(--neon-dim);border-radius:var(--radius);border:1px solid var(--border2);"></div>
       <div class="field"><label>Insumos extras (R$)</label><input type="number" id="c-insumos" placeholder="0.00" step="0.01" oninput="calcular()"></div>
     </div>
+
+    <!-- CARD ACESSÓRIOS -->
+    <div class="card">
+      <div class="stitle">Acessórios</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Adicione acessórios do catálogo de compras — o custo entra no cálculo do produto</div>
+      <div id="c-acess-lista" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;"></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <button class="btn" onclick="addAcessCalc()" style="font-size:11px;padding:4px 10px;"><i class="ti ti-plus"></i> Adicionar Acessório</button>
+        <span id="c-acess-total" style="display:none;font-size:12px;color:var(--neon);padding:4px 10px;background:var(--neon-dim);border-radius:var(--radius);border:1px solid var(--border2);"></span>
+      </div>
+    </div>
+
     <div class="card">
       <div class="stitle">Tempo e Energia</div>
       <div class="field">
@@ -3534,6 +3546,119 @@ function splitAutomatico(filIdxAtual, pesoTotal) {
 }
 
 
+function getOptsAcessorios() {
+  // Buscar acessorios unicos das compras (tipo acessorio ou embalagem)
+  var acess = compras.filter(function(c) {
+    return c.tipo === 'acessorio' || c.tipo === 'embalagem' ||
+           c.tipo === 'Embalagem' || c.tipo === 'Ferramenta';
+  });
+  if(!acess.length) return '<option value="">-- Nenhum acessorio cadastrado --</option>';
+  // Agrupar por desc para mostrar o mais recente de cada um
+  var mapa = {};
+  acess.forEach(function(c) {
+    var key = (c.desc || c.nome || '').toUpperCase().trim();
+    if(!mapa[key] || c.id > mapa[key].id) mapa[key] = c;
+  });
+  var lista = Object.values(mapa).sort(function(a,b){
+    return (a.desc||a.nome||'').localeCompare(b.desc||b.nome||'', 'pt-BR');
+  });
+  return '<option value="">Selecionar acessorio...</option>' +
+    lista.map(function(c) {
+      var nome = c.desc || c.nome || 'Sem nome';
+      var custo = parseFloat(c.precoUnit || 0);
+      var unid  = c.unidade || 'un';
+      return '<option value="' + custo + '" data-nome="' + nome.replace(/"/g,'&quot;') + '" data-unid="' + unid + '">' +
+        nome + ' ? R$' + custo.toFixed(4) + '/' + unid + '</option>';
+    }).join('');
+}
+
+function addAcessCalc(nome, custo, qtd) {
+  var lista = document.getElementById('c-acess-lista');
+  if(!lista) return;
+
+  var d = document.createElement('div');
+  d.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap;background:var(--bg3);border-radius:var(--radius);padding:6px 8px;';
+
+  // Select de acessorio
+  var sel = document.createElement('select');
+  sel.style.cssText = 'flex:2;min-width:180px;border:1px solid var(--border2);border-radius:var(--radius);padding:5px 8px;font-size:12px;background:var(--bg2);color:var(--text);';
+  sel.innerHTML = getOptsAcessorios();
+
+  // Input quantidade
+  var inpQtd = document.createElement('input');
+  inpQtd.type = 'number'; inpQtd.min = '0'; inpQtd.step = '1'; inpQtd.value = qtd || 1;
+  inpQtd.placeholder = 'Qtd';
+  inpQtd.style.cssText = 'width:70px;border:1px solid var(--border2);border-radius:var(--radius);padding:5px 8px;font-size:12px;background:var(--bg2);color:var(--text);';
+
+  // Label custo calculado
+  var lblCusto = document.createElement('span');
+  lblCusto.style.cssText = 'font-size:12px;color:var(--neon);min-width:70px;font-weight:600;';
+  lblCusto.textContent = 'R$0,00';
+
+  // Botao remover
+  var btn = document.createElement('button');
+  btn.className = 'rm'; btn.innerHTML = '<i class="ti ti-x"></i>';
+
+  function atualizar() {
+    var opt = sel.options[sel.selectedIndex];
+    var custUnit = parseFloat(sel.value) || 0;
+    var q = parseFloat(inpQtd.value) || 0;
+    var total = custUnit * q;
+    lblCusto.textContent = 'R$' + total.toFixed(2).replace('.',',');
+    calcular();
+  }
+
+  sel.addEventListener('change', function() {
+    // Pre-preencher qtd padrao = 1 ao selecionar
+    if(sel.value) inpQtd.value = 1;
+    atualizar();
+  });
+  inpQtd.addEventListener('input', atualizar);
+  btn.addEventListener('click', function(){ d.remove(); calcular(); });
+
+  d.appendChild(sel);
+  d.appendChild(inpQtd);
+  d.appendChild(lblCusto);
+  d.appendChild(btn);
+  lista.appendChild(d);
+
+  // Pre-selecionar se passado por parametro
+  if(custo) {
+    for(var i=0; i<sel.options.length; i++) {
+      if(parseFloat(sel.options[i].value) === custo &&
+         (sel.options[i].getAttribute('data-nome')||'').toUpperCase() === (nome||'').toUpperCase()) {
+        sel.selectedIndex = i; break;
+      }
+    }
+    inpQtd.value = qtd || 1;
+    atualizar();
+  }
+}
+
+function getAcessoriosCusto() {
+  var lista = document.getElementById('c-acess-lista');
+  if(!lista) return 0;
+  var total = 0;
+  Array.from(lista.children).forEach(function(row) {
+    var sel = row.querySelector('select');
+    var inp = row.querySelector('input[type="number"]');
+    var custo = parseFloat((sel||{}).value) || 0;
+    var qtd   = parseFloat((inp||{}).value) || 0;
+    total += custo * qtd;
+  });
+  // Atualizar badge de total
+  var badge = document.getElementById('c-acess-total');
+  if(badge) {
+    if(total > 0) {
+      badge.style.display = 'inline';
+      badge.textContent = 'Total acessorios: R$' + total.toFixed(2).replace('.',',');
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+  return total;
+}
+
 function getFilsCalc() {
   var items = document.getElementById('c-fils-lista').querySelectorAll('.fil-multi-item');
   var total = 0;
@@ -3702,7 +3827,8 @@ function calcular(){
 
   const cEn=(watts/1000)*horas*kwh, cMdo=mdo*horas, cDep=(vi/vida)*horas, cMt=(manut/hmes)*horas;
   // Custo total por LOTE (qtd unidades) -- incluindo custo de falhas
-  const cTotalLote = cFilComFalhas + cEn + cMdo + cDep + cMt + insumos + embal;
+  var acessCusto = getAcessoriosCusto();
+  const cTotalLote = cFilComFalhas + cEn + cMdo + cDep + cMt + insumos + embal + acessCusto;
   // Custo por unidade
   const cUnit = cTotalLote / qtd;
   // Aplicar impostos sobre o custo unitario
@@ -8364,6 +8490,12 @@ function limparFormCalc() {
   // Scroll para o topo da aba
   var tabCalc = document.getElementById('tab-calc');
   if(tabCalc) tabCalc.scrollTo(0, 0);
+
+  // Limpar acessorios
+  var listaAcess = document.getElementById('c-acess-lista');
+  if(listaAcess) listaAcess.innerHTML = '';
+  var badgeAcess = document.getElementById('c-acess-total');
+  if(badgeAcess) badgeAcess.style.display = 'none';
 
   // Campos de custo fixo NAO sao limpos (kwh, mdo, impostos, embal, insumos, markup, desc-lojista)
   // pois sao os mesmos para todos os produtos
