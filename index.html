@@ -14368,27 +14368,14 @@ document.addEventListener('DOMContentLoaded', function() {
         d.linhas.forEach(function(linha) {
           var filIdx = (linha.filamentoId !== null && linha.filamentoId !== undefined)
             ? parseInt(linha.filamentoId) : -1;
-          var f = filIdx >= 0 ? filamentos[filIdx] : null;
-
-          addFilImpressao();
-          var itens = document.getElementById('imp-fils-lista').querySelectorAll('.imp-fil-item');
-          var ultimo = itens[itens.length - 1];
-          if(!ultimo) return;
-
-          var sel    = ultimo.querySelector('select');
-          var inputs = ultimo.querySelectorAll('input[type="number"], input:not([type])');
-
-          if(sel && filIdx >= 0) {
-            sel.value = String(filIdx);
-            sel.dispatchEvent(new Event('change'));
-          }
-          if(inputs[0]) inputs[0].value = linha.gramas.toFixed(3);
-
+          // addFilImpressao ja aceita filIdx e peso como parametros
+          addFilImpressao(filIdx >= 0 ? filIdx : undefined, linha.gramas.toFixed(3));
           linhadas++;
         });
 
-        if(!document.getElementById('imp-fils-lista').querySelectorAll('.imp-fil-item').length)
-          addFilImpressao();
+        // Se nenhuma linha foi criada, adicionar uma vazia
+        var lista = document.getElementById('imp-fils-lista');
+        if(lista && !lista.children.length) addFilImpressao();
 
         if(typeof calcCustoImpressao === 'function') calcCustoImpressao();
 
