@@ -7208,10 +7208,15 @@ function processarXML(file) {
               ${d.pareceFilamento ? '<span class="tag tag-blue" style="font-size:10px;">Filamento</span>' : '<span class="tag" style="font-size:10px;background:var(--bg2);color:var(--text2);border:1px solid var(--border2);">Acessorio</span>'}
               ${badgeMatch}
             </div>
-            <div style="font-size:12px;color:var(--text2);">
-              NCM: ${d.NCM} &nbsp;-&nbsp; Qtd: <strong>${d.qCom} ${d.uCom}</strong>
-              <strong style="color:var(--neon);"> = ${d.gramas.toFixed(0)}g</strong>
-              &nbsp;-&nbsp; Un: ${fmt(parseFloat(d.vUnCom))} &nbsp;-&nbsp; Total: ${fmt(parseFloat(d.vProd))}
+            <div style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              NCM: ${d.NCM} &nbsp;-&nbsp; Qtd:
+              <input type="number" id="xml-qtd-edit-${i}" value="${d.qCom}" min="0.001" step="any"
+                onchange="onChangeXmlQtd(${i})"
+                style="width:80px;padding:3px 6px;border:1px solid var(--neon);border-radius:var(--radius);font-size:12px;font-weight:700;background:var(--bg2);color:var(--neon);">
+              ${d.uCom}
+              <strong style="color:var(--neon);" id="xml-gramas-label-${i}"> = ${d.gramas.toFixed(0)}g</strong>
+              &nbsp;-&nbsp; Un: <span id="xml-vunit-label-${i}">${fmt(parseFloat(d.vUnCom))}</span>
+              &nbsp;-&nbsp; Total: ${fmt(parseFloat(d.vProd))}
             </div>
             ${d.pareceFilamento ? `<div style="margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <span style="font-size:11px;color:var(--text3);">Detectado:</span>
@@ -7287,6 +7292,34 @@ function processarXML(file) {
   };
   reader.readAsText(file);
   document.getElementById('xml-file').value = '';
+}
+
+function onChangeXmlQtd(i) {
+  var novaQtd  = parseFloat(document.getElementById('xml-qtd-edit-'+i).value) || 0;
+  if(novaQtd <= 0) return;
+
+  // Total da NF e fixo ? recalcular preco unitario
+  var vTotal   = parseFloat(document.getElementById('xml-vtotal-'+i).value) || 0;
+  var novoUnit = vTotal > 0 ? (vTotal / novaQtd) : 0;
+
+  // Atualizar hidden inputs
+  document.getElementById('xml-qtd-'+i).value   = novaQtd;
+  document.getElementById('xml-vunit-'+i).value = novoUnit.toFixed(10);
+
+  // Atualizar displays
+  var labelUnit = document.getElementById('xml-vunit-label-'+i);
+  if(labelUnit) labelUnit.textContent = fmt(novoUnit);
+
+  // Atualizar gramas (campo editavel e label) se for filamento
+  var uCom = document.getElementById('xml-ucom-'+i).value || '';
+  var novasGramas = typeof paraGramas === 'function' ? paraGramas(novaQtd, uCom) : novaQtd;
+  if(novasGramas <= 0) novasGramas = novaQtd;
+
+  var inpGramas = document.getElementById('xml-gramas-'+i);
+  if(inpGramas) inpGramas.value = novasGramas.toFixed(0);
+
+  var labelGramas = document.getElementById('xml-gramas-label-'+i);
+  if(labelGramas) labelGramas.textContent = ' = ' + novasGramas.toFixed(0) + 'g';
 }
 
 function onChangeXmlFil(i, xProd) {
