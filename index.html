@@ -6908,9 +6908,51 @@ function salvarCompra() {
   S.set('compras', compras);
   buildFilSelect(); renderFils();
 
+  // ===== VINCULAR EM CONTAS A PAGAR =====
+  // Calcular total da compra (soma de todos os itens registrados nesta sessao)
+  var totalCompra = compras
+    .filter(function(c) { return c.nf === nf && c.data === dataCp && c.fornNome === fornNome; })
+    .reduce(function(s, c) { return s + parseFloat(c.total || 0); }, 0);
+
+  // Verificar duplicata: mesma NF + mesmo fornecedor ja tem conta?
+  var jaTemConta = nf ? contasPagar.some(function(cp) {
+    return cp.tipo === 'compra' && cp.nfRef === nf && cp.fornNome === fornNome;
+  }) : false;
+
+  if(!jaTemConta && totalCompra > 0) {
+    // Detectar se ja foi pago pelo metodo de pagamento
+    var pgtoImediato = ['pix','dinheiro','debito','cartao debito','a vista']
+      .some(function(p) { return (pgto||'').toLowerCase().indexOf(p) >= 0; });
+    var statusConta = pgtoImediato ? 'pago' : 'pendente';
+
+    var descConta = 'Compra: ' + (fornNome || 'Fornecedor') +
+      (nf ? ' ? NF ' + nf : '') +
+      ' (' + itensRegistrados.length + ' item(s))';
+
+    contasPagar.unshift({
+      id: Date.now() + 9999,
+      tipo: 'compra',
+      desc: descConta,
+      fornNome: fornNome,
+      nfRef: nf || '',
+      valor: totalCompra,
+      venc: dataCp,
+      data: dataCp,
+      status: statusConta,
+      pgto: pgto || '',
+      obs: itensRegistrados.join(', ')
+    });
+    S.set('contas_pagar', contasPagar);
+    if(typeof renderContasPagar === 'function') renderContasPagar();
+    if(typeof renderKpisCP === 'function') renderKpisCP();
+  }
+  // ============================================
+
   var msg = itensRegistrados.length + ' item(s) registrado(s)!';
   if(estoqueAtualizado.length) msg += '\nEstoque atualizado: ' + estoqueAtualizado.join(', ');
   if(impressorasAtivas.length) msg += '\nImpressora(s): ' + impressorasAtivas.join('\n');
+  if(!jaTemConta && totalCompra > 0)
+    msg += '\n\nConta a pagar criada: ' + fmt(totalCompra) + ' (' + (pgtoImediato ? 'PAGO' : 'PENDENTE') + ')';
   alert(msg);
   limparFormCompra();
   renderComprasLancamento();
