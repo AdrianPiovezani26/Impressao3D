@@ -1,0 +1,28 @@
+/* AKP3D — spacing, radii, elevation, motion, layout */
+:root{
+  --space-0:0;--space-0-5:2px;--space-1:4px;--space-1-5:6px;--space-2:8px;--space-2-5:10px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-8:32px;--space-10:40px;--space-12:48px;--space-16:64px;
+
+  --radius-xs:4px;--radius-sm:6px;--radius-md:10px;--radius-lg:14px;--radius-xl:20px;--radius-pill:999px;
+  --radius-card:var(--radius-lg);--radius-control:var(--radius-md);--radius-nav:var(--radius-md);
+
+  /* Elevation: dark UI separates by surface tone first; shadows only for floating layers */
+  --shadow-none:none;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.24);
+  --shadow-md:0 8px 24px rgba(0,0,0,.36);
+  --shadow-lg:0 20px 48px rgba(0,0,0,.52);
+  --shadow-accent-glow:0 6px 24px rgba(184,254,87,.28);
+  --ring-focus:0 0 0 3px var(--focus-ring);
+  --inset-hairline:inset 0 0 0 1px var(--border-subtle);
+
+  --ease-out:cubic-bezier(.2,.8,.2,1);/* @kind other */
+  --ease-in-out:cubic-bezier(.65,0,.35,1);/* @kind other */
+  --dur-fast:120ms;/* @kind other */--dur-base:180ms;/* @kind other */--dur-slow:280ms;/* @kind other */
+
+  --control-h-sm:32px;--control-h-md:40px;--control-h-lg:48px;
+  --touch-min:44px;
+  --sidebar-w:248px;--sidebar-w-collapsed:72px;--rail-w:300px;--topbar-h:64px;--bottomnav-h:64px;
+  --content-max:1440px;--gutter:24px;--gutter-mobile:16px;
+
+  --bp-sm:640px;/* @kind other */--bp-md:768px;/* @kind other */--bp-lg:1024px;/* @kind other */--bp-xl:1280px;/* @kind other */--bp-2xl:1536px;/* @kind other */
+  --z-dropdown:40;/* @kind other */--z-sticky:50;/* @kind other */--z-drawer:60;/* @kind other */--z-modal:70;/* @kind other */--z-toast:80;/* @kind other */--z-tooltip:90;/* @kind other */
+}

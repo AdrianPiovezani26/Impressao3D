@@ -1,0 +1,31 @@
+<!-- @dsCard group="Components" viewport="700x560" name="Data" subtitle="DataTable, DonutChart, AreaChart, ProgressBar, ListItem" -->
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="../../styles.css">
+<style>body{padding:20px;min-height:100vh}.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.col{display:flex;flex-direction:column;gap:12px}.lbl{font:var(--type-overline);letter-spacing:var(--ls-caps);text-transform:uppercase;color:var(--text-tertiary);width:84px;flex:none}</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="../runtime/ds-bundle.js"></script>
+</head><body><div id="root"></div>
+<script type="text/babel">
+const { Card, DataTable, DonutChart, ChartLegend, AreaChart, ProgressBar, ListItem, Avatar, IconButton, Badge } = window.AKP3DDesignSystem_42d958;
+
+const cats=[{label:'Eletrônicos',value:55640,display:'R$ 55.640'},{label:'Móveis',value:11420,display:'R$ 11.420'},{label:'Vestuário',value:1840,display:'R$ 1.840'},{label:'Calçados',value:2120,display:'R$ 2.120'}];
+const rows=[{id:1,name:'Danny Liu',email:'danny@gmail.com',deals:1023,total:37431,st:'Ativo'},{id:2,name:'Bella Deviant',email:'bella@gmail.com',deals:963,total:30423,st:'Ativo'},{id:3,name:'Darrell Steward',email:'darrell@gmail.com',deals:843,total:28549,st:'Pausado'}];
+function App(){ return (<div className="col" style={{gap:12}}>
+<div style={{display:'grid',gridTemplateColumns:'1.1fr 1fr',gap:12}}>
+<Card><div style={{display:'flex',gap:20,alignItems:'center'}}><DonutChart data={cats} size={140} thickness={18} value="102 mil" label="Visitas/semana"/><ChartLegend items={cats}/></div></Card>
+<Card><div style={{display:'flex',justifyContent:'space-between'}}><span>Lucro total</span><Badge tone="accent">+42%</Badge></div><AreaChart data={[12,14,11,18,16,24,21,30,27,36,33,44]} height={84} showAxis={false} formatValue={v=>'R$ '+v+' mil'}/></Card>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:12}}>
+<Card flush><DataTable compact columns={[{key:'name',label:'Nome',sortable:true,render:r=>(<div style={{display:'flex',gap:10,alignItems:'center'}}><Avatar name={r.name}/><div><div>{r.name}</div><div style={{color:'var(--text-tertiary)',fontSize:12}}>{r.email}</div></div></div>)},{key:'deals',label:'Negócios',align:'right',sortable:true},{key:'total',label:'Valor total',align:'right',sortable:true,render:r=>'R$ '+r.total.toLocaleString('pt-BR')}]} rows={rows}/></Card>
+<Card><div className="col" style={{gap:4}}>
+<ListItem icon="user-plus" title="56 novos usuários" description="Agora mesmo"/>
+<ListItem icon="shopping-bag" title="132 pedidos feitos" description="Há 59 min"/>
+<ListItem selected leading={<Avatar name="Nataniel Donowan" size={28}/>} title="Nataniel D." trailing={<IconButton icon="phone" label="Ligar" size="sm"/>}/>
+</div><ProgressBar label="Estoque" value={320} max={500} valueLabel="320 / 500"/></Card>
+</div></div>); }
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script></body></html>

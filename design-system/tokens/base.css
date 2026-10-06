@@ -1,0 +1,14 @@
+/* AKP3D — base element styles */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;color-scheme:dark}
+[data-theme="light"]{color-scheme:light}
+body{margin:0;background:var(--bg-app);color:var(--text-primary);font:var(--type-body);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+a{color:var(--text-accent);text-decoration:none}
+a:hover{color:var(--accent-hover);text-decoration:underline;text-underline-offset:3px}
+:focus-visible{outline:none;box-shadow:var(--ring-focus)}
+::selection{background:var(--accent);color:var(--text-on-accent)}
+.akp-num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+.akp-scroll::-webkit-scrollbar{width:8px;height:8px}
+.akp-scroll::-webkit-scrollbar-thumb{background:var(--border-default);border-radius:8px}
+.akp-scroll::-webkit-scrollbar-track{background:transparent}
+@media (prefers-reduced-motion:reduce){*{transition-duration:1ms!important;animation-duration:1ms!important}}

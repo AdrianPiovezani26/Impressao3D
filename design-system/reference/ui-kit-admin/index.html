@@ -1,0 +1,89 @@
+<!-- @dsCard group="Admin dashboard" viewport="1440x900" name="Admin — Visão geral" subtitle="Responsive admin shell: sidebar, KPIs, charts, table, right rail" -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AKP3D — Painel administrativo</title>
+<link rel="stylesheet" href="../../styles.css">
+<style>html,body,#root{height:100%}body{overflow:hidden}</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="../runtime/ds-bundle.js"></script>
+<script src="../../ui_kits/admin/data.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="../../ui_kits/admin/Shell.jsx"></script>
+<script type="text/babel" src="../../ui_kits/admin/Overview.jsx"></script>
+<script type="text/babel" src="../../ui_kits/admin/Orders.jsx"></script>
+<script type="text/babel" src="../../ui_kits/admin/Customers.jsx"></script>
+<script type="text/babel" src="../../ui_kits/admin/Settings.jsx"></script>
+<script type="text/babel" src="../../ui_kits/admin/Login.jsx"></script>
+<script type="text/babel">
+const { BottomNav, Sheet, Toast, ToastRegion, Card, Button, Icon } = window.AKP3DDesignSystem_42d958;
+
+function NotInKit({ screen, onNav }) {
+  return (
+    <Card style={{ alignItems: 'center', textAlign: 'center', padding: '56px 24px', gap: 12 }}>
+      <Icon name="layout-template" size={28} color="var(--text-tertiary)" />
+      <span style={{ font: 'var(--type-card-title)' }}>{TITLES[screen]}</span>
+      <span style={{ font: 'var(--type-body-sm)', color: 'var(--text-tertiary)', maxWidth: 360 }}>Esta tela não faz parte do UI kit. Use os componentes do design system para montá-la.</span>
+      <Button variant="secondary" size="sm" onClick={() => onNav('overview')}>Voltar à visão geral</Button>
+    </Card>
+  );
+}
+
+function App() {
+  const bp = useBreakpoint();
+  const [authed, setAuthed] = React.useState(() => localStorage.getItem('akp-kit-authed') !== '0');
+  const [screen, setScreen] = React.useState(() => localStorage.getItem('akp-kit-screen') || 'overview');
+  const [dark, setDark] = React.useState(true);
+  const [navOpen, setNavOpen] = React.useState(false);
+  const [railOpen, setRailOpen] = React.useState(false);
+  const [toasts, setToasts] = React.useState([]);
+  const mainRef = React.useRef(null);
+  React.useEffect(() => { document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light'); }, [dark]);
+  React.useEffect(() => { localStorage.setItem('akp-kit-screen', screen); localStorage.setItem('akp-kit-authed', authed ? '1' : '0'); }, [screen, authed]);
+  const nav = (s) => { setScreen(s); setNavOpen(false); if (mainRef.current) mainRef.current.scrollTop = 0; };
+  const toast = (title, description, tone = 'success') => {
+    const id = Math.random();
+    setToasts((t) => [...t, { id, title, description, tone }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4000);
+  };
+  if (!authed) return <Login bp={bp} onLogin={() => { setAuthed(true); setScreen('overview'); }} />;
+  const mobile = bp === 'mobile', wide = bp === 'wide';
+  const props = { bp, onNav: nav, toast, dark, onTheme: () => setDark(!dark) };
+  const S = { overview: Overview, orders: Orders, customers: Customers, settings: Settings }[screen];
+  const tab = ['overview', 'orders', 'customers'].includes(screen) ? screen : 'menu';
+  return (
+    <div style={{ display: 'flex', height: '100%', background: 'var(--bg-app)' }}>
+      {mobile ? null : <Sidebar screen={screen} onNav={nav} collapsed={bp === 'tablet'} onLogout={() => setAuthed(false)} />}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <Topbar screen={screen} bp={bp} onMenu={() => setNavOpen(true)} onBell={() => !wide && setRailOpen(true)} dark={dark} onTheme={() => setDark(!dark)} />
+        <main ref={mainRef} className="akp-scroll" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: mobile ? '16px 16px 24px' : '24px' }}>
+          <div style={{ maxWidth: 'var(--content-max)', margin: '0 auto' }}>{S ? <S {...props} /> : <NotInKit screen={screen} onNav={nav} />}</div>
+        </main>
+        {mobile ? <BottomNav value={tab} onChange={(v) => (v === 'menu' ? setNavOpen(true) : nav(v))} items={[
+          { value: 'overview', label: 'Início', icon: 'layout-dashboard' },
+          { value: 'orders', label: 'Pedidos', icon: 'shopping-bag', badge: 4 },
+          { value: 'customers', label: 'Clientes', icon: 'users' },
+          { value: 'menu', label: 'Menu', icon: 'menu' },
+        ]} /> : null}
+      </div>
+      {wide ? <RightRail /> : null}
+      <Sheet open={navOpen && mobile} side="left" width={300} onClose={() => setNavOpen(false)} title={<UserMenu onLogout={() => setAuthed(false)} />}>
+        <SidebarNav screen={screen} onNav={nav} />
+        <div style={{ padding: '24px 12px 0' }}><Wordmark /></div>
+      </Sheet>
+      <Sheet open={railOpen && !wide} side="right" width={340} title="Central" onClose={() => setRailOpen(false)}><RailContent /></Sheet>
+      <ToastRegion>{toasts.map((t) => <Toast key={t.id} tone={t.tone} title={t.title} description={t.description} onClose={() => setToasts((x) => x.filter((y) => y.id !== t.id))} />)}</ToastRegion>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
