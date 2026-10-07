@@ -716,35 +716,7 @@ body{font-family:var(--font-sans);font-size:14px;line-height:1.5;color:var(--tex
 ::-webkit-scrollbar-track{background:transparent}
 .scan-line,#login-screen .scan-line{display:none}
 
-/* ---------- tipografia: títulos em frase, sem caixa alta e sem brilho (gerado do CSS real) ---------- */
-header h1,
-header .sub,
-.nav button,
-.field label,
-.metric .lbl,
-.btn,
-.btn-ok,
-.stitle,
-th,
-.section-group-title,
-.login-logo h2,
-.login-logo p,
-.login-field label,
-.login-btn,
-.subtab-btn,
-.tipo-btn,
-.dash-periodo button,
-.kpi-label,
-.dash-card-title,
-.hist-preco-label,
-.modal-title,
-/* Padronizar maiusculas em inputs de texto */ input[type=text]:not(.no-upper),
-input[type=search]:not(.no-upper),
-textarea:not(.no-upper),
-.cli-stat .lbl,
-.rel-titulo,
-.rel-tabela th,
-.rel-periodo button{text-transform:none;letter-spacing:0}
+/* ---------- tipografia: sem brilho de texto (gerado do CSS real); a caixa alta está no fim deste bloco ---------- */
 header h1,
 .nav button.active,
 .metric .val,
@@ -896,6 +868,18 @@ html body .akp-b.sec{background:var(--surface-card-raised);color:var(--text-prim
 #aviso-backup button{border-radius:var(--radius-pill)!important}
 #aviso-backup button:first-of-type{background:var(--text-on-accent)!important;color:var(--warning)!important}
 #aviso-backup button:last-of-type{color:var(--text-on-accent)!important}
+
+/* ---------- TUDO EM MAIÚSCULAS: padrão do sistema, em qualquer tela ----------
+   Exceções (mesma convenção que o sistema já usava): campos com a classe no-upper (e-mail, Pix, site),
+   senhas (inclusive o campo do login quando o "olho" mostra o texto) e e-mail/URL. */
+html body *:not(.no-upper):not([type=password]):not([type=email]):not([type=url]):not(#login-pass){text-transform:uppercase!important}
+/* um respiro entre as letras ajuda a leitura em caixa alta nos textos curtos de interface */
+/* a senha do login mostra exatamente o que foi digitado quando o "olho" está aberto (a regra antiga input[type=text] a exibia em maiúsculas) */
+#login-pass{text-transform:none!important}
+.nav button,.btn,.btn-ok,.btn-del,.btn-edit,.login-btn,th,.field label,.login-field label,.tag,.subtab-btn,.dash-periodo button,.kpi-label,.modal-title{letter-spacing:.02em}
+
+/* celular: o título da tela, em maiúsculas, é mais largo; reduz para caber ao lado do menu, do aviso de estoque e do botão Sair */
+@media(max-width:600px){#jv-page-title{font-size:16px;letter-spacing:0}#header-alert .tag{font-size:0;padding:4px 7px;letter-spacing:0}#header-alert .tag i{font-size:14px}}
 
 </style>
 </head>
@@ -15579,6 +15563,29 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 })();
 
+</script>
+<script id="akp-maiusculas">
+(function(){
+  'use strict';
+  /* Padrão do sistema: tudo digitado em campos de texto fica em MAIÚSCULAS (exibição e valor gravado).
+     Exceções, mantendo a convenção que o sistema já tinha:
+       - campos com a classe "no-upper" (e-mail, Pix, site);
+       - senhas (type=password, e o campo do login mesmo quando o "olho" troca o tipo para texto);
+       - e-mail e URL.
+     Para desligar: apague este bloco <script id="akp-maiusculas"> (a exibição em maiúsculas é CSS, no bloco ds-theme). */
+  var CAMPOS='input[type=text],input[type=search],input:not([type]),textarea';
+  var EXCECOES='.no-upper,#login-pass,[type=password],[type=email],[type=url],[autocomplete*=password]';
+  document.addEventListener('input',function(e){
+    var el=e.target;
+    if(!el||e.isComposing||!el.matches) return;
+    if(!el.matches(CAMPOS)||el.matches(EXCECOES)) return;
+    var v=el.value; if(typeof v!=='string') return;
+    var u=v.toLocaleUpperCase('pt-BR'); if(u===v) return;
+    var a=el.selectionStart,b=el.selectionEnd;
+    el.value=u;                                   // o cursor volta onde estava, para não pular ao digitar no meio do texto
+    try{ if(a!==null) el.setSelectionRange(a,b); }catch(x){}
+  },true);                                        // fase de captura: os outros ouvintes já enxergam o valor em maiúsculas
+})();
 </script>
 </body>
 </html>

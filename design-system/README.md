@@ -129,7 +129,7 @@ No AKP3D logo was provided. Wherever a mark is needed the name is set in Geist 6
 
 **Origem.** Dump cru do Claude Design (`design-system-export`), triado e reorganizado em 06/10/2026. A pasta de origem foi removida ao final.
 
-**Estado de uso.** O design system está **aplicado ao `index.html` como camada visual**: os 4 `<link>` de `tokens/` e o bloco `<style id="ds-theme">` ligam as variáveis do sistema aos tokens daqui e reestilizam os componentes existentes (superfícies por tom, pílula de destaque no menu, botões em pílula, fonte Geist), com a cor de destaque trocada para o verde do logotipo. Os **componentes React desta pasta não são usados**: o sistema continua em HTML puro, e nenhuma função foi alterada. Os desvios em relação ao design system estão listados no README da raiz.
+**Estado de uso.** O design system está **aplicado ao `index.html` como camada visual**: os 4 `<link>` de `tokens/` e o bloco `<style id="ds-theme">` ligam as variáveis do sistema aos tokens daqui e reestilizam os componentes existentes (superfícies por tom, pílula de destaque no menu, botões em pílula, fonte Geist), com a cor de destaque trocada para o verde do logotipo e todo o texto em maiúsculas (padrão do sistema). Os **componentes React desta pasta não são usados**: o sistema continua em HTML puro, e nenhuma função foi alterada. Os desvios em relação ao design system estão listados no README da raiz.
 
 **Conteúdo incorporado.** 30 arquivos de componente (34 exports) com `.d.ts` e `.prompt.md`, 5 arquivos de tokens, 4 fontes (Geist e Geist Mono), 6 telas do UI kit admin e 32 páginas HTML de referência.
 

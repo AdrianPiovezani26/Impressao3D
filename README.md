@@ -22,6 +22,7 @@ Publicado com GitHub Pages em https://adrianpiovezani26.github.io/Impressao3D/
 - `main`: publicada pelo GitHub Pages.
 - `layout-original-2026-10-06`: cópia congelada do sistema antes do menu lateral e do tema verde do logotipo.
 - `layout-jarvis-verde-2026-10-06`: cópia congelada do sistema com menu lateral e paleta verde do logotipo, imediatamente antes da aplicação do design system.
+- `layout-design-system-verde-2026-10-07`: cópia congelada do sistema com o design system na cor do logotipo e o texto em caixa mista, antes de padronizar as maiúsculas.
 - `layout-design-system-lima-2026-10-06`: cópia congelada do sistema com o design system aplicado na cor verde-limão original (`#B8FE57`), antes da troca para o verde do logotipo.
 
 ## Rodando localmente
@@ -44,6 +45,8 @@ A pasta [`design-system/`](design-system/README.md) reúne tokens, componentes R
 
 **Desvios conscientes**
 - **Cor de destaque:** verde do logotipo (`#57d858`, medido em `Logo_AKP3D.jpg`) no lugar do verde-limão (`#B8FE57`) do design system. O ajuste está no início do bloco `ds-theme`; os arquivos de `design-system/tokens/` não foram alterados. Os verdes fixos no JavaScript usam o mesmo tom.
+- **Caixa alta:** todo o texto do sistema aparece em maiúsculas, em vez da caixa mista do design system (regra no fim do bloco `ds-theme`). O que se digita em campos de texto é convertido e **gravado** em maiúsculas (`<script id="akp-maiusculas">`), exceto campos com a classe `no-upper` (e-mail, Pix, site), senhas, e-mail e URL. Dados já gravados não são alterados; só aparecem em maiúsculas na tela. Janelas nativas do navegador (`alert`, `confirm`) e os PDFs gerados não são afetados pelo CSS.
+- No celular, o título da tela é menor e o aviso de estoque crítico do cabeçalho mostra só o ícone, para o nome da tela caber inteiro.
 - Ícones continuam Tabler (o design system especifica Lucide).
 - `--text3` (texto secundário pequeno) usa `#9aa1ab`, a única cor fora dos tokens: os tons do design system davam menos de 4,5:1 sobre caixas internas.
 - Só tema escuro; o tema claro do design system não foi ligado.
@@ -53,6 +56,8 @@ A pasta [`design-system/`](design-system/README.md) reúne tokens, componentes R
 ```bash
 git checkout layout-jarvis-verde-2026-10-06 -- index.html
 ```
+
+Para desligar só as maiúsculas, apague o bloco `<script id="akp-maiusculas">` e a regra `TUDO EM MAIÚSCULAS` no fim do `ds-theme`, ou restaure da branch `layout-design-system-verde-2026-10-07`.
 
 Para voltar ao design system na cor verde-limão original: `git checkout layout-design-system-lima-2026-10-06 -- index.html`.
 
