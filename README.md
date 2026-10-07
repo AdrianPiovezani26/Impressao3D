@@ -22,6 +22,7 @@ Publicado com GitHub Pages em https://adrianpiovezani26.github.io/Impressao3D/
 - `main`: publicada pelo GitHub Pages.
 - `layout-original-2026-10-06`: cópia congelada do sistema antes do menu lateral e do tema verde do logotipo.
 - `layout-jarvis-verde-2026-10-06`: cópia congelada do sistema com menu lateral e paleta verde do logotipo, imediatamente antes da aplicação do design system.
+- `layout-design-system-lima-2026-10-06`: cópia congelada do sistema com o design system aplicado na cor verde-limão original (`#B8FE57`), antes da troca para o verde do logotipo.
 
 ## Rodando localmente
 
@@ -42,16 +43,18 @@ A pasta [`design-system/`](design-system/README.md) reúne tokens, componentes R
 **Aplicação ao sistema.** O `index.html` usa o design system como **camada visual**, sem reescrita: quatro `<link>` carregam `design-system/tokens/` e o bloco `<style id="ds-theme">` (no fim do `<head>`) liga as variáveis do sistema aos tokens e reestiliza os componentes existentes. Nenhuma função, cálculo ou fluxo foi alterado, e os componentes React da pasta **não são usados** pelo sistema.
 
 **Desvios conscientes**
+- **Cor de destaque:** verde do logotipo (`#57d858`, medido em `Logo_AKP3D.jpg`) no lugar do verde-limão (`#B8FE57`) do design system. O ajuste está no início do bloco `ds-theme`; os arquivos de `design-system/tokens/` não foram alterados. Os verdes fixos no JavaScript usam o mesmo tom.
 - Ícones continuam Tabler (o design system especifica Lucide).
 - `--text3` (texto secundário pequeno) usa `#9aa1ab`, a única cor fora dos tokens: os tons do design system davam menos de 4,5:1 sobre caixas internas.
 - Só tema escuro; o tema claro do design system não foi ligado.
-- Cores verdes antigas fixas no JavaScript (estilos inline) foram trocadas pelo equivalente em verde-limão, só nos valores de cor.
 
 **Reverter.** Remova os 4 `<link>` de `design-system/tokens/` e o bloco `<style id="ds-theme">` do `index.html` (as cores trocadas no JavaScript são visualmente próximas e podem ficar), ou restaure o arquivo da branch `layout-jarvis-verde-2026-10-06`:
 
 ```bash
 git checkout layout-jarvis-verde-2026-10-06 -- index.html
 ```
+
+Para voltar ao design system na cor verde-limão original: `git checkout layout-design-system-lima-2026-10-06 -- index.html`.
 
 Para ver o design system sozinho, abra as páginas de [`design-system/reference/`](design-system/reference/README.md).
 
