@@ -37,6 +37,18 @@ python3 -m http.server 8000
 
 Firebase, jsPDF e os ícones (Tabler) vêm de CDNs e precisam de internet. A fonte Geist é local, em `design-system/assets/fonts/`.
 
+## Imagem do produto
+
+Cada produto pode ter uma imagem, que aparece como miniatura na lista de Produtos. Ela é definida de três formas: no campo **Imagem do produto** da edição (escolher arquivo ou colar com Ctrl+V), ao **importar um `.gcode.3mf`** na Precificação, ou ao salvar o produto vindo dessa importação.
+
+**Importação.** O `.gcode.3mf` do Bambu Studio e do Orca traz um render de cada placa (`Metadata/plate_N.png`). A janela de conferência mostra as placas para você escolher uma, e sugere o nome do produto: o nome do objeto, quando legível, ou o nome do arquivo (nomes gerados por máquina, como UUIDs, são descartados). O nome só preenche campos vazios, e a imagem só é oferecida na Precificação; nas Impressões Internas entra apenas o nome.
+
+**Como é guardada.** A imagem é recortada no objeto e reduzida a 192×192 px em WebP, com teto de 30 KB. Ela **não** fica dentro do cadastro de produtos: cada uma vai para um documento próprio do Firestore (`akp3d/img_<id do produto>`), sem ouvinte em tempo real, e o produto guarda só um número (`imgV`). Isso evita o limite de 1 MiB por documento do Firestore, que o sistema já usa para chaves inteiras, e evita que cada aparelho baixe todas as imagens a cada alteração. Cada aparelho mantém uma cópia local (IndexedDB) e só busca na nuvem o que não tem ou o que mudou. Sem rede, a imagem fica salva no aparelho e é enviada quando a conexão volta.
+
+**Backup.** O backup JSON inclui as imagens na chave `akp3d_imagens`. Excluir o produto apaga a imagem.
+
+**Desligar.** Apague o bloco `<script id="akp-imagens">` do `index.html`; os produtos continuam funcionando.
+
 ## Design system
 
 A pasta [`design-system/`](design-system/README.md) reúne tokens, componentes React, telas de um painel administrativo e páginas HTML de referência (Geist, verde-limão sobre grafite).

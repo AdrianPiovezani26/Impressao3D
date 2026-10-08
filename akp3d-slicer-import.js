@@ -416,6 +416,99 @@
     };
   }
 
+  /* ============== 9. NOME SUGERIDO E IMAGEM DA PLACA (opcionais) ============== */
+
+  function semExtensoes(n) {
+    let s = String(n || '').trim(), m;
+    while ((m = s.match(/\.(gcode|3mf|stl|obj|step|stp)$/i))) s = s.slice(0, m.index);
+    return s;
+  }
+  function limparTexto(t) {
+    return String(t || '').replace(/[_\-+.]+/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  /** Nome de objeto gerado por maquina (UUID, "obj_A", "Part 1") nao serve de nome de produto. */
+  function nomeEhLixo(bruto) {
+    const s = semExtensoes(bruto);
+    if (/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(s)) return true;
+    const t = limparTexto(s);
+    if (t.length < 2 || /^\d+$/.test(t)) return true;
+    if (/^(obj|object|part|mesh|model|shape|body|untitled|sem nome)\s*[a-z0-9]?$/i.test(t)) return true;
+    if (/^[0-9a-f]{16,}$/i.test(t.replace(/\s/g, ''))) return true;
+    return false;
+  }
+
+  /** "Funko_Pop_MXT_gcode.3mf" -> "FUNKO POP MXT". Varios arquivos: sem sugestao. */
+  function nomeDoArquivo(arquivo) {
+    if (!arquivo || /,\s/.test(String(arquivo))) return null;
+    let s = semExtensoes(arquivo);
+    s = s.replace(/[\s_\-]*gcode$/i, '').replace(/[\s_\-]*plate[\s_\-]*\d+/gi, '');
+    s = limparTexto(s);
+    return s.length >= 2 ? s.toLocaleUpperCase('pt-BR') : null;
+  }
+
+  /**
+   * Prefere o nome do objeto quando ha um so nome legivel; senao usa o nome do arquivo.
+   * @returns {{nome: string|null, origem: 'objeto'|'arquivo'|null}}
+   */
+  function sugerirNome(r) {
+    const nomes = [];
+    for (const o of (r.objetos || [])) {
+      if (!o || !o.nome || nomeEhLixo(o.nome)) continue;
+      const n = limparTexto(semExtensoes(o.nome)).toLocaleUpperCase('pt-BR');
+      if (n && !nomes.includes(n)) nomes.push(n);
+    }
+    if (nomes.length === 1) return { nome: nomes[0], origem: 'objeto' };
+    const a = nomeDoArquivo(r.origem && r.origem.arquivo);
+    if (a) return { nome: a, origem: 'arquivo' };
+    return { nome: null, origem: null };
+  }
+
+  function aplicarNome(r) {
+    if (!r || !r.totais) return r;
+    const s = sugerirNome(r);
+    r.nomeSugerido = s.nome; r.nomeOrigem = s.origem;
+    return r;
+  }
+
+  async function extrairBytes(file, entrada) {
+    const cab = await lerBytes(file, entrada.offLocal, entrada.offLocal + 30);
+    const dvc = new DataView(cab.buffer);
+    const ini = entrada.offLocal + 30 + dvc.getUint16(26, true) + dvc.getUint16(28, true);
+    const dados = await lerBytes(file, ini, ini + entrada.compSize);
+    if (entrada.metodo === 0) return dados;
+    if (entrada.metodo !== 8) throw new Error('Compressao ZIP nao suportada: ' + entrada.metodo);
+    const stream = new Blob([dados]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+
+  /**
+   * Render de cada placa (Metadata/plate_N.png), so para .gcode.3mf. Le apenas os PNG,
+   * nunca o gcode (que passa de 30 MB). A imagem e opcional: qualquer falha e ignorada.
+   * @returns {Promise<Array<{rotulo: string, indice: number, blob: Blob}>>}
+   */
+  async function extrairImagens(r) {
+    const fontes = r._partes
+      ? r._partes.map(p => ({ file: p._file, entradas: p._entradas, placas: p.placas }))
+      : (r._entradas ? [{ file: r._file, entradas: r._entradas, placas: r.placas }] : []);
+    const out = [];
+    let seq = 0;
+    for (const f of fontes) {
+      if (!f.entradas) continue;
+      for (const p of f.placas) {
+        seq++;
+        const ent = f.entradas.get(`Metadata/plate_${p.indice}.png`)
+                 || f.entradas.get(`Metadata/plate_${p.indice}_small.png`);
+        if (!ent) continue;
+        try {
+          const bytes = await extrairBytes(f.file, ent);
+          out.push({ rotulo: 'Placa ' + seq, indice: seq, blob: new Blob([bytes], { type: 'image/png' }) });
+        } catch (e) { /* imagem e opcional */ }
+      }
+    }
+    return out;
+  }
+
   /* ======================= 7. ENTRADA PRINCIPAL ============================= */
 
   /**
@@ -433,8 +526,8 @@
     if (nome.endsWith('.gcode')) {
       const txt = await file.slice(0, 65536).text();
       const h = lerCabecalhoGcode(txt);
-      return agregar({ versao: h.versao, placas: [h.placa], arquivo: file.name,
-                       impressora: h.impressora, ajustes: null });
+      return aplicarNome(agregar({ versao: h.versao, placas: [h.placa], arquivo: file.name,
+                       impressora: h.impressora, ajustes: null }));
     }
 
     const entradas = await lerDiretorioZip(file);
@@ -453,6 +546,7 @@
     r._file = file;                 // guardado para a analise opcional de purga
     r._entradas = entradas;
     r._ajustes = ajustes;
+    aplicarNome(r);
     return r;
   }
 
@@ -473,6 +567,8 @@
       arquivo: [...files].map(f => f.name).join(', '),
     });
     r.avisos.push(...partes.flatMap(p => p.avisos.filter(a => a.codigo === 'SEM_FATIAMENTO')));
+    r._partes = partes;
+    aplicarNome(r);
     return r;
   }
 
@@ -548,6 +644,8 @@
     deltaE: deltaE,
     hexDoNome: hexDoNome,
     tipoBase: tipoBase,
+    sugerirNome: sugerirNome,
+    extrairImagens: extrairImagens,
   };
   raiz.AKP3D = Object.assign(raiz.AKP3D || {}, API);
   if (typeof module !== 'undefined' && module.exports) module.exports = API;

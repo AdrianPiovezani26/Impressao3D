@@ -70,7 +70,19 @@
     padding:9px 18px;font:600 13px system-ui,sans-serif;cursor:pointer}
   .akp-b.sec{color:#8fb3a0;border-color:#245}
   .akp-b[disabled]{opacity:.4;cursor:not-allowed}
-  .akp-nota{font-size:12px;color:#8fb3a0;margin-top:10px;line-height:1.5}`;
+  .akp-nota{font-size:12px;color:#8fb3a0;margin-top:10px;line-height:1.5}
+  .akp-prod{margin-top:14px;display:flex;flex-direction:column;gap:6px}
+  .akp-prod label{font-size:12px;color:var(--text-secondary,#8fb3a0)}
+  .akp-prod small{opacity:.8}
+  .akp-prod-nome{background:var(--surface-inset,#0b1a0f);color:var(--text-primary,#eaf6ee);border:1px solid var(--border-default,#1f6b3a);
+    border-radius:8px;padding:9px 12px;font:600 14px system-ui,sans-serif}
+  .akp-chk{display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--text-primary,#eaf6ee)!important;font-size:13px!important}
+  .akp-thumbs{display:flex;gap:10px;flex-wrap:wrap}
+  .akp-th{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:6px;border-radius:10px;
+    border:1px solid var(--border-default,#1f6b3a);background:var(--surface-inset,#0b1a0f)}
+  .akp-th img{width:84px;height:84px;object-fit:contain}
+  .akp-th:has(input:checked){border-color:var(--accent,#3ef07a);box-shadow:0 0 0 1px var(--accent,#3ef07a)}
+  .akp-th input{accent-color:var(--accent,#3ef07a)}`;
 
   function css() {
     if (document.getElementById('akp-imp-css')) return;
@@ -196,6 +208,43 @@
       corpo.appendChild(caixa);
     }
 
+    /* produto: nome sugerido e imagem da placa (opcionais, ligados por opcoes do chamador) */
+    var campoNome = null, chkImg = null, escolhaImg = { dataUrl: null };
+    if (cfg.preencherNome !== false) {
+      var origemTxt = r.nomeOrigem === 'objeto' ? 'nome do objeto no arquivo'
+                    : r.nomeOrigem === 'arquivo' ? 'nome do arquivo' : 'não encontrei um nome no arquivo';
+      campoNome = el('input', { type: 'text', class: 'akp-prod-nome', placeholder: 'Nome do produto' });
+      campoNome.value = r.nomeSugerido || '';
+      corpo.appendChild(el('div', { class: 'akp-prod' }, [
+        el('label', {}, ['Nome do produto ', el('small', {}, ['(' + origemTxt + ')'])]), campoNome ]));
+    }
+    if (cfg.permitirImagem && typeof cfg.processarImagem === 'function' && raiz.AKP3D.extrairImagens) {
+      var blocoImg = el('div', { class: 'akp-prod', style: 'display:none' });
+      corpo.appendChild(blocoImg);
+      raiz.AKP3D.extrairImagens(r).then(function (imgs) {
+        if (!imgs.length) return null;
+        return Promise.all(imgs.map(function (im) {
+          return Promise.resolve(cfg.processarImagem(im.blob))
+            .then(function (url) { return { rotulo: im.rotulo, url: url }; })
+            .catch(function () { return null; });
+        }));
+      }).then(function (lista) {
+        lista = (lista || []).filter(Boolean);
+        if (!lista.length) return;
+        chkImg = el('input', { type: 'checkbox' }); chkImg.checked = true;
+        var linha = el('div', { class: 'akp-thumbs' });
+        lista.forEach(function (it, n) {
+          var rd = el('input', { type: 'radio', name: 'akp-img' }); if (n === 0) rd.checked = true;
+          rd.addEventListener('change', function () { escolhaImg.dataUrl = it.url; });
+          linha.appendChild(el('label', { class: 'akp-th' }, [rd, el('img', { src: it.url, alt: it.rotulo }), el('span', {}, [it.rotulo])]));
+        });
+        escolhaImg.dataUrl = lista[0].url;
+        blocoImg.appendChild(el('label', { class: 'akp-chk' }, [chkImg, ' Usar como imagem do produto']));
+        blocoImg.appendChild(linha);
+        blocoImg.style.display = '';
+      }).catch(function () { /* a imagem e opcional */ });
+    }
+
     var nota = el('div', { class: 'akp-nota', html:
       'As gramas já incluem <b>todas as cópias que estão nas placas</b>, mais purga, ' +
       'suporte e torre. Se for repetir o trabalho inteiro, use Quantidade de unidades — ' +
@@ -236,6 +285,9 @@
         tempoMinutos: r.totais.minutos,
         totais: r.totais, objetos: r.objetos, avisos: r.avisos, purga: r.purga,
         origem: r.origem,
+        nome: campoNome ? campoNome.value.trim().toLocaleUpperCase('pt-BR') : (r.nomeSugerido || ''),
+        nomeOrigem: r.nomeOrigem || null,
+        imagem: (chkImg && chkImg.checked) ? escolhaImg.dataUrl : null,
       });
     });
 
