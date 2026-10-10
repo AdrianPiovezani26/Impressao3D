@@ -7373,25 +7373,38 @@ function salvarCompra() {
   buildFilSelect(); renderFils();
 
   // ===== VINCULAR EM CONTAS A PAGAR =====
-  // Calcular total da compra (soma de todos os itens registrados nesta sessao)
+  // Valor deste lancamento: os itens recem registrados ficam no inicio da lista de compras
+  var valorLancamento = compras.slice(0, itensRegistrados.length)
+    .reduce(function(s, c) { return s + parseFloat(c.total || 0); }, 0);
+  // Total da compra (soma de todos os itens com mesma NF, data e fornecedor)
   var totalCompra = compras
     .filter(function(c) { return c.nf === nf && c.data === dataCp && c.fornNome === fornNome; })
     .reduce(function(s, c) { return s + parseFloat(c.total || 0); }, 0);
 
-  // Verificar duplicata: mesma NF + mesmo fornecedor ja tem conta?
-  var jaTemConta = nf ? contasPagar.some(function(cp) {
+  // Ja existe conta da mesma NF + mesmo fornecedor? (evita contar a mesma nota duas vezes)
+  var contaExistente = nf ? contasPagar.filter(function(cp) {
     return cp.tipo === 'compra' && cp.nfRef === nf && cp.fornNome === fornNome;
-  }) : false;
+  })[0] : null;
+  var criarOutraConta = false;
+  if(contaExistente && valorLancamento > 0) {
+    // Antes isso era silencioso: a conta simplesmente nao era criada. Agora o usuario decide.
+    criarOutraConta = confirm('Ja existe uma conta a pagar para a NF ' + nf + ' de ' + (fornNome || 'este fornecedor') + ':\n' +
+      fmt(contaExistente.valor) + ' - ' + String(contaExistente.status || '').toUpperCase() + ' - venc. ' + (contaExistente.venc || '') + '\n\n' +
+      'OK = criar OUTRA conta de ' + fmt(valorLancamento) + ' para este lancamento\n' +
+      'Cancelar = manter so a conta existente (se este lancamento for uma repeticao da mesma nota)');
+  }
 
-  if(!jaTemConta && totalCompra > 0) {
+  var contaCriada = false, contaValor = 0, pgtoImediato = false;
+  var valorDaConta = criarOutraConta ? valorLancamento : totalCompra;
+  if((!contaExistente || criarOutraConta) && valorDaConta > 0) {
     // Detectar se ja foi pago pelo metodo de pagamento
-    var pgtoImediato = ['pix','dinheiro','debito','cartao debito','a vista']
+    pgtoImediato = ['pix','dinheiro','debito','cartao debito','a vista']
       .some(function(p) { return (pgto||'').toLowerCase().indexOf(p) >= 0; });
     var statusConta = pgtoImediato ? 'paga' : 'pendente';
 
     var descConta = 'Compra: ' + (fornNome || 'Fornecedor') +
-      (nf ? ' ? NF ' + nf : '') +
-      ' (' + itensRegistrados.length + ' item(s))';
+      (nf ? ' - NF ' + nf : '') +
+      ' (' + itensRegistrados.length + ' item(s))' + (criarOutraConta ? ' - adicional' : '');
 
     contasPagar.unshift({
       id: Date.now() + 9999,
@@ -7399,7 +7412,7 @@ function salvarCompra() {
       desc: descConta,
       fornNome: fornNome,
       nfRef: nf || '',
-      valor: totalCompra,
+      valor: valorDaConta,
       venc: dataCp,
       data: dataCp,
       status: statusConta,
@@ -7409,14 +7422,23 @@ function salvarCompra() {
     S.set('contas_pagar', contasPagar);
     if(typeof renderContasPagar === 'function') renderContasPagar();
     if(typeof renderKpisCP === 'function') renderKpisCP();
+    contaCriada = true; contaValor = valorDaConta;
   }
   // ============================================
 
   var msg = itensRegistrados.length + ' item(s) registrado(s)!';
   if(estoqueAtualizado.length) msg += '\nEstoque atualizado: ' + estoqueAtualizado.join(', ');
   if(impressorasAtivas.length) msg += '\nImpressora(s): ' + impressorasAtivas.join('\n');
-  if(!jaTemConta && totalCompra > 0)
-    msg += '\n\nConta a pagar criada: ' + fmt(totalCompra) + ' (' + (pgtoImediato ? 'PAGO' : 'PENDENTE') + ')';
+  if(contaCriada) {
+    msg += '\n\nConta a pagar ' + (criarOutraConta ? 'adicional ' : '') + 'criada: ' + fmt(contaValor) + ' (' + (pgtoImediato ? 'PAGO' : 'PENDENTE') + ')' +
+           '\nVeja em Financeiro > Contas a pagar.';
+  } else if(contaExistente) {
+    msg += '\n\nNenhuma conta nova foi criada: a NF ' + nf + ' ja tem conta a pagar (' + fmt(contaExistente.valor) + ', ' +
+           String(contaExistente.status || '').toUpperCase() + ', venc. ' + (contaExistente.venc || '') + ').' +
+           '\nVeja em Financeiro > Contas a pagar.';
+  } else {
+    msg += '\n\nNenhuma conta a pagar foi criada: o valor desta compra e zero.';
+  }
   alert(msg);
   limparFormCompra();
   renderComprasLancamento();
