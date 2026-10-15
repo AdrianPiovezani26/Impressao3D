@@ -9999,6 +9999,10 @@ function baixaRetroativaPedidosConcluidos() {
   // Verificar se ja foi executada para nao duplicar
   var jaExecutou = localStorage.getItem('akp3d_baixa_retroativa_v1');
   if(jaExecutou) return;
+  // Idem: se o historico ja tem as baixas retroativas, nao repetir (as posicoes 3 e 24 hoje sao outros filamentos).
+  if(movimentacoes.some(function(m){ return /^Pedido CONCLUIDO: SUPORTE.*\(retroativo\)$/.test(m.referencia||''); })) {
+    localStorage.setItem('akp3d_baixa_retroativa_v1', '1'); return;
+  }
 
   var hoje2 = new Date().toISOString().slice(0,10);
   var hora2 = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
@@ -12134,6 +12138,11 @@ function _pdfFinanceiro(doc, datas, y, margin, pageW) {
 /* ===== ESTORNO CHAVEIRO HERCULES ===== */
 function estornoChaveiroHercules() {
   if(localStorage.getItem('akp3d_estorno_hercules_v1')) return;
+  // A marca acima existe so neste navegador. O historico (que sincroniza) tambem prova que o estorno ja foi feito;
+  // sem esta checagem, um navegador novo repetiria o estorno nas posicoes 14/17/21, que hoje sao outros filamentos.
+  if(movimentacoes.some(function(m){ return m.tipo==='entrada' && (m.referencia||'')==='Estorno: CHAVEIRO HERCULES'; })) {
+    localStorage.setItem('akp3d_estorno_hercules_v1', '1'); return;
+  }
   var hj = new Date().toISOString().slice(0,10);
   var hr = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   var estornos = [
