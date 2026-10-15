@@ -15712,6 +15712,77 @@ document.addEventListener('DOMContentLoaded', function() {
     return r;
   });
 
+
+  /* ---------- reabrir um pedido concluido: oferece devolver o estoque que ele baixou ----------
+     Antes, voltar o pedido para pendente so apagava a marca de "baixado": o estoque ficava descontado e,
+     ao concluir de novo, descontava outra vez. Aqui as baixas DESTE pedido sao localizadas (referencia +
+     filamento + peso, nunca so o nome) e devolvidas com um estorno, igual ao de excluir pedido. */
+  function refPedido(p){ return 'Pedido: '+p.nome+(p.qtd>1?' ('+p.qtd+' un)':''); }
+  function planoDevolucao(p){
+    var hash=[]; try{ hash=JSON.parse(p.estoquesBaixadosHash||'[]'); }catch(e){}
+    var ref=refPedido(p), usadas=[], itens=[];
+    var movs=(typeof movimentacoes!=='undefined' && Array.isArray(movimentacoes))?movimentacoes:[];
+    (hash||[]).forEach(function(e){
+      var peso=parseFloat(e.peso)||0; if(peso<=0) return;
+      var r=(p.filsEstoque||[]).filter(function(x){ return x.filIdx===e.idx && Math.abs((parseFloat(x.peso)||0)-peso)<0.005; })[0];
+      var nome=r&&r.filNome, mov=null;
+      movs.some(function(m){                                   // da mais nova para a mais antiga
+        if(m.tipo!=='saida' || m.referencia!==ref || usadas.indexOf(m)>=0) return false;
+        if(Math.abs((parseFloat(m.qtd)||0)-peso)>0.005) return false;
+        if(nome ? !iguais(m.filNome,nome) : m.filIdx!==e.idx) return false;
+        mov=m; return true;
+      });
+      if(mov) usadas.push(mov);
+      var alvo=resolver({filIdx:(mov?mov.filIdx:e.idx), filNome:(mov?mov.filNome:nome), peso:peso});
+      var real=peso;                                           // a saida para em zero: nao devolver mais do que saiu
+      if(mov){ var antes=parseFloat(mov.antes); if(String(mov.depois)==='0' && !isNaN(antes) && antes<peso) real=Math.max(0,antes); }
+      itens.push({peso:real, nomeTela:(mov?mov.filNome:nome)||('posicao '+e.idx), mov:mov, idx:alvo.idx, estado:alvo.estado});
+    });
+    return {itens:itens, ok:itens.filter(function(it){ return it.idx>=0; }).length};
+  }
+  function devolverEstoque(p,plano){
+    var hj=new Date().toISOString().slice(0,10), hr=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    var remover=[], n=0;
+    plano.itens.forEach(function(it){
+      if(it.idx<0) return;                                     // nao identificado: nada e mexido
+      if(it.mov) remover.push(it.mov);
+      if(!(it.peso>0)) return;
+      var f=filamentos[it.idx], antes=parseFloat(f.qtd)||0, depois=antes+it.peso; f.qtd=depois;
+      movimentacoes.unshift({id:Date.now()+Math.floor(Math.random()*9999), filIdx:it.idx, filNome:f.marca+' '+f.modelo+' '+f.corNome,
+        corHex:f.corHex, tipo:'entrada', qtd:it.peso, antes:antes.toFixed(0), depois:depois.toFixed(0),
+        motivo:'ESTORNO - Pedido reaberto', referencia:'Estorno: '+p.nome, data:hj, hora:hr});
+      n++;
+    });
+    if(remover.length) movimentacoes=movimentacoes.filter(function(m){ return remover.indexOf(m)<0; });
+    S.set('filamentos',filamentos); S.set('movimentacoes',movimentacoes);
+    try{ if(typeof renderFils==='function') renderFils(); if(typeof buildFilSelect==='function') buildFilSelect(); if(typeof checkEstoque==='function') checkEstoque(); if(typeof renderEstoque==='function') renderEstoque(); }catch(e){}
+    return n;
+  }
+  envolver('updPedSt',function(o,t,a){
+    var p=(typeof pedidos!=='undefined')?pedidos[a[0]]:null;
+    var reabrindo=p && p.status==='concluido' && a[1]!=='concluido' && p.estoquesBaixados && p.estoquesBaixadosHash;
+    if(!reabrindo) return o.apply(t,a);
+    var hash=p.estoquesBaixadosHash, plano=planoDevolucao(p), devolver=false;
+    if(plano.itens.length){
+      if(plano.ok){
+        var linhas=plano.itens.map(function(it){
+          if(it.idx<0) return '* '+it.nomeTela+': NAO ENCONTRADO (nao sera devolvido)';
+          return it.peso>0 ? '* '+it.nomeTela+': +'+it.peso.toFixed(2)+'g' : '* '+it.nomeTela+': nada a devolver (o estoque ja estava zerado)';
+        }).join('\n');
+        devolver=confirm('Este pedido estava CONCLUIDO e ja baixou o estoque.\nDevolver agora ao estoque?\n\n'+linhas+
+          '\n\nOK = DEVOLVER esse estoque\nCancelar = manter o estoque como esta (ao concluir de novo, nao baixa em dobro)');
+      } else alert('Nao consegui identificar no estoque os filamentos baixados por este pedido.\nO estoque foi mantido como esta.');
+    }
+    var r=o.apply(t,a);                                        // muda o status (e zera a marca de baixado, como antes)
+    if(devolver){
+      var n=0; try{ n=devolverEstoque(p,plano); }catch(e){ console.warn('[Estoque] devolucao',e); }
+      if(window.akpToast) akpToast('Estoque devolvido: '+n+' filamento(s).');
+    } else {                                                   // estoque mantido: a marca volta, para nao baixar em dobro
+      p.estoquesBaixados=true; p.estoquesBaixadosHash=hash; try{ S.set('pedidos',pedidos); }catch(e){}
+    }
+    return r;
+  });
+
   function iniciar(){                              // uma vez por abertura, depois da sincronizacao com o servidor
     var n=0, h=setInterval(function(){
       n++; if(window._fbSyncCompleto===true||n>40){
@@ -15721,7 +15792,7 @@ document.addEventListener('DOMContentLoaded', function() {
     },1500);
   }
   iniciar();
-  window.AKPEstoque={resolver:resolver,iguais:iguais,nomeAlvo:nomeAlvo,realinharLista:realinharLista,realinharTudo:realinharTudo};
+  window.AKPEstoque={resolver:resolver,iguais:iguais,nomeAlvo:nomeAlvo,realinharLista:realinharLista,realinharTudo:realinharTudo,planoDevolucao:planoDevolucao};
 })();
 </script>
 <script id="akp-imagens">
