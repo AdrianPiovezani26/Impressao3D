@@ -5007,7 +5007,7 @@ function updPedSt(i,v){
           ? 'Pedido editado com novos filamentos!\nBaixar estoque dos novos filamentos?\n\n'
           : 'Pedido CONCLUIDO!\nDeseja baixar o estoque?\n\n';
         var resumo = fils.map(function(f){
-          return '* '+f.filNome+': '+(f.pesoUnit&&p.qtd>1 ? parseFloat(f.pesoUnit||0).toFixed(2)+'g/un x '+p.qtd+'un = '+parseFloat(f.peso||0).toFixed(2)+'g' : parseFloat(f.peso||0).toFixed(2)+'g');
+          return '* '+(window.AKPEstoque ? AKPEstoque.nomeAlvo(f) : f.filNome)+': '+(f.pesoUnit&&p.qtd>1 ? parseFloat(f.pesoUnit||0).toFixed(2)+'g/un x '+p.qtd+'un = '+parseFloat(f.peso||0).toFixed(2)+'g' : parseFloat(f.peso||0).toFixed(2)+'g');
         }).join('\n');
         if(confirm(msg + resumo)) {
           baixarEstoqueProduto(fils, 'Pedido: '+p.nome+(p.qtd>1?' ('+p.qtd+' un)':''));
@@ -7167,20 +7167,8 @@ function repararIndicesDeslocados() {
 
   function encontrarFilIdx(filNome) {
     if(!filNome) return -1;
-    var nome = filNome.toUpperCase();
-    // Busca exata por marca+modelo+cor
-    var idx = filamentos.findIndex(function(f){
-      var candidato = ((f.marca||'')+' '+(f.modelo||'')+' '+(f.corNome||'')).toUpperCase();
-      return candidato.trim() === nome.trim();
-    });
-    if(idx >= 0) return idx;
-    // Busca parcial: verifica se marca e corNome estao no nome
-    idx = filamentos.findIndex(function(f){
-      var m = (f.marca||'').toUpperCase();
-      var c = (f.corNome||'').toUpperCase();
-      return m && c && nome.indexOf(m) >= 0 && nome.indexOf(c) >= 0;
-    });
-    return idx;
+    // identifica pelo nome completo (marca, modelo e cor, em qualquer ordem); nunca por marca+cor apenas
+    return window.AKPEstoque ? AKPEstoque.resolver({filNome: filNome, filIdx: -1, peso: 0}).idx : -1;
   }
 
   function corrigirLista(lista, tipo) {
@@ -7192,7 +7180,7 @@ function repararIndicesDeslocados() {
         var nomeAtual = filAtual ? ((filAtual.marca||'')+' '+(filAtual.modelo||'')+' '+(filAtual.corNome||'')).toUpperCase() : '';
         var nomeEsperado = fs.filNome.toUpperCase();
         // Se o filamento no indice nao bate com o nome salvo, corrigir
-        if(nomeAtual !== nomeEsperado) {
+        if(!(window.AKPEstoque ? AKPEstoque.iguais(nomeAtual, nomeEsperado) : nomeAtual === nomeEsperado)) {
           var novoIdx = encontrarFilIdx(fs.filNome);
           if(novoIdx >= 0) {
             console.log('Corrigindo '+tipo+' "'+reg.nome+'": filIdx '+fs.filIdx+' -> '+novoIdx+' ('+fs.filNome+')');
@@ -7214,6 +7202,14 @@ function repararIndicesDeslocados() {
 
   corrigirLista(_histCalc, 'Orcamento');
   S.set('hist_calc', _histCalc);
+
+  // Produtos: a receita (fils) tambem guarda a posicao do filamento e nunca era reparada
+  if(window.AKPEstoque) {
+    var rp = AKPEstoque.realinharLista(produtos, 'fils', true);
+    corrigidos += rp.corrigidas;
+    rp.ausentes.forEach(function(a){ naoencontrados.push('Produto "'+a+'"'); });
+    S.set('produtos', produtos);
+  }
 
   renderEstoque();
   renderPedidos ? renderPedidos() : null;
@@ -15611,6 +15607,122 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 })();
 
+</script>
+<script id="akp-estoque">
+(function(){
+  'use strict';
+  /* ===== FILAMENTOS IDENTIFICADOS PELO NOME =====
+     Pedidos, produtos, impressoes internas e orcamentos guardam a POSICAO do filamento na lista (filIdx) junto
+     com o nome. A posicao muda quando um filamento e apagado, e a baixa de estoque usava so a posicao: podia
+     descontar de OUTRO filamento enquanto a tela mostrava o nome certo. Aqui a posicao so e aceita quando o
+     nome confere; senao o filamento e localizado pelo NOME (todas as palavras: marca, modelo e cor, em
+     qualquer ordem) e, se nao der certeza, o sistema pergunta ou nao baixa nada.
+     Para desligar: apague este bloco <script id="akp-estoque">. */
+  function L(){ return (typeof filamentos!=='undefined' && Array.isArray(filamentos)) ? filamentos : []; }
+  function tokens(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().split(/[^A-Z0-9+]+/).filter(Boolean); }
+  function chave(t){ return t.slice().sort().join('|'); }
+  function nomeFil(f){ return [f&&f.marca,f&&f.modelo,f&&f.corNome].filter(Boolean).join(' '); }
+  function iguais(a,b){ return chave(tokens(a))===chave(tokens(b)); }
+  function parecido(a,b){                        // renomeado (parecido) x apagado/deslocado (sem relacao)
+    var ta=tokens(a), tb=tokens(b), n=ta.filter(function(t){ return tb.indexOf(t)>=0; }).length;
+    return n>=2 && n>=Math.ceil(ta.length/2);
+  }
+
+  /** Acha o filamento de uma referencia {filIdx, filNome, peso}.
+      estado: 'ok' (posicao confere) | 'realinhado' (achado pelo nome) | 'ambiguo' | 'ausente' */
+  function resolver(ref){
+    var lista=L(), idx=ref.filIdx, nome=ref.filNome;
+    if(!nome) return {idx:(lista[idx]?idx:-1), estado:(lista[idx]?'ok':'ausente')};
+    var alvo=chave(tokens(nome));
+    if(lista[idx] && chave(tokens(nomeFil(lista[idx])))===alvo) return {idx:idx, estado:'ok'};
+    var iguaisIdx=[]; lista.forEach(function(f,i){ if(chave(tokens(nomeFil(f)))===alvo) iguaisIdx.push(i); });
+    if(iguaisIdx.length===1) return {idx:iguaisIdx[0], estado:'realinhado'};
+    if(iguaisIdx.length>1){                      // varios rolos com o mesmo nome: prefere o que tem estoque
+      var precisa=parseFloat(ref.peso)||0;
+      var comEstoque=iguaisIdx.filter(function(i){ return (parseFloat(lista[i].qtd)||0)>=precisa; });
+      return {idx:(comEstoque.length?comEstoque[0]:iguaisIdx[0]), estado:'realinhado'};
+    }
+    var tk=tokens(nome), cand=[];                // sem nome identico: so se TODAS as palavras estiverem em UM filamento
+    if(tk.length>=3) lista.forEach(function(f,i){ var ft=tokens(nomeFil(f)); if(tk.every(function(t){ return ft.indexOf(t)>=0; })) cand.push(i); });
+    if(cand.length===1) return {idx:cand[0], estado:'realinhado'};
+    return {idx:-1, estado:(cand.length>1?'ambiguo':'ausente')};
+  }
+  function nomeAlvo(ref){                        // nome do filamento que DE FATO sera usado (para mostrar na confirmacao)
+    var r=resolver(ref), f=L()[r.idx];
+    if(r.estado==='ok') return ref.filNome;
+    if(r.estado==='realinhado' && f) return nomeFil(f)+' (posicao corrigida)';
+    if(L()[ref.filIdx] && parecido(ref.filNome,nomeFil(L()[ref.filIdx]))) return ref.filNome+' (ATENCAO: na posicao ha '+nomeFil(L()[ref.filIdx])+')';
+    return ref.filNome+' (NAO ENCONTRADO)';
+  }
+
+  /** Corrige o filIdx de uma lista de registros pelo nome. Nao mexe no que ja foi baixado/concluido. */
+  function realinharLista(lista,campo,todos){
+    var c={corrigidas:0,ausentes:[]};
+    (lista||[]).forEach(function(reg){
+      if(!todos && (reg.estoquesBaixados||reg.estoqueBaixado||/^(concluid|cancelad)/.test(reg.status||''))) return;
+      (reg[campo]||[]).forEach(function(f){
+        if(!f||!f.filNome) return;
+        var r=resolver(f);
+        if(r.estado==='realinhado'){ f.filIdx=r.idx; c.corrigidas++; }
+        else if(r.estado!=='ok') c.ausentes.push((reg.nome||'?')+': '+f.filNome);
+      });
+    });
+    return c;
+  }
+  function realinharTudo(){
+    var tot={corrigidas:0,ausentes:[]};
+    function um(lista,campo,chaveS){
+      var c=realinharLista(lista,campo); tot.ausentes=tot.ausentes.concat(c.ausentes);
+      if(c.corrigidas){ tot.corrigidas+=c.corrigidas; try{ S.set(chaveS,lista); }catch(e){} }
+    }
+    um(typeof produtos!=='undefined'?produtos:[],'fils','produtos');
+    um(typeof pedidos!=='undefined'?pedidos:[],'filsEstoque','pedidos');
+    um(typeof impressoesInternas!=='undefined'?impressoesInternas:[],'filsEstoque','impressoes_internas');
+    um(typeof _histCalc!=='undefined'?_histCalc:[],'filsEstoque','hist_calc');
+    return tot;
+  }
+
+  /* ---------- liga as funcoes existentes (sem reescreve-las) ---------- */
+  function envolver(nome,fn){ var o=window[nome]; if(typeof o!=='function') return; window[nome]=function(){ return fn(o,this,arguments); }; }
+
+  envolver('baixarEstoqueProduto',function(o,t,a){
+    var fils=a[0]||[], usar=[], faltam=[], cancelou=false;
+    fils.forEach(function(f){
+      if(cancelou) return;
+      var r=resolver(f);
+      if(r.estado==='ok'||r.estado==='realinhado'){ usar.push(Object.assign({},f,{filIdx:r.idx})); return; }
+      if(r.estado==='ausente' && L()[f.filIdx] && parecido(f.filNome,nomeFil(L()[f.filIdx]))){   // renomeado? o usuario decide, em vez de baixar em silencio
+        var atual=nomeFil(L()[f.filIdx]);
+        if(confirm('ATENCAO: o pedido diz "'+f.filNome+'", mas na posicao '+f.filIdx+' do estoque esta "'+atual+'".\n\nBaixar de "'+atual+'" mesmo assim?\n(OK = baixar desse filamento | Cancelar = nao baixar nada)')) usar.push(f);
+        else cancelou=true;
+        return;
+      }
+      faltam.push(f.filNome+(r.estado==='ambiguo'?' (ha mais de um filamento parecido)':' (nao encontrado)'));
+    });
+    if(cancelou) return false;
+    if(faltam.length){
+      alert('O estoque NAO foi baixado.\n\nNao consegui identificar no estoque:\n'+faltam.join('\n')+'\n\nConfira o filamento no pedido (Editar) ou cadastre-o, e finalize de novo.');
+      return false;
+    }
+    return o.call(t,usar,a[1]);
+  });
+  envolver('delFil',function(o,t,a){               // apagar um filamento desloca os seguintes: realinha as referencias
+    var n0=L().length, r=o.apply(t,a);
+    if(L().length<n0){ try{ var c=realinharTudo(); if(c.corrigidas && window.akpToast) akpToast('Referencias de filamentos realinhadas: '+c.corrigidas+'.'); }catch(e){ console.warn(e); } }
+    return r;
+  });
+
+  function iniciar(){                              // uma vez por abertura, depois da sincronizacao com o servidor
+    var n=0, h=setInterval(function(){
+      n++; if(window._fbSyncCompleto===true||n>40){
+        clearInterval(h);
+        try{ var c=realinharTudo(); if(c.corrigidas && window.akpToast) akpToast('Corrigi '+c.corrigidas+' referencia(s) de filamento em produtos e pedidos abertos.'); }catch(e){ console.warn('[Estoque]',e); }
+      }
+    },1500);
+  }
+  iniciar();
+  window.AKPEstoque={resolver:resolver,iguais:iguais,nomeAlvo:nomeAlvo,realinharLista:realinharLista,realinharTudo:realinharTudo};
+})();
 </script>
 <script id="akp-imagens">
 (function(){
