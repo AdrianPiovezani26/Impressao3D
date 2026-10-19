@@ -6290,7 +6290,7 @@ function renderEstoque() {
   var resumoEl = document.getElementById('estoque-resumo');
   if(resumoEl) {
     var kpis = [
-      {lbl:'Filamentos',val:filamentos.length,cor:'var(--text)',icon:'ti-package'},
+      {lbl:'Filamentos',val:filamentos.filter(function(f){ return (parseFloat(f.qtd)||0)>0; }).length,cor:'var(--text)',icon:'ti-package'},
       {lbl:'Disponivel',val:totalG.toFixed(0)+'g',cor:'var(--neon)',icon:'ti-weight'},
       {lbl:'Em valor',val:fmt(totalV),cor:'var(--blue-text)',icon:'ti-coin'},
       {lbl:'Consumido',val:totalSaida.toFixed(0)+'g',cor:'var(--amber-text)',icon:'ti-trending-down'},
@@ -8555,7 +8555,7 @@ function renderDashboard() {
   if(totalVencido > 0) {
     alertas += '<div class="dash-alert"><i class="ti ti-alert-triangle"></i><span><strong>Atencao:</strong> Voce tem ' + fmt(totalVencido) + ' em faturas VENCIDAS a receber.</span></div>';
   }
-  var filCriticos = filamentos.filter(function(f){ return f.pesoRolo>0 && (f.qtd/f.pesoRolo*100)<=15; });
+  var filCriticos = filamentos.filter(function(f){ return f.pesoRolo>0 && (parseFloat(f.qtd)||0)>0 && (f.qtd/f.pesoRolo*100)<=15; });
   if(filCriticos.length) {
     alertas += '<div class="dash-info-box"><i class="ti ti-package"></i><span><strong>Estoque critico:</strong> ' + filCriticos.map(function(f){ return f.corNome+' '+f.marca+' '+f.modelo+' ('+parseFloat(f.qtd||0).toFixed(2)+'g)'; }).join(', ') + '</span></div>';
   }
