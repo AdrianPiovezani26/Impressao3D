@@ -82,7 +82,13 @@
     border:1px solid var(--border-default,#1f6b3a);background:var(--surface-inset,#0b1a0f)}
   .akp-th img{width:84px;height:84px;object-fit:contain}
   .akp-th:has(input:checked){border-color:var(--accent,#3ef07a);box-shadow:0 0 0 1px var(--accent,#3ef07a)}
-  .akp-th input{accent-color:var(--accent,#3ef07a)}`;
+  .akp-th input{accent-color:var(--accent,#3ef07a)}
+  .akp-arqs{margin-bottom:14px;padding:10px 12px;border:1px solid #17472a;border-radius:8px;background:#0b1a0f}
+  .akp-arqs-t{font-size:12px;color:#7fb094;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+  .akp-arq{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #102b1a}
+  .akp-arq-n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#eaf6ee;font-weight:600}
+  .akp-arq-d{color:#9dc4ad;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .akp-arqs-b{margin-top:10px}`;
 
   function css() {
     if (document.getElementById('akp-imp-css')) return;
@@ -121,159 +127,236 @@
 
   /* ------------------------------ modal --------------------------------- */
 
-  function abrirConferencia(r, cfg, mapa) {
+  /**
+   * Janela de conferencia. Com `estado` (cfg.acumular) mostra a lista de arquivos importados, permite
+   * adicionar/remover arquivos e recalcula tudo; a escolha de filamento por cor e o nome digitado
+   * sobrevivem ao recalculo. Sem `estado` o comportamento e o de sempre (um resultado, uma janela).
+   */
+  function abrirConferencia(r0, cfg, mapa, estado, ignoradosIni) {
     css();
-    var escolhas = {};   // slotId -> filamentoId
+    var atual = r0;
     var lista = cfg.filamentos() || [];
-
-    var bloqueia = r.avisos.some(function (a) { return a.bloqueia; });
-
-    var corpo = el('div', { class: 'akp-bd' });
-
-    if (r.totais) {
-      corpo.appendChild(el('div', { class: 'akp-resumo' }, [
-        el('div', { class: 'akp-card', html:
-          '<b>' + r.totais.tempoTexto + '</b><span>Tempo total</span>' }),
-        el('div', { class: 'akp-card', html:
-          '<b>' + r.totais.gramas.toFixed(2) + ' g</b><span>Material</span>' }),
-        el('div', { class: 'akp-card', html:
-          '<b>' + r.totais.qtdPlacas + '</b><span>Placas</span>' }),
-        el('div', { class: 'akp-card', html:
-          '<b>' + r.totais.qtdPecas + '</b><span>Peças</span>' }),
-      ]));
-    }
-
-    r.avisos.forEach(function (a) {
-      corpo.appendChild(el('div', { class: 'akp-av ' + (a.bloqueia ? 'bloq' : 'warn') }, [a.texto]));
-    });
-
-    if (r.slots.length) {
-      var tb = el('table', { class: 'akp-tb' });
-      tb.appendChild(el('thead', {}, [el('tr', {}, [
-        el('th', {}, ['Cor']), el('th', {}, ['Slot']), el('th', {}, ['Tipo']),
-        el('th', {}, ['Filamento do cadastro']), el('th', {}, ['Gramas']),
-      ])]));
-      var tbody = el('tbody');
-
-      r.slots.forEach(function (slot) {
-        var sug = raiz.AKP3D.sugerirFilamento(slot, lista, mapa);
-        if (sug.filamento) escolhas[slot.id] = sug.filamento.id;
-
-        var compat = lista.filter(function (f) {
-          return !slot.tipo || raiz.AKP3D.tipoBase(f.tipo) === slot.tipo;
-        });
-        var pool = compat.length ? compat : lista;
-
-        var sel = el('select', {
-          onchange: function () {
-            escolhas[slot.id] = this.value || null;
-            this.className = this.value ? '' : 'vazio';
-          },
-        });
-        sel.appendChild(el('option', { value: '' }, ['— selecione —']));
-        pool.forEach(function (f) {
-          var o = el('option', { value: f.id }, [rotuloFilamento(f)]);
-          if (sug.filamento && String(f.id) === String(sug.filamento.id)) o.selected = true;
-          sel.appendChild(o);
-        });
-        sel.className = !sug.filamento ? 'vazio' : (sug.confianca < 0.6 ? 'baixa' : '');
-
-        var origem = { aprendido: 'aprendido', hex: 'por cor', nome: 'pelo nome', nenhum: '?' }[sug.origem];
-        var etiquetas = origem ? '<span class="akp-tag">' + origem + '</span>' : '';
-        if (slot.usadoEmSuporte) etiquetas += '<span class="akp-tag">suporte</span>';
-
-        tbody.appendChild(el('tr', {}, [
-          el('td', {}, [el('span', { class: 'akp-sw', style: 'background:' + (slot.hex || '#333') })]),
-          el('td', { html: '<code>' + (slot.hex || '—') + '</code>' }),
-          el('td', {}, [slot.tipo || '—']),
-          el('td', { html: '' }),
-          el('td', { class: 'akp-g' , html: slot.gramas.toFixed(2) + ' g' + etiquetas }),
-        ]));
-        tbody.lastChild.children[3].appendChild(sel);
-      });
-
-      tb.appendChild(tbody);
-      corpo.appendChild(tb);
-    }
-
-    if (r.objetos && r.objetos.length) {
-      var caixa = el('div');
-      var link = el('button', { class: 'akp-ac' }, ['Ver as ' + r.totais.qtdPecas + ' peças ▾']);
-      var ul = el('div', { class: 'akp-pecas', style: 'display:none' , html:
-        r.objetos.map(function (o) { return o.nome + (o.qtd > 1 ? ' ×' + o.qtd : ''); }).join('<br>') });
-      link.addEventListener('click', function () {
-        ul.style.display = ul.style.display === 'none' ? 'block' : 'none';
-      });
-      caixa.appendChild(link); caixa.appendChild(ul);
-      corpo.appendChild(caixa);
-    }
-
-    /* produto: nome sugerido e imagem da placa (opcionais, ligados por opcoes do chamador) */
+    var escolhas = {};                // slotId -> filamentoId (do corpo exibido agora)
+    var porCor = {};                  // 'hex|tipo' -> filamentoId escolhido pelo usuario (sobrevive ao recalculo)
     var campoNome = null, chkImg = null, escolhaImg = { dataUrl: null };
-    if (cfg.preencherNome !== false) {
-      var origemTxt = r.nomeOrigem === 'objeto' ? 'nome do objeto no arquivo'
-                    : r.nomeOrigem === 'arquivo' ? 'nome do arquivo' : 'não encontrei um nome no arquivo';
-      campoNome = el('input', { type: 'text', class: 'akp-prod-nome', placeholder: 'Nome do produto' });
-      campoNome.value = r.nomeSugerido || '';
-      corpo.appendChild(el('div', { class: 'akp-prod' }, [
-        el('label', {}, ['Nome do produto ', el('small', {}, ['(' + origemTxt + ')'])]), campoNome ]));
-    }
-    if (cfg.permitirImagem && typeof cfg.processarImagem === 'function' && raiz.AKP3D.extrairImagens) {
-      var blocoImg = el('div', { class: 'akp-prod', style: 'display:none' });
-      corpo.appendChild(blocoImg);
-      raiz.AKP3D.extrairImagens(r).then(function (imgs) {
-        if (!imgs.length) return null;
-        return Promise.all(imgs.map(function (im) {
-          return Promise.resolve(cfg.processarImagem(im.blob))
-            .then(function (url) { return { rotulo: im.rotulo, url: url }; })
-            .catch(function () { return null; });
-        }));
-      }).then(function (lista) {
-        lista = (lista || []).filter(Boolean);
-        if (!lista.length) return;
-        chkImg = el('input', { type: 'checkbox' }); chkImg.checked = true;
-        var linha = el('div', { class: 'akp-thumbs' });
-        lista.forEach(function (it, n) {
-          var rd = el('input', { type: 'radio', name: 'akp-img' }); if (n === 0) rd.checked = true;
-          rd.addEventListener('change', function () { escolhaImg.dataUrl = it.url; });
-          linha.appendChild(el('label', { class: 'akp-th' }, [rd, el('img', { src: it.url, alt: it.rotulo }), el('span', {}, [it.rotulo])]));
-        });
-        escolhaImg.dataUrl = lista[0].url;
-        blocoImg.appendChild(el('label', { class: 'akp-chk' }, [chkImg, ' Usar como imagem do produto']));
-        blocoImg.appendChild(linha);
-        blocoImg.style.display = '';
-      }).catch(function () { /* a imagem e opcional */ });
-    }
-
-    var nota = el('div', { class: 'akp-nota', html:
-      'As gramas já incluem <b>todas as cópias que estão nas placas</b>, mais purga, ' +
-      'suporte e torre. Se for repetir o trabalho inteiro, use Quantidade de unidades — ' +
-      'não multiplique as gramas na mão.' });
-    corpo.appendChild(nota);
-
-    /* rodape */
-    var btPurga = el('button', { class: 'akp-b sec' }, ['Analisar desperdício']);
-    btPurga.addEventListener('click', function () {
-      btPurga.disabled = true; btPurga.textContent = 'Lendo gcodes…';
-      raiz.AKP3D.analisarPurga(r).then(function (p) {
-        btPurga.replaceWith(el('div', { class: 'akp-nota', style: 'margin:0;align-self:center', html:
-          '<b style="color:#f0d98a">Purga: ' + p.gramas.toFixed(2) + ' g (' + p.percentual +
-          '% do material)</b> em ' + p.trocas + ' trocas' }));
-      }).catch(function (e) {
-        btPurga.disabled = false; btPurga.textContent = 'Indisponível: ' + e.message;
-      });
-    });
-
-    var btOk = el('button', { class: 'akp-b' }, ['Aplicar no orçamento']);
-    btOk.disabled = bloqueia;
-
+    var nomeDigitado = false, nomeTexto = '';
+    var ignorados = ignoradosIni || [];
+    var renderSeq = 0;
     var ov = el('div', { class: 'akp-ov' });
     function fechar() { ov.remove(); }
+    var corpo, ftEsq, btOk, modal;
 
+    function blocoArquivos() {
+      var partes = estado.partes;
+      var box = el('div', { class: 'akp-arqs' });
+      box.appendChild(el('div', { class: 'akp-arqs-t', html: 'Arquivos importados <b>(' + partes.length + ')</b>' }));
+      partes.forEach(function (p, idx) {
+        var t = p.r.totais;
+        var linha = el('div', { class: 'akp-arq' }, [
+          el('span', { class: 'akp-arq-n' }, [p.r.origem.arquivo]),
+          el('span', { class: 'akp-arq-d' }, [t.tempoTexto + ' · ' + t.gramas.toFixed(2) + ' g']),
+        ]);
+        if (partes.length > 1) {
+          linha.appendChild(el('button', { type: 'button', class: 'akp-x', title: 'Remover este arquivo',
+            onclick: function () { estado.remover(idx); ignorados = []; atual = estado.combinar(); render(); } }, ['×']));
+        } else linha.appendChild(el('span'));
+        box.appendChild(linha);
+      });
+      ignorados.forEach(function (m) { box.appendChild(el('div', { class: 'akp-av warn', style: 'margin-top:8px' }, [m])); });
+
+      var inAdd = el('input', { type: 'file', accept: '.3mf,.gcode', multiple: 'multiple', style: 'display:none' });
+      var btAdd = el('button', { type: 'button', class: 'akp-b sec' }, ['+ Adicionar outro arquivo']);
+      btAdd.addEventListener('click', function () { inAdd.value = ''; inAdd.click(); });
+      inAdd.addEventListener('change', function () {
+        var fs = Array.prototype.slice.call(inAdd.files);
+        if (!fs.length) return;
+        btAdd.disabled = true; btAdd.textContent = 'Lendo arquivo…';
+        estado.adicionar(fs).then(function (res) {
+          ignorados = res.ignorados; atual = estado.combinar(); render();
+        }).catch(function (e) {
+          btAdd.disabled = false; btAdd.textContent = '+ Adicionar outro arquivo';
+          alert('Não consegui ler o arquivo.\n\n' + e.message);
+        });
+      });
+      box.appendChild(el('div', { class: 'akp-arqs-b' }, [btAdd, inAdd]));
+      box.appendChild(el('div', { class: 'akp-nota', html: partes.length > 1
+        ? 'Tempo e material de cada arquivo são <b>somados</b>. Cores iguais (mesma cor e tipo) ficam numa só linha.'
+        : 'Peça com várias partes? Adicione os outros arquivos: o tempo e o material de todos serão somados.' }));
+      return box;
+    }
+
+    function montarCorpo(r) {
+      var meu = ++renderSeq;
+      escolhas = {};
+      var corpo = el('div', { class: 'akp-bd' });
+      if (estado) corpo.appendChild(blocoArquivos());
+
+      if (r.totais) {
+        corpo.appendChild(el('div', { class: 'akp-resumo' }, [
+          el('div', { class: 'akp-card', html:
+            '<b>' + r.totais.tempoTexto + '</b><span>Tempo total</span>' }),
+          el('div', { class: 'akp-card', html:
+            '<b>' + r.totais.gramas.toFixed(2) + ' g</b><span>Material</span>' }),
+          el('div', { class: 'akp-card', html:
+            '<b>' + r.totais.qtdPlacas + '</b><span>Placas</span>' }),
+          el('div', { class: 'akp-card', html:
+            '<b>' + r.totais.qtdPecas + '</b><span>Peças</span>' }),
+        ]));
+      }
+
+      r.avisos.forEach(function (a) {
+        corpo.appendChild(el('div', { class: 'akp-av ' + (a.bloqueia ? 'bloq' : 'warn') }, [a.texto]));
+      });
+
+      if (r.slots.length) {
+        var tb = el('table', { class: 'akp-tb' });
+        tb.appendChild(el('thead', {}, [el('tr', {}, [
+          el('th', {}, ['Cor']), el('th', {}, ['Slot']), el('th', {}, ['Tipo']),
+          el('th', {}, ['Filamento do cadastro']), el('th', {}, ['Gramas']),
+        ])]));
+        var tbody = el('tbody');
+
+        r.slots.forEach(function (slot) {
+          var sug = raiz.AKP3D.sugerirFilamento(slot, lista, mapa);
+          var chave = slot.hex + '|' + slot.tipo;
+          var pre = porCor[chave];                     // escolha do usuario nesta janela (ou undefined)
+          var inicial = (pre !== undefined) ? (pre || null) : (sug.filamento ? sug.filamento.id : null);
+          var temInicial = inicial !== null && inicial !== undefined;
+          if (temInicial) escolhas[slot.id] = inicial;
+
+          var compat = lista.filter(function (f) {
+            return !slot.tipo || raiz.AKP3D.tipoBase(f.tipo) === slot.tipo;
+          });
+          var pool = compat.length ? compat : lista;
+
+          var sel = el('select', {
+            onchange: function () {
+              escolhas[slot.id] = this.value || null;
+              porCor[chave] = this.value || '';
+              this.className = this.value ? '' : 'vazio';
+            },
+          });
+          sel.appendChild(el('option', { value: '' }, ['— selecione —']));
+          pool.forEach(function (f) {
+            var o = el('option', { value: f.id }, [rotuloFilamento(f)]);
+            if (temInicial && String(f.id) === String(inicial)) o.selected = true;
+            sel.appendChild(o);
+          });
+          sel.className = !temInicial ? 'vazio' : ((pre === undefined && sug.confianca < 0.6) ? 'baixa' : '');
+
+          var origem = (pre === undefined) ? { aprendido: 'aprendido', hex: 'por cor', nome: 'pelo nome', nenhum: '?' }[sug.origem] : null;
+          var etiquetas = origem ? '<span class="akp-tag">' + origem + '</span>' : '';
+          if (slot.usadoEmSuporte) etiquetas += '<span class="akp-tag">suporte</span>';
+
+          tbody.appendChild(el('tr', {}, [
+            el('td', {}, [el('span', { class: 'akp-sw', style: 'background:' + (slot.hex || '#333') })]),
+            el('td', { html: '<code>' + (slot.hex || '—') + '</code>' }),
+            el('td', {}, [slot.tipo || '—']),
+            el('td', { html: '' }),
+            el('td', { class: 'akp-g' , html: slot.gramas.toFixed(2) + ' g' + etiquetas }),
+          ]));
+          tbody.lastChild.children[3].appendChild(sel);
+        });
+
+        tb.appendChild(tbody);
+        corpo.appendChild(tb);
+      }
+
+      if (r.objetos && r.objetos.length) {
+        var caixa = el('div');
+        var link = el('button', { class: 'akp-ac' }, ['Ver as ' + r.totais.qtdPecas + ' peças ▾']);
+        var ul = el('div', { class: 'akp-pecas', style: 'display:none' , html:
+          r.objetos.map(function (o) { return o.nome + (o.qtd > 1 ? ' ×' + o.qtd : ''); }).join('<br>') });
+        link.addEventListener('click', function () {
+          ul.style.display = ul.style.display === 'none' ? 'block' : 'none';
+        });
+        caixa.appendChild(link); caixa.appendChild(ul);
+        corpo.appendChild(caixa);
+      }
+
+      /* produto: nome sugerido e imagem da placa (opcionais, ligados por opcoes do chamador) */
+      campoNome = null; chkImg = null; escolhaImg = { dataUrl: null };
+      if (cfg.preencherNome !== false) {
+        var origemTxt = r.nomeOrigem === 'objeto' ? 'nome do objeto no arquivo'
+                      : r.nomeOrigem === 'arquivo' ? 'nome do arquivo' : 'não encontrei um nome no arquivo';
+        campoNome = el('input', { type: 'text', class: 'akp-prod-nome', placeholder: 'Nome do produto' });
+        campoNome.value = nomeDigitado ? nomeTexto : (r.nomeSugerido || '');
+        campoNome.addEventListener('input', function () { nomeDigitado = true; nomeTexto = this.value; });
+        corpo.appendChild(el('div', { class: 'akp-prod' }, [
+          el('label', {}, ['Nome do produto ', el('small', {}, ['(' + origemTxt + ')'])]), campoNome ]));
+      }
+      if (cfg.permitirImagem && typeof cfg.processarImagem === 'function' && raiz.AKP3D.extrairImagens) {
+        var blocoImg = el('div', { class: 'akp-prod', style: 'display:none' });
+        corpo.appendChild(blocoImg);
+        raiz.AKP3D.extrairImagens(r).then(function (imgs) {
+          if (!imgs.length) return null;
+          return Promise.all(imgs.map(function (im) {
+            return Promise.resolve(cfg.processarImagem(im.blob))
+              .then(function (url) { return { rotulo: im.rotulo, url: url }; })
+              .catch(function () { return null; });
+          }));
+        }).then(function (lista) {
+          if (meu !== renderSeq) return;                 // a janela ja foi recalculada: descarta o resultado antigo
+          lista = (lista || []).filter(Boolean);
+          if (!lista.length) return;
+          chkImg = el('input', { type: 'checkbox' }); chkImg.checked = true;
+          var linha = el('div', { class: 'akp-thumbs' });
+          lista.forEach(function (it, n) {
+            var rd = el('input', { type: 'radio', name: 'akp-img' }); if (n === 0) rd.checked = true;
+            rd.addEventListener('change', function () { escolhaImg.dataUrl = it.url; });
+            linha.appendChild(el('label', { class: 'akp-th' }, [rd, el('img', { src: it.url, alt: it.rotulo }), el('span', {}, [it.rotulo])]));
+          });
+          escolhaImg.dataUrl = lista[0].url;
+          blocoImg.appendChild(el('label', { class: 'akp-chk' }, [chkImg, ' Usar como imagem do produto']));
+          blocoImg.appendChild(linha);
+          blocoImg.style.display = '';
+        }).catch(function () { /* a imagem e opcional */ });
+      }
+
+      var nota = el('div', { class: 'akp-nota', html:
+        'As gramas já incluem <b>todas as cópias que estão nas placas</b>, mais purga, ' +
+        'suporte e torre. Se for repetir o trabalho inteiro, use Quantidade de unidades — ' +
+        'não multiplique as gramas na mão.' });
+      corpo.appendChild(nota);
+      return corpo;
+    }
+
+    function criarBtPurga() {
+      var bt = el('button', { class: 'akp-b sec' }, ['Analisar desperdício']);
+      bt.addEventListener('click', function () {
+        bt.disabled = true; bt.textContent = 'Lendo gcodes…';
+        raiz.AKP3D.analisarPurga(atual).then(function (p) {
+          bt.replaceWith(el('div', { class: 'akp-nota', style: 'margin:0;align-self:center', html:
+            '<b style="color:#f0d98a">Purga: ' + p.gramas.toFixed(2) + ' g (' + p.percentual +
+            '% do material)</b> em ' + p.trocas + ' trocas' }));
+        }).catch(function (e) {
+          bt.disabled = false; bt.textContent = 'Indisponível: ' + e.message;
+        });
+      });
+      return bt;
+    }
+
+    function atualizarRodape() {
+      var multi = estado && estado.partes.length > 1;      // a analise de purga le UM arquivo
+      var novo = (atual.slots.length > 1 && !multi) ? criarBtPurga() : el('span');
+      ftEsq.replaceWith(novo); ftEsq = novo;
+      btOk.disabled = atual.avisos.some(function (a) { return a.bloqueia; });
+    }
+
+    function render() {
+      var novo = montarCorpo(atual);
+      corpo.replaceWith(novo); corpo = novo;
+      atualizarRodape();
+    }
+
+    btOk = el('button', { class: 'akp-b' }, ['Aplicar no orçamento']);
+    ftEsq = el('span');
     btOk.addEventListener('click', function () {
+      var r = atual;
       var linhas = r.slots.map(function (s) {
-        var fid = escolhas[s.id] || null;
-        if (fid) mapa[s.hex + '|' + s.tipo] = fid;      // aprende para a próxima vez
+        var e = escolhas[s.id];
+        var fid = (e === undefined || e === null || e === '') ? null : e;
+        if (fid !== null) mapa[s.hex + '|' + s.tipo] = fid;      // aprende para a próxima vez
         return { slot: s.id, filamentoId: fid, gramas: s.gramas, hex: s.hex,
                  tipo: s.tipo, usadoEmSuporte: s.usadoEmSuporte };
       });
@@ -288,26 +371,63 @@
         nome: campoNome ? campoNome.value.trim().toLocaleUpperCase('pt-BR') : (r.nomeSugerido || ''),
         nomeOrigem: r.nomeOrigem || null,
         imagem: (chkImg && chkImg.checked) ? escolhaImg.dataUrl : null,
+        arquivos: estado ? estado.partes.map(function (p) { return p.r.origem.arquivo; }) : undefined,
       });
     });
 
-    var modal = el('div', { class: 'akp-md' }, [
+    corpo = montarCorpo(atual);
+    modal = el('div', { class: 'akp-md' }, [
       el('div', { class: 'akp-hd' }, [
         el('h3', {}, ['Conferir importação']),
         el('button', { class: 'akp-x', onclick: fechar }, ['×']),
       ]),
       corpo,
       el('div', { class: 'akp-ft' }, [
-        r.slots.length > 1 ? btPurga : el('span'),
+        ftEsq,
         el('button', { class: 'akp-b sec', onclick: fechar }, ['Cancelar']),
         btOk,
       ]),
     ]);
     modal.querySelector('.akp-ft').style.justifyContent = 'space-between';
+    atualizarRodape();
 
     ov.appendChild(modal);
     ov.addEventListener('click', function (e) { if (e.target === ov) fechar(); });
     document.body.appendChild(ov);
+  }
+
+  /* --------------- arquivos acumulados (cfg.acumular) --------------- */
+
+  function criarEstado() {
+    var est = { partes: [] };
+    function chaveDe(f) { return [f.name, f.size, f.lastModified].join('|'); }
+    est.adicionar = function (files) {
+      var res = { ignorados: [], primeiroInvalido: null };
+      var seq = Promise.resolve();
+      Array.prototype.slice.call(files).forEach(function (f) {
+        seq = seq.then(function () {
+          if (est.partes.some(function (p) { return p.chave === chaveDe(f); })) {
+            res.ignorados.push('"' + f.name + '" já está na lista.'); return;
+          }
+          return raiz.AKP3D.importarFatiamento(f).then(function (r) {
+            if (!r.totais) {
+              res.ignorados.push('"' + f.name + '" ignorado: ' + (r.avisos[0] ? r.avisos[0].texto : 'sem resultado de fatiamento.'));
+              if (!res.primeiroInvalido) res.primeiroInvalido = r;
+              return;
+            }
+            est.partes.push({ chave: chaveDe(f), file: f, r: r });
+          }).catch(function (e) {
+            res.ignorados.push('"' + f.name + '" não pôde ser lido: ' + e.message);
+          });
+        });
+      });
+      return seq.then(function () { return res; });
+    };
+    est.remover = function (i) { est.partes.splice(i, 1); };
+    est.combinar = function () {
+      return raiz.AKP3D.combinarResultados(est.partes.map(function (p) { return p.r; }));
+    };
+    return est;
   }
 
   /* ------------------------------ montagem ------------------------------ */
@@ -331,8 +451,19 @@
       if (!input.files.length) return;
       btn.disabled = true; btn.textContent = 'Lendo arquivo…';
       var carregar = cfg.carregarMapa || function () { return mapaLocal.carregar(); };
+      var arquivos = Array.prototype.slice.call(input.files);
 
       Promise.resolve(carregar()).then(function (mapa) {
+        if (cfg.acumular) {
+          var estado = criarEstado();
+          return estado.adicionar(arquivos).then(function (res) {
+            if (!estado.partes.length) {
+              if (res.primeiroInvalido) { abrirConferencia(res.primeiroInvalido, cfg, mapa || {}); return; }
+              throw new Error(res.ignorados[0] || 'Nenhum arquivo válido.');
+            }
+            abrirConferencia(estado.combinar(), cfg, mapa || {}, estado, res.ignorados);
+          });
+        }
         var p = input.files.length > 1
           ? raiz.AKP3D.importarVarios(input.files)
           : raiz.AKP3D.importarFatiamento(input.files[0]);

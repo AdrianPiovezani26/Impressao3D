@@ -407,8 +407,8 @@ header button{text-transform:none !important;letter-spacing:.01em !important;fon
   <!-- Firebase Compat SDK (escopo global, sem modulos) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-  <script src="/Impressao3D/akp3d-slicer-import.js"></script>
-  <script src="/Impressao3D/akp3d-import-ui.js"></script>
+  <script src="/Impressao3D/akp3d-slicer-import.js?v=20261015"></script>
+  <script src="/Impressao3D/akp3d-import-ui.js?v=20261015"></script>
   <script>
     (function(){
       var firebaseConfig = {
@@ -15096,6 +15096,7 @@ document.addEventListener('DOMContentLoaded', function() {
     AKP3D.montarImportacao({
       container: '#prec-import-btn',
         rotulo: 'Importar Gcode',
+        acumular: true,          // permite adicionar varios arquivos (peca com varias partes)
         permitirImagem: true,
         processarImagem: function(b){ return AKPImg.processar(b); },
       filamentos: function() {

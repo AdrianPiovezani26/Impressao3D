@@ -451,6 +451,23 @@
    * Prefere o nome do objeto quando ha um so nome legivel; senao usa o nome do arquivo.
    * @returns {{nome: string|null, origem: 'objeto'|'arquivo'|null}}
    */
+  /** Varios arquivos: "Mini_Jesus_cabelo" + "Mini_Jesus_manto" -> "MINI JESUS" (so o trecho inicial em comum). */
+  function nomeComumDosArquivos(arquivos) {
+    const palavras = arquivos.map(a => {
+      let s = semExtensoes(a);
+      s = s.replace(/[\s_\-]*gcode$/i, '').replace(/[\s_\-]*plate[\s_\-]*\d+/gi, '');
+      return limparTexto(s).toLocaleUpperCase('pt-BR').split(' ').filter(Boolean);
+    });
+    if (!palavras.length) return null;
+    const comum = [];
+    for (let i = 0; i < palavras[0].length; i++) {
+      const w = palavras[0][i];
+      if (palavras.every(p => p[i] === w)) comum.push(w); else break;
+    }
+    const nome = comum.join(' ');
+    return nome.length >= 3 ? nome : null;
+  }
+
   function sugerirNome(r) {
     const nomes = [];
     for (const o of (r.objetos || [])) {
@@ -459,6 +476,10 @@
       if (n && !nomes.includes(n)) nomes.push(n);
     }
     if (nomes.length === 1) return { nome: nomes[0], origem: 'objeto' };
+    if (r._nomesArquivos && r._nomesArquivos.length > 1) {
+      const c = nomeComumDosArquivos(r._nomesArquivos);
+      return c ? { nome: c, origem: 'arquivo' } : { nome: null, origem: null };
+    }
     const a = nomeDoArquivo(r.origem && r.origem.arquivo);
     if (a) return { nome: a, origem: 'arquivo' };
     return { nome: null, origem: null };
@@ -551,25 +572,52 @@
   }
 
   /**
-   * Varias placas exportadas como .gcode avulso, ou varios .gcode.3mf.
-   * Junta tudo num resultado so.
+   * Soma os resultados de varios arquivos (um por arquivo) num resultado so.
+   * As cores sao agrupadas por COR + TIPO: o numero do slot NAO serve de chave entre arquivos,
+   * porque cada arquivo fatiado sozinho usa o "slot 1" para a cor que for (o cabelo marrom e a
+   * roupa branca de um produto multiparte seriam somados como se fossem o mesmo material).
+   * Com um unico arquivo devolve o proprio resultado, sem alteracao.
    */
-  async function importarVarios(files) {
-    const partes = await Promise.all([...files].map(importarFatiamento));
-    const placas = [];
+  function combinarResultados(partes) {
+    if (partes.length === 1) return partes[0];
+    const idPorCor = new Map();
+    let proximo = 1;
+    const placas = [], origemPlaca = [];
     let i = 1;
-    partes.forEach(p => p.placas.forEach(pl => placas.push({ ...pl, indice: i++ })));
+    partes.forEach(p => p.placas.forEach(pl => {
+      const filamentos = pl.filamentos.map(f => {
+        const k = (f.hex || '') + '|' + (f.tipo || '');
+        if (!idPorCor.has(k)) idPorCor.set(k, proximo++);
+        return { ...f, id: idPorCor.get(k) };
+      });
+      origemPlaca[i] = { arquivo: p.origem.arquivo, indice: pl.indice };
+      placas.push({ ...pl, indice: i++, filamentos });
+    }));
     const r = agregar({
       versao: partes[0]?.origem.versao,
       impressora: partes[0]?.origem.impressora,
-      ajustes: partes.find(p => p._ajustes)?._ajustes ?? null,
+      ajustes: null,                      // densidades por slot nao valem apos renumerar as cores
       placas,
-      arquivo: [...files].map(f => f.name).join(', '),
+      arquivo: partes.map(p => p.origem.arquivo).join(', '),
+    });
+    // Os avisos citam "placa N" (numeracao sequencial entre arquivos): troca pelo arquivo de origem.
+    r.avisos.forEach(a => {
+      a.texto = a.texto.replace(/([Pp])laca (\d+)/g, (m, c, n) => {
+        const o = origemPlaca[Number(n)];
+        return o ? `${c}laca ${o.indice} de "${o.arquivo}"` : m;
+      });
     });
     r.avisos.push(...partes.flatMap(p => p.avisos.filter(a => a.codigo === 'SEM_FATIAMENTO')));
     r._partes = partes;
+    r._nomesArquivos = partes.map(p => p.origem.arquivo);
     aplicarNome(r);
     return r;
+  }
+
+  /** Varias placas exportadas como .gcode avulso, ou varios .gcode.3mf: junta tudo num resultado so. */
+  async function importarVarios(files) {
+    const partes = await Promise.all([...files].map(importarFatiamento));
+    return combinarResultados(partes);
   }
 
   /* ===================== 8. ANALISE DE PURGA (opcional) ===================== */
@@ -637,6 +685,7 @@
   var API = {
     importarFatiamento: importarFatiamento,
     importarVarios: importarVarios,
+    combinarResultados: combinarResultados,
     analisarPurga: analisarPurga,
     sugerirFilamento: sugerirFilamento,
     formatarTempo: formatarTempo,
