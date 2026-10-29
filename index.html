@@ -1537,7 +1537,7 @@ html body *:not(.no-upper):not([type=password]):not([type=email]):not([type=url]
   <div id="form-venda" style="display:none;" class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
       <div class="stitle" style="margin:0;">Registrar Venda</div>
-      <button class="btn" onclick="abrirSeletorPedidos()" style="font-size:12px;"><i class="ti ti-clipboard-list"></i> Importar Pedidos</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn" onclick="abrirSeletorPedidos()" style="font-size:12px;"><i class="ti ti-clipboard-list"></i> Importar Pedidos</button><button class="btn" onclick="AKPVendaImp.abrirSeletor()" style="font-size:12px;"><i class="ti ti-printer"></i> Importar Impressoes</button></div>
     </div>
     <div class="grid2">
       <div class="field"><label>Cliente *</label><input type="text" id="v-cliente" placeholder="Nome do cliente"></div>
@@ -14632,6 +14632,9 @@ function renderImpressoes() {
           if(!imp.produtoCriado && st === 'concluida')
             btns += '<button class="btn-ok" onclick="transformarImpressaoEmProduto('+idx+')" style="font-size:11px;padding:5px 10px;background:rgba(0,170,255,0.08);border-color:var(--blue-border);color:var(--blue-text);"><i class="ti ti-package"></i> Transformar em Produto</button>';
 
+          // Vender / etiqueta de vendida (modulo akp-venda-imp)
+          if(window.AKPVendaImp) btns += AKPVendaImp.botoes(imp, idx);
+
           // Editar (so se ativa)
           if(st !== 'concluida' && st !== 'cancelada')
             btns += '<button class="btn" onclick="abrirFormImpressao('+idx+')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-edit"></i> Editar</button>';
@@ -15803,6 +15806,200 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   iniciar();
   window.AKPEstoque={resolver:resolver,iguais:iguais,nomeAlvo:nomeAlvo,realinharLista:realinharLista,realinharTudo:realinharTudo,planoDevolucao:planoDevolucao};
+})();
+</script>
+<script id="akp-venda-imp">
+(function(){
+  'use strict';
+  /* ===== VENDER IMPRESSAO INTERNA =====
+     Uma impressao interna concluida (resultado "Ficou bom", que nao virou produto) pode ser vendida:
+       - botao "Vender" no cartao da impressao, ou
+       - botao "Importar Impressoes" na tela de Vendas (ao lado de "Importar Pedidos").
+     Os dois preenchem o formulario de venda com um item avulso. O filamento ja foi baixado quando a impressao
+     foi concluida, entao a venda NAO mexe no estoque. A impressao guarda quantas unidades ja foram vendidas
+     (vendidas/vendaIds) e volta a ficar disponivel se a venda for excluida ou cancelada.
+     Para desligar: apague este bloco <script id="akp-venda-imp"> e as 2 ligacoes (botao na aba Vendas e
+     AKPVendaImp.botoes em renderImpressoes). */
+  function L(){ return (typeof impressoesInternas!=='undefined' && Array.isArray(impressoesInternas)) ? impressoesInternas : []; }
+  function qtdDe(imp){ return Math.max(1, parseInt(imp.qtd)||1); }
+  function vendidas(imp){ return Math.max(0, parseInt(imp.vendidas)||0); }
+  function disponivel(imp){ return Math.max(0, qtdDe(imp)-vendidas(imp)); }
+  function elegivel(imp){
+    return !!imp && imp.status==='concluida' && !imp.produtoCriado && (!imp.resultado || imp.resultado==='bom') && disponivel(imp)>0;
+  }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function moeda(v){ return (typeof fmt==='function') ? fmt(parseFloat(v)||0) : 'R$ '+(parseFloat(v)||0).toFixed(2); }
+  function up(s){ return String(s||'').toUpperCase().trim(); }
+  function achar(id){ var r=null; L().forEach(function(imp,k){ if(String(imp.id)===String(id)) r={imp:imp,idx:k}; }); return r; }
+
+  /** Preco sugerido: so quando existe algo com o MESMO nome (produto, pedido ou historico de precificacao). */
+  function sugerirPreco(nome){
+    var n=up(nome); if(!n) return 0;
+    var p=0;
+    (typeof produtos!=='undefined'?produtos:[]).some(function(pr){ var v=parseFloat(pr.precoNum)||0; if(up(pr.nome)===n && v>0){ p=v; return true; } return false; });
+    if(!p) (typeof pedidos!=='undefined'?pedidos:[]).some(function(pd){ var v=parseFloat(pd.precoUnit)||0; if(up(pd.nome)===n && v>0){ p=v; return true; } return false; });
+    if(!p) (typeof _histCalc!=='undefined'?_histCalc:[]).some(function(hc){ var v=parseFloat(hc.precoUnit)||0; if(up(hc.nome)===n && v>0){ p=v; return true; } return false; });
+    return Math.round(p*100)/100;
+  }
+
+  /* ---------- botoes no cartao da impressao ---------- */
+  function botoes(imp,idx){
+    var s='', v=vendidas(imp);
+    if(v>0){
+      var tot=qtdDe(imp);
+      s+='<span class="tag tag-green" style="font-size:10px;" title="'+esc(imp.clienteVenda||'')+'"><i class="ti ti-shopping-cart"></i> '+(disponivel(imp)===0?'Vendida':('Vendidas '+v+'/'+tot))+'</span>';
+    }
+    if(elegivel(imp)) s+='<button class="btn-ok" onclick="AKPVendaImp.vender('+idx+')" style="font-size:11px;padding:5px 10px;"><i class="ti ti-shopping-cart"></i> Vender</button>';
+    return s;
+  }
+
+  /* ---------- preenche o formulario de venda (acrescenta; nao apaga o que ja foi digitado) ---------- */
+  function carregar(itens){
+    if(typeof showTab==='function') showTab('vendas');
+    setTimeout(function(){
+      var form=document.getElementById('form-venda');
+      if(form && form.style.display==='none' && typeof showFormVenda==='function') showFormVenda();
+      else if(form) form.style.display='block';
+      var lista=document.getElementById('v-itens-lista'); if(!lista) return;
+      // o formulario nasce com uma linha em branco: remove so as vazias (sem produto, sem nome e sem preco)
+      lista.querySelectorAll('.fil-multi-item').forEach(function(r){
+        if(r.hasAttribute('data-imp-id')) return;
+        var sel=r.querySelector('select'), inp=r.querySelectorAll('input');
+        var vazia=sel && sel.value==='' && /Produto avulso/i.test(sel.options[sel.selectedIndex]?sel.options[sel.selectedIndex].text:'') && !(parseFloat(inp[1]&&inp[1].value)>0);
+        if(vazia) r.remove();
+      });
+      var semPreco=null, nomes=[];
+      itens.forEach(function(it){
+        var ja=lista.querySelector('.fil-multi-item[data-imp-id="'+it.imp.id+'"]');
+        if(ja){ var q=ja.querySelectorAll('input')[0]; if(q) q.value=it.qtd; return; }
+        addItemVenda(undefined,it.qtd,it.preco>0?it.preco:'',it.imp.nome);
+        var row=lista.lastElementChild; row.setAttribute('data-imp-id',it.imp.id);
+        if(!(it.preco>0) && !semPreco) semPreco=row.querySelectorAll('input')[1];
+        nomes.push(it.imp.nome);
+      });
+      var obs=document.getElementById('v-obs');
+      if(obs && nomes.length){ var t='Impressao interna: '+nomes.join(', '); if(obs.value.indexOf(t)<0) obs.value=obs.value?obs.value+' | '+t:t; }
+      if(typeof calcTotalVenda==='function') calcTotalVenda();
+      if(form && form.scrollIntoView) form.scrollIntoView({behavior:'smooth',block:'nearest'});
+      if(semPreco) semPreco.focus();
+    },250);
+  }
+  function vender(idx){
+    var imp=L()[idx];
+    if(!elegivel(imp)){ alert('Esta impressao nao esta disponivel para venda.\n\nSo podem ser vendidas impressoes concluidas, com resultado "Ficou bom", que nao viraram produto e ainda tem unidades disponiveis.'); return; }
+    carregar([{imp:imp,qtd:disponivel(imp),preco:sugerirPreco(imp.nome)}]);
+  }
+
+  /* ---------- seletor na tela de Vendas ---------- */
+  var INP='border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:13px;background:var(--bg2);color:var(--text);';
+  function abrirSeletor(){
+    var itens=[]; L().forEach(function(imp,idx){ if(elegivel(imp)) itens.push({imp:imp,idx:idx}); });
+    var ov=document.getElementById('modal-sel-impressoes');
+    if(!ov){
+      ov=document.createElement('div'); ov.id='modal-sel-impressoes'; ov.className='modal-overlay';
+      ov.addEventListener('click',function(e){ if(e.target===ov) ov.style.display='none'; });
+      document.body.appendChild(ov);
+    }
+    var linhas=itens.map(function(it,i){
+      var imp=it.imp, d=disponivel(imp), p=sugerirPreco(imp.nome), c=parseFloat(imp.custoUnit)||0;
+      return '<div class="akp-vi-row" data-i="'+i+'" style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg3);border-radius:var(--radius);margin-bottom:6px;flex-wrap:wrap;cursor:pointer;">'+
+        '<input type="checkbox" class="akp-vi-chk" style="width:16px;height:16px;cursor:pointer;">'+
+        '<div style="flex:1;min-width:170px;"><strong style="font-size:13px;">'+esc(imp.nome)+'</strong>'+
+          '<span class="tag tag-blue" style="margin-left:6px;font-size:10px;">'+d+' un '+(d>1?'disponiveis':'disponivel')+'</span><br>'+
+          '<span style="font-size:11px;color:var(--text3);">'+esc(imp.data||'')+(imp.horas&&imp.horas!=='--'?' | '+esc(imp.horas):'')+(c>0?' | custo '+moeda(c)+'/un':'')+'</span></div>'+
+        '<label style="font-size:11px;color:var(--text3);">Qtd <input type="number" class="akp-vi-qtd" min="1" max="'+d+'" value="'+d+'" style="width:64px;'+INP+'"></label>'+
+        '<label style="font-size:11px;color:var(--text3);">R$/un <input type="number" class="akp-vi-preco" min="0" step="0.01" value="'+(p>0?p.toFixed(2):'')+'" placeholder="preco" style="width:92px;'+INP+'"></label>'+
+      '</div>';
+    }).join('');
+    ov.innerHTML='<div class="modal-box" style="max-width:660px;max-height:85vh;overflow-y:auto;">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">'+
+        '<strong style="font-size:16px;color:var(--neon);"><i class="ti ti-printer"></i> Selecionar Impressoes Internas</strong>'+
+        '<button class="btn akp-vi-fechar"><i class="ti ti-x"></i></button></div>'+
+      '<div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Aparecem as impressoes concluidas, com resultado "Ficou bom", que nao viraram produto e ainda tem unidades disponiveis. O filamento ja foi baixado ao concluir a impressao: a venda nao mexe no estoque.</div>'+
+      '<div style="max-height:400px;overflow-y:auto;">'+(linhas||'<div class="empty"><i class="ti ti-printer"></i>Nenhuma impressao interna disponivel para venda.</div>')+'</div>'+
+      '<div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">'+
+        '<div><span style="font-size:12px;color:var(--text3);">Total selecionado:</span><strong class="akp-vi-total" style="color:var(--neon);margin-left:6px;">R$ 0,00</strong></div>'+
+        '<div style="display:flex;gap:8px;"><button class="btn akp-vi-fechar">Cancelar</button><button class="btn-ok akp-vi-ok"><i class="ti ti-check"></i> Importar Selecionadas</button></div></div></div>';
+    var totalEl=ov.querySelector('.akp-vi-total');
+    function recalcular(){
+      var t=0; ov.querySelectorAll('.akp-vi-row').forEach(function(r){
+        if(!r.querySelector('.akp-vi-chk').checked) return;
+        t+=(parseInt(r.querySelector('.akp-vi-qtd').value)||0)*(parseFloat(r.querySelector('.akp-vi-preco').value)||0);
+      }); totalEl.textContent=moeda(t);
+    }
+    ov.querySelectorAll('.akp-vi-row').forEach(function(r){
+      r.addEventListener('click',function(e){ if(e.target.tagName==='INPUT'||e.target.tagName==='LABEL') return; var c=r.querySelector('.akp-vi-chk'); c.checked=!c.checked; recalcular(); });
+      r.querySelectorAll('input').forEach(function(i){ i.addEventListener('input',recalcular); i.addEventListener('change',recalcular); });
+    });
+    ov.querySelectorAll('.akp-vi-fechar').forEach(function(b){ b.addEventListener('click',function(){ ov.style.display='none'; }); });
+    ov.querySelector('.akp-vi-ok').addEventListener('click',function(){
+      var sel=[], erro=null;
+      ov.querySelectorAll('.akp-vi-row').forEach(function(r){
+        if(!r.querySelector('.akp-vi-chk').checked) return;
+        var it=itens[parseInt(r.getAttribute('data-i'))], q=parseInt(r.querySelector('.akp-vi-qtd').value)||0, d=disponivel(it.imp);
+        if(q<1||q>d){ erro='"'+it.imp.nome+'": a quantidade deve ficar entre 1 e '+d+'.'; return; }
+        sel.push({imp:it.imp,qtd:q,preco:parseFloat(r.querySelector('.akp-vi-preco').value)||0});
+      });
+      if(erro){ alert(erro); return; }
+      if(!sel.length){ alert('Selecione ao menos uma impressao.'); return; }
+      ov.style.display='none'; carregar(sel);
+    });
+    recalcular(); ov.style.display='flex';
+  }
+
+  /* ---------- ao salvar a venda: marca as impressoes vendidas ---------- */
+  function lerVinculos(){
+    var out=[], lista=document.getElementById('v-itens-lista'); if(!lista) return out;
+    lista.querySelectorAll('.fil-multi-item[data-imp-id]').forEach(function(row){
+      var sel=row.querySelector('select'), inp=row.querySelectorAll('input');
+      if(sel && !isNaN(parseInt(sel.value))) return;                 // o item foi trocado por um produto cadastrado
+      var qtd=parseInt(inp[0]&&inp[0].value)||0, preco=parseFloat(inp[1]&&inp[1].value)||0;
+      if(qtd<1||preco<=0) return;                                    // salvarVenda ignora item sem preco
+      out.push({id:row.getAttribute('data-imp-id'),qtd:qtd,preco:preco});
+    });
+    return out;
+  }
+  function liberar(venda,links){
+    var mudou=false;
+    (links||[]).forEach(function(l){
+      var a=achar(l.id); if(!a) return; var imp=a.imp, ids=imp.vendaIds||[], k=ids.indexOf(venda.id); if(k<0) return;   // ja liberada
+      ids.splice(k,1); imp.vendaIds=ids; imp.vendidas=Math.max(0,vendidas(imp)-(parseInt(l.qtd)||0)); imp.vendida=disponivel(imp)===0;
+      if(!imp.vendidas){ delete imp.dataVenda; delete imp.clienteVenda; } mudou=true;
+    });
+    if(mudou){ S.set('impressoes_internas',impressoesInternas); if(typeof renderImpressoes==='function') renderImpressoes(); }
+  }
+  function envolver(nome,fn){ var o=window[nome]; if(typeof o!=='function') return; window[nome]=function(){ return fn(o,this,arguments); }; }
+
+  envolver('salvarVenda',function(o,t,a){
+    var vinc=lerVinculos();
+    var excessos=vinc.filter(function(v){ var x=achar(v.id); return x && v.qtd>disponivel(x.imp); }).map(function(v){ var x=achar(v.id); return x.imp.nome+': '+v.qtd+' un, mas so '+disponivel(x.imp)+' disponivel(eis)'; });
+    if(excessos.length && !confirm('ATENCAO: quantidade maior que a disponivel nas impressoes internas:\n\n'+excessos.join('\n')+'\n\nSalvar a venda mesmo assim?')) return;
+    var antes=vendas.length, primeiro=vendas[0]&&vendas[0].id;
+    var r=o.apply(t,a);
+    if(vinc.length && vendas.length>antes && vendas[0] && vendas[0].id!==primeiro){   // a venda foi realmente salva
+      var venda=vendas[0], snap=[];
+      vinc.forEach(function(v){
+        var x=achar(v.id); if(!x) return; var imp=x.imp;
+        imp.vendidas=vendidas(imp)+v.qtd; imp.vendaIds=(imp.vendaIds||[]).concat([venda.id]); imp.vendida=disponivel(imp)===0;
+        imp.dataVenda=venda.data; imp.clienteVenda=venda.cliente;
+        snap.push({id:imp.id,nome:imp.nome,qtd:v.qtd,custoUnit:parseFloat(imp.custoUnit)||0});
+      });
+      if(snap.length){ venda.impressoes=snap; S.set('vendas',vendas); S.set('impressoes_internas',impressoesInternas); if(typeof renderImpressoes==='function') renderImpressoes(); }
+    }
+    return r;
+  });
+  envolver('delVenda',function(o,t,a){                                  // excluir a venda libera as impressoes
+    var v=vendas[a[0]], links=v&&v.impressoes, r=o.apply(t,a);
+    if(links && links.length && vendas.indexOf(v)<0) liberar(v,links);
+    return r;
+  });
+  envolver('cancelarVenda',function(o,t,a){                             // cancelar tambem
+    var v=vendas[a[0]], links=v&&v.impressoes, r=o.apply(t,a);
+    if(links && links.length && v.statusPgto==='cancelado') liberar(v,links);
+    return r;
+  });
+
+  window.AKPVendaImp={abrirSeletor:abrirSeletor,vender:vender,botoes:botoes,elegivel:elegivel,disponivel:disponivel,sugerirPreco:sugerirPreco};
 })();
 </script>
 <script id="akp-imagens">
