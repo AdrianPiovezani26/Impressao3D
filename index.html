@@ -15621,6 +15621,253 @@ document.addEventListener('DOMContentLoaded', function() {
 })();
 
 </script>
+<script id="akp-backup">
+(function(){
+  'use strict';
+  /* ===== RESTAURAR BACKUP + BACKUP DIARIO NA NUVEM =====
+     1) "Importar JSON" agora restaura de verdade: le o backup do "Backup Agora" (chaves akp3d_...) e a
+        exportacao antiga, mostra o que vai mudar, baixa uma copia dos dados atuais ANTES e permite desfazer.
+        (A versao anterior procurava chaves sem o prefixo, nao restaurava nada e dizia "importados com sucesso".)
+     2) Uma copia por dia na nuvem (ultimos 14 dias), em documentos "bkp_AAAA-MM-DD" da mesma colecao dos dados,
+        comprimida; da para restaurar pela tela. Complementa o backup manual, nao o substitui.
+     Para desligar: apague este bloco <script id="akp-backup">. */
+  var CHAVES=['filamentos','produtos','pedidos','vendas','faturas','compras','parceiros','clientes','contas_pagar','movimentacoes','hist_calc',
+              'cfg','consignacoes','oportunidades','impressoes_internas','impressoras','tarefas','mapa_xml'];
+  var NUVEM=CHAVES.slice(0,17);                                   // as que sincronizam com o Firestore (mapa_xml fica so no aparelho)
+  var DIAS=14, TAM_PARTE=window.AKP_BKP_TAM_PARTE||600000;
+  var NOMES={mapa_xml:'Mapa de XML'};
+  function nome(k){ return NOMES[k]||(window.AKPSync?AKPSync.nome(k):k); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function pad(n){ return (n<10?'0':'')+n; }
+  function isoDe(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+  function hojeISO(){ return isoDe(new Date()); }
+  function diaAtras(n){ var d=new Date(); d.setDate(d.getDate()-n); return isoDe(d); }
+  function brData(iso){ var m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})/); return m?m[3]+'/'+m[2]+'/'+m[1]:(iso||'—'); }
+  function dataIso(s){ s=String(s||''); if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10); var m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})/); return m?m[3]+'-'+m[2]+'-'+m[1]:''; }
+  function contar(v){ return Array.isArray(v)?v.length:(v&&typeof v==='object'?1:0); }
+  function ultimaData(lista){ var m=''; (lista||[]).forEach(function(r){ var d=dataIso(r&&(r.data||r.dataIso)); if(d>m) m=d; }); return m; }
+
+  /* ---------- montar / baixar ---------- */
+  async function montarDados(comImagens){
+    var dados={};
+    CHAVES.forEach(function(k){ var v=S.get(k); if(v!==null) dados['akp3d_'+k]=v; });
+    if(comImagens && window.AKPImg){ try{ var im=await AKPImg.todasParaBackup(); if(Object.keys(im).length) dados['akp3d_imagens']=im; }catch(e){ console.warn('[Backup] sem imagens:',e); } }
+    return dados;
+  }
+  function baixar(obj,nomeArq){
+    var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(obj,null,2)],{type:'application/json'})); a.download=nomeArq;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){ URL.revokeObjectURL(a.href); },4000);
+  }
+  /* copia de seguranca no navegador (IndexedDB) para poder desfazer a ultima restauracao */
+  function idb(modo,valor){
+    return new Promise(function(res,rej){
+      var rq=indexedDB.open('akp3d_restore',1);
+      rq.onupgradeneeded=function(){ rq.result.createObjectStore('kv'); };
+      rq.onerror=function(){ rej(rq.error); };
+      rq.onsuccess=function(){
+        var tx=rq.result.transaction('kv',modo==='put'?'readwrite':'readonly'), st=tx.objectStore('kv');
+        var r=modo==='put'?st.put(valor,'pre'):st.get('pre'); r.onsuccess=function(){ res(r.result); }; r.onerror=function(){ rej(r.error); };
+      };
+    });
+  }
+
+  /* ---------- ler o arquivo ---------- */
+  function normalizar(obj){
+    if(!obj||typeof obj!=='object'||Array.isArray(obj)) return null;
+    var comPrefixo=Object.keys(obj).some(function(x){ return x.indexOf('akp3d_')===0 && CHAVES.indexOf(x.slice(6))>=0; });
+    var itens=[], avisos=[];
+    CHAVES.forEach(function(k){
+      var v=comPrefixo?obj['akp3d_'+k]:obj[k];
+      if(v===undefined||v===null) return;
+      var lista=(k!=='cfg'&&k!=='mapa_xml');
+      if(lista&&!Array.isArray(v)){ avisos.push(nome(k)+': formato inesperado, ignorada.'); return; }
+      if(!lista&&(typeof v!=='object'||Array.isArray(v))){ avisos.push(nome(k)+': formato inesperado, ignorada.'); return; }
+      itens.push({k:k,v:v});
+    });
+    return {itens:itens,imagens:comPrefixo?(obj.akp3d_imagens||null):null,formato:comPrefixo?'Backup completo':'Exportação antiga (9 coleções)',avisos:avisos};
+  }
+
+  /* ---------- janela de restauracao ---------- */
+  function abrirRestauracao(obj,origem){
+    var norm=normalizar(obj);
+    if(!norm||!norm.itens.length){ alert('Este arquivo não parece um backup do AKP3D (nenhuma coleção reconhecida).\n\nUse o arquivo gerado por "Backup Agora".'); return; }
+    var ov=document.getElementById('modal-restaurar');
+    if(!ov){ ov=document.createElement('div'); ov.id='modal-restaurar'; ov.className='modal-overlay'; ov.addEventListener('click',function(e){ if(e.target===ov) ov.style.display='none'; }); document.body.appendChild(ov); }
+    var perde=0, linhas=norm.itens.map(function(it,i){
+      var atual=contar(S.get(it.k)), novo=contar(it.v), d=novo-atual, lista=Array.isArray(it.v);
+      if(lista&&d<0) perde+=-d;
+      var sit=!lista?'substitui':(d===0?'igual':(d>0?'<span style="color:var(--neon);">+'+d+'</span>':'<span style="color:var(--red-text);">−'+(-d)+' (perde '+(-d)+')</span>'));
+      return '<tr><td style="padding:4px 6px;"><input type="checkbox" class="akp-rs-chk" data-i="'+i+'" checked></td><td style="padding:4px 6px;">'+esc(nome(it.k))+'</td>'+
+        '<td style="padding:4px 6px;text-align:right;">'+(lista?atual:'—')+'</td><td style="padding:4px 6px;text-align:right;">'+(lista?novo:'—')+'</td><td style="padding:4px 6px;text-align:right;font-size:12px;">'+sit+'</td></tr>';
+    }).join('');
+    var vn=norm.itens.filter(function(x){ return x.k==='vendas'; })[0], va=S.get('vendas');
+    var recente=vn?'<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Venda mais recente no arquivo: <b>'+brData(ultimaData(vn.v))+'</b> | nos dados atuais: <b>'+brData(ultimaData(va))+'</b></div>':'';
+    ov.innerHTML='<div class="modal-box" style="max-width:600px;max-height:88vh;overflow-y:auto;">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem;"><strong style="font-size:16px;color:var(--neon);"><i class="ti ti-database-import"></i> Restaurar backup</strong><button class="btn" data-f><i class="ti ti-x"></i></button></div>'+
+      '<div style="font-size:12px;color:var(--text3);margin-bottom:6px;">'+esc(origem||'')+' · '+esc(norm.formato)+'</div>'+recente+
+      (perde?'<div class="akp-av" style="background:rgba(255,60,60,.10);border:1px solid var(--red-border);border-radius:var(--radius);padding:8px 10px;font-size:12px;margin-bottom:8px;">Atenção: este arquivo tem <b>menos registros</b> do que os dados atuais ('+perde+' a menos). Confira se é o arquivo certo.</div>':'')+
+      (norm.avisos.length?'<div style="font-size:12px;color:var(--amber-text);margin-bottom:8px;">'+norm.avisos.map(esc).join('<br>')+'</div>':'')+
+      '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="color:var(--text3);font-size:11px;text-align:left;"><th></th><th>Coleção</th><th style="text-align:right;">Atual</th><th style="text-align:right;">Arquivo</th><th style="text-align:right;">Resultado</th></tr></thead><tbody>'+linhas+'</tbody></table>'+
+      (norm.imagens?'<div style="font-size:12px;color:var(--text3);margin-top:8px;">Inclui '+Object.keys(norm.imagens).length+' imagem(ns) de produto.</div>':'')+
+      '<div style="font-size:12px;color:var(--text3);margin:12px 0;">As coleções marcadas serão <b>substituídas</b> pelas do arquivo. Antes, uma cópia dos dados atuais é <b>baixada</b> e guardada neste navegador (dá para desfazer).</div>'+
+      '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn" data-f>Cancelar</button><button class="btn-ok" data-ok><i class="ti ti-check"></i> Restaurar selecionadas</button></div></div>';
+    ov.querySelectorAll('[data-f]').forEach(function(b){ b.addEventListener('click',function(){ ov.style.display='none'; }); });
+    ov.querySelector('[data-ok]').addEventListener('click',function(){
+      var sel=[]; ov.querySelectorAll('.akp-rs-chk').forEach(function(c){ if(c.checked) sel.push(norm.itens[parseInt(c.getAttribute('data-i'))]); });
+      if(!sel.length){ alert('Marque ao menos uma coleção.'); return; }
+      if(!confirm('Substituir os dados atuais de '+sel.length+' coleção(ões) pelos do arquivo?\n\nUma cópia dos dados atuais será baixada antes.')) return;
+      ov.querySelector('[data-ok]').disabled=true; ov.querySelector('[data-ok]').textContent='Restaurando…';
+      executar(sel,norm,origem).then(function(){ ov.style.display='none'; }).catch(function(e){ console.error(e); alert('A restauração falhou: '+e.message+'\n\nSeus dados anteriores foram mantidos.'); ov.style.display='none'; });
+    });
+    ov.style.display='flex';
+  }
+
+  async function executar(sel,norm,origem){
+    var pre=await montarDados(true), agora=new Date(), carimbo=isoDe(agora)+'_'+pad(agora.getHours())+pad(agora.getMinutes());
+    try{ await idb('put',{ts:Date.now(),origem:origem||'',dados:pre}); }catch(e){ console.warn('[Backup] copia local indisponivel:',e); }
+    baixar(pre,'AKP3D_antes_da_restauracao_'+carimbo+'.json');
+    var novos=sel.map(function(it){ return {k:it.k,txt:JSON.stringify(it.v),v:it.v}; }), gravadas=[];
+    try{
+      novos.forEach(function(n){ localStorage.setItem('akp3d_'+n.k,n.txt); gravadas.push(n.k); });
+    }catch(e){                                               // espaco do navegador: desfaz o que ja foi gravado
+      gravadas.forEach(function(k){ if(pre['akp3d_'+k]!==undefined) localStorage.setItem('akp3d_'+k,JSON.stringify(pre['akp3d_'+k])); });
+      throw new Error('o navegador não tem espaço para gravar ('+e.message+')');
+    }
+    if(window.AKPSync) novos.forEach(function(n){ if(NUVEM.indexOf(n.k)>=0) AKPSync.marcar(n.k); });
+    if(norm.imagens && window.AKPImg){ try{ AKPImg.importar(norm.imagens); }catch(e){ console.warn('[Backup] imagens:',e); } }
+    if(typeof recarregarDados==='function') recarregarDados();
+    var confirma=!!window.AKPSync;                              // so da para afirmar "enviado" com a sincronizacao segura
+    var envio=await Promise.all(novos.filter(function(n){ return NUVEM.indexOf(n.k)>=0; }).map(function(n){
+      return confirma?AKPSync.salvar(n.k,n.v):Promise.resolve(typeof window.fbSalvar==='function'?window.fbSalvar(n.k,n.v):null).then(function(){ return true; },function(){ return true; });
+    }));
+    var ok=envio.filter(Boolean).length, pend=envio.length-ok;
+    alert('Restauração concluída: '+novos.length+' coleção(ões).\n\n'+novos.map(function(n){ return '• '+nome(n.k)+(Array.isArray(n.v)?': '+n.v.length:''); }).join('\n')+
+      '\n\n'+(!confirma?'A nuvem será atualizada pela sincronização normal.':(pend?'ATENÇÃO: '+pend+' coleção(ões) ainda NÃO chegaram à nuvem (sem conexão ou recusa). Estão salvas neste aparelho e serão enviadas sozinhas: não limpe o navegador antes disso.':'Tudo enviado para a nuvem.'))+
+      '\n\nUma cópia dos dados de antes foi baixada (AKP3D_antes_da_restauracao_'+carimbo+'.json).');
+    atualizarCartao();
+  }
+
+  /* importar JSON: substitui o antigo lerImporte */
+  window.lerImporte=function(input){
+    var f=input.files&&input.files[0]; if(!f) return;
+    var r=new FileReader();
+    r.onload=function(e){
+      var obj; try{ obj=JSON.parse(e.target.result); }catch(x){ alert('Este arquivo não é um JSON válido.'); return; }
+      abrirRestauracao(obj,'Arquivo: '+f.name);
+    };
+    r.readAsText(f); input.value='';
+  };
+  async function desfazer(){
+    var pre; try{ pre=await idb('get'); }catch(e){}
+    if(!pre||!pre.dados){ alert('Não há restauração para desfazer neste navegador.'); return; }
+    abrirRestauracao(pre.dados,'Estado de '+brData(isoDe(new Date(pre.ts)))+' (antes da última restauração)');
+  }
+
+  /* ---------- backup na nuvem ---------- */
+  function b64enc(u8){ var s=''; for(var i=0;i<u8.length;i+=0x8000) s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000)); return btoa(s); }
+  function b64dec(s){ var b=atob(s), u=new Uint8Array(b.length); for(var i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; }
+  async function gzip(txt){ return new Uint8Array(await new Response(new Blob([txt]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()); }
+  async function gunzip(u8){ return await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'))).text(); }
+  function pronto(){ return !!(window._firebaseOk && window._fbDb); }
+  function col(){ return window._fbDb.collection('akp3d'); }
+
+  async function snapshotNuvem(forcar){
+    if(!pronto()) return {ok:false,motivo:'sem conexão com a nuvem'};
+    if(typeof CompressionStream!=='function') return {ok:false,motivo:'este navegador não comprime dados'};
+    var dia=hojeISO(), id='bkp_'+dia;
+    if(!forcar){ var ja=await col().doc(id).get(); if(ja.exists){ guardarUltimo(dia,ja.data().criado); return {ok:true,jaExistia:true}; } }
+    var dados=await montarDados(false), cont={}, total=0;
+    NUVEM.forEach(function(k){ if(dados['akp3d_'+k]!==undefined){ cont[k]=contar(dados['akp3d_'+k]); total+=cont[k]; } });
+    if(!forcar && total<10) return {ok:false,motivo:'poucos dados neste aparelho (proteção contra aparelho vazio)'};
+    var json=JSON.stringify(dados), b64=b64enc(await gzip(json)), partes=[];
+    for(var i=0;i<b64.length;i+=TAM_PARTE) partes.push(b64.slice(i,i+TAM_PARTE));
+    for(var j=1;j<partes.length;j++) await col().doc(id+'__'+j).set({p:partes[j]});      // partes extras primeiro; o principal por ultimo
+    var criado=Date.now();
+    await col().doc(id).set({v:1,dia:dia,criado:criado,partes:partes.length,bytes:json.length,cont:cont,p:partes[0]});
+    guardarUltimo(dia,criado);
+    try{ await purgar(); }catch(e){ console.warn('[Backup] limpeza:',e); }
+    return {ok:true,partes:partes.length,tamanho:b64.length};
+  }
+  function guardarUltimo(dia,ts){ try{ localStorage.setItem('akp3d_nuvem_ultimo',JSON.stringify({dia:dia,ts:ts||Date.now()})); }catch(e){} }
+  async function purgar(){                                   // apaga o que tem mais de 14 dias (1x por dia)
+    if(localStorage.getItem('akp3d_nuvem_purgado')===hojeISO()) return;
+    for(var n=DIAS+1;n<=DIAS+16;n++){
+      var id='bkp_'+diaAtras(n), m=await col().doc(id).get();
+      if(m.exists){ var q=(m.data().partes||1); for(var i=1;i<q;i++) await col().doc(id+'__'+i).delete(); await col().doc(id).delete(); }
+    }
+    localStorage.setItem('akp3d_nuvem_purgado',hojeISO());
+  }
+  async function listarNuvem(){
+    var out=[];
+    for(var n=0;n<DIAS;n++){ var dia=diaAtras(n), m=await col().doc('bkp_'+dia).get(); if(m.exists){ var d=m.data(); out.push({dia:dia,criado:d.criado,bytes:d.bytes,partes:d.partes||1,cont:d.cont||{}}); } }
+    return out;
+  }
+  async function lerNuvem(dia){
+    var id='bkp_'+dia, m=await col().doc(id).get(); if(!m.exists) throw new Error('backup não encontrado');
+    var d=m.data(), b64=d.p||'';
+    for(var i=1;i<(d.partes||1);i++){ var p=await col().doc(id+'__'+i).get(); if(!p.exists) throw new Error('parte '+i+' do backup está faltando'); b64+=p.data().p; }
+    return JSON.parse(await gunzip(b64dec(b64)));
+  }
+  async function abrirListaNuvem(){
+    if(!pronto()){ alert('Sem conexão com a nuvem agora.'); return; }
+    var ov=document.getElementById('modal-nuvem-lista');
+    if(!ov){ ov=document.createElement('div'); ov.id='modal-nuvem-lista'; ov.className='modal-overlay'; ov.addEventListener('click',function(e){ if(e.target===ov) ov.style.display='none'; }); document.body.appendChild(ov); }
+    ov.innerHTML='<div class="modal-box" style="max-width:520px;"><div style="margin-bottom:10px;"><strong style="color:var(--neon);">Buscando backups na nuvem…</strong></div></div>'; ov.style.display='flex';
+    var lista; try{ lista=await listarNuvem(); }catch(e){ ov.innerHTML='<div class="modal-box"><p>Não consegui consultar a nuvem: '+esc(e.message)+'</p><button class="btn" data-f>Fechar</button></div>'; ov.querySelector('[data-f]').onclick=function(){ ov.style.display='none'; }; return; }
+    ov.innerHTML='<div class="modal-box" style="max-width:560px;max-height:85vh;overflow-y:auto;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;"><strong style="font-size:16px;color:var(--neon);"><i class="ti ti-cloud-download"></i> Backups na nuvem</strong><button class="btn" data-f><i class="ti ti-x"></i></button></div>'+
+      (lista.length?lista.map(function(b){ var hr=new Date(b.criado||0); return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg3);border-radius:var(--radius);margin-bottom:6px;"><div style="flex:1;"><b>'+brData(b.dia)+'</b> <span style="font-size:11px;color:var(--text3);">às '+pad(hr.getHours())+':'+pad(hr.getMinutes())+'</span><br><span style="font-size:11px;color:var(--text3);">'+(b.cont.vendas||0)+' vendas · '+(b.cont.pedidos||0)+' pedidos · '+(b.cont.filamentos||0)+' filamentos</span></div><button class="btn-ok" data-d="'+b.dia+'">Restaurar</button></div>'; }).join(''):'<p style="color:var(--text3);">Nenhum backup na nuvem ainda. O primeiro é criado automaticamente 1x por dia, ou clique em "Fazer backup na nuvem agora".</p>')+'</div>';
+    ov.querySelectorAll('[data-f]').forEach(function(b){ b.onclick=function(){ ov.style.display='none'; }; });
+    ov.querySelectorAll('[data-d]').forEach(function(b){ b.onclick=async function(){
+      b.disabled=true; b.textContent='Baixando…';
+      try{ var obj=await lerNuvem(b.getAttribute('data-d')); ov.style.display='none'; abrirRestauracao(obj,'Backup da nuvem de '+brData(b.getAttribute('data-d'))); }
+      catch(e){ b.disabled=false; b.textContent='Restaurar'; alert('Não consegui ler esse backup: '+e.message); }
+    }; });
+  }
+
+  /* ---------- cartao na tela de Configuracoes ---------- */
+  function atualizarCartao(){
+    var st=document.getElementById('akp-nuvem-status'); if(!st) return;
+    var u=null; try{ u=JSON.parse(localStorage.getItem('akp3d_nuvem_ultimo')||'null'); }catch(e){}
+    st.textContent=u?('Último backup na nuvem: '+brData(u.dia)+(u.ts?' às '+pad(new Date(u.ts).getHours())+':'+pad(new Date(u.ts).getMinutes()):'')+' · guardamos os últimos '+DIAS+' dias.'):('Ainda nenhum backup na nuvem neste aparelho. É criado sozinho 1x por dia.');
+    idb('get').then(function(p){ var b=document.getElementById('akp-restaurar-desfazer'); if(b) b.style.display=(p&&p.dados)?'':'none'; }).catch(function(){});
+  }
+  function montarCartao(){
+    var inp=document.getElementById('import-file'); if(!inp||document.getElementById('akp-nuvem-box')) return;
+    var linha=inp.parentElement, box=document.createElement('div'); box.id='akp-nuvem-box';
+    box.innerHTML='<div class="sep"></div><div class="stitle" style="font-size:11px;margin-bottom:.75rem;"><i class="ti ti-cloud"></i> Backup automático na nuvem</div>'+
+      '<div id="akp-nuvem-status" style="font-size:12px;color:var(--text3);margin-bottom:8px;"></div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn-ok" id="akp-nuvem-agora"><i class="ti ti-cloud-upload"></i> Fazer backup na nuvem agora</button>'+
+      '<button class="btn" id="akp-nuvem-listar"><i class="ti ti-cloud-download"></i> Restaurar da nuvem</button>'+
+      '<button class="btn" id="akp-restaurar-desfazer" style="display:none;"><i class="ti ti-arrow-back-up"></i> Desfazer última restauração</button></div>'+
+      '<div style="font-size:11px;color:var(--text3);margin-top:6px;">Complementa o "Backup Agora" (que continua sendo a sua cópia fora do sistema): não o substitui.</div>';
+    linha.insertAdjacentElement('afterend',box);
+    document.getElementById('akp-nuvem-agora').addEventListener('click',async function(){
+      var b=this; b.disabled=true; b.textContent='Enviando…';
+      try{ var r=await snapshotNuvem(true); alert(r.ok?'Backup na nuvem concluído.':'Não foi possível: '+r.motivo); }catch(e){ alert('Falhou: '+(e&&e.message)); }
+      b.disabled=false; b.innerHTML='<i class="ti ti-cloud-upload"></i> Fazer backup na nuvem agora'; atualizarCartao();
+    });
+    document.getElementById('akp-nuvem-listar').addEventListener('click',abrirListaNuvem);
+    document.getElementById('akp-restaurar-desfazer').addEventListener('click',desfazer);
+    atualizarCartao();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',montarCartao); else montarCartao();
+
+  /* backup diario automatico: depois da sincronizacao inicial, 1x por dia */
+  var tent=0, h=setInterval(function(){
+    tent++; if(tent>60){ clearInterval(h); return; }
+    if(window._fbSyncCompleto===true && pronto()){
+      clearInterval(h);
+      setTimeout(function(){
+        var u=null; try{ u=JSON.parse(localStorage.getItem('akp3d_nuvem_ultimo')||'null'); }catch(e){}
+        if(u&&u.dia===hojeISO()){ atualizarCartao(); return; }
+        snapshotNuvem(false).then(function(r){ if(!r.ok) console.warn('[Backup] nuvem:',r.motivo); atualizarCartao(); }).catch(function(e){ console.warn('[Backup] nuvem falhou:',e); });
+      },(window.AKP_BKP_ATRASO!=null?window.AKP_BKP_ATRASO:8000));
+    }
+  },2000);
+
+  window.AKPBackup={abrirRestauracao:abrirRestauracao,normalizar:normalizar,montarDados:montarDados,snapshotNuvem:snapshotNuvem,listarNuvem:listarNuvem,lerNuvem:lerNuvem,desfazer:desfazer,purgar:purgar};
+})();
+</script>
 <script id="akp-estoque">
 (function(){
   'use strict';
