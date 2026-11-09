@@ -4980,7 +4980,7 @@ function renderPedidos(){
           '<option value="concluido"'+(p.status==='concluido'?' selected':'')+'>Concluido</option>' +
         '</select>' +
         btnEditar +
-        '<button class="btn-del" onclick="delPed('+idx+')"><i class="ti ti-trash"></i></button>' +
+        (window.AKPProdEstoque?AKPProdEstoque.pedidoBotao(p):'') + '<button class="btn-del" onclick="delPed('+idx+')"><i class="ti ti-trash"></i></button>' +
       '</div>' +
     '</div>';
   }).join('') + '</div></div></div>';
@@ -16242,6 +16242,8 @@ document.addEventListener('DOMContentLoaded', function() {
      Entradas: "Registrei producao", saldo inicial (assistente) e estorno de venda cancelada/excluida.
      Saidas: venda (todos os itens, ligados ao produto pelo ID e nao pela posicao na lista), baixa/contagem.
      O que a venda antiga fazia ("quantidade original - ultima venda") continua valendo SO para produtos sem controle.
+     FASE 2: pedidos ligados ao produto. Modo "produz para o estoque": ao concluir, as pecas ENTRAM no estoque (idempotente).
+     Modo "reserva": enquanto aberto, reserva pecas do estoque (Disponivel = Estoque - Reservado); a baixa continua sendo a venda.
      Para desligar: apague este bloco <script id="akp-prodestoque"> e as ligacoes marcadas "AKPProdEstoque". */
   function L(){ return (typeof movProdutos!=='undefined'&&Array.isArray(movProdutos))?movProdutos:[]; }
   function up(s){ return String(s||'').toUpperCase().trim(); }
@@ -16260,7 +16262,19 @@ document.addEventListener('DOMContentLoaded', function() {
     var s=0; L().forEach(function(m){ if(String(m.prodId)!==String(prodId)) return; var q=parseFloat(m.qtd)||0; s+=(m.tipo==='saida'?-q:q); });
     return Math.round(s*1000)/1000;
   }
-  function reservado(prodId){ return 0; }                                   // fase 2: pedidos em aberto ligados ao produto
+  function peds(){ return (typeof pedidos!=='undefined'&&Array.isArray(pedidos))?pedidos:[]; }
+  function aberto(pd){ return !!pd && pd.status!=='concluido' && pd.status!=='cancelado'; }
+  function modo(pd){ return pd&&pd.estoqueModo==='reserva'?'reserva':'producao'; }
+  function qtdPed(pd){ return Math.max(1,inteiro(pd&&pd.qtd)||1); }
+  function pedLigado(pd){ return (pd&&pd.produtoId!==undefined&&pd.produtoId!==null&&pd.produtoId!=='')?porId(pd.produtoId):null; }
+  function reservado(prodId){                                               // pecas que ja tenho e estao comprometidas com pedidos em aberto
+    var r=0; peds().forEach(function(pd){ if(String(pd.produtoId)===String(prodId)&&modo(pd)==='reserva'&&aberto(pd)) r+=qtdPed(pd); }); return r;
+  }
+  function pedidosDoProduto(prodId){ return peds().filter(function(pd){ return pd.produtoId!==undefined&&String(pd.produtoId)===String(prodId); }); }
+  function entradasDoPedido(id){                                            // o que ja entrou por este pedido (menos estornos)
+    var t=0; L().forEach(function(m){ if(!m.ref||String(m.ref.id)!==String(id)) return;
+      if(m.ref.tipo==='pedido'&&m.tipo==='entrada') t+=m.qtd; else if(m.ref.tipo==='estorno_pedido'&&m.tipo==='saida') t-=m.qtd; }); return t;
+  }
   function disponivel(prodId){ return saldo(prodId)-reservado(prodId); }
   function movimentos(prodId){ return L().filter(function(m){ return String(m.prodId)===String(prodId); }); }
   function sincronizarLegado(p){                                           // mantem os campos que as telas antigas leem coerentes com o saldo
@@ -16291,6 +16305,16 @@ document.addEventListener('DOMContentLoaded', function() {
     return '<button class="btn" onclick="AKPProdEstoque.abrir('+JSON.stringify(String(p.id)).replace(/"/g,'&quot;')+')" style="padding:5px 10px;font-size:11px;" title="Estoque deste produto"><i class="ti ti-packages"></i> Estoque</button>';
   }
 
+  function pedidosHtml(p){
+    var l=pedidosDoProduto(p.id).filter(function(pd){ return aberto(pd)||entradasDoPedido(pd.id)>0; }).slice(0,6); if(!l.length) return '';
+    return '<div style="font-size:12px;font-weight:600;margin-bottom:4px;">Pedidos ligados a este produto</div><div style="margin-bottom:12px;">'+l.map(function(pd){
+      var res=modo(pd)==='reserva'; return '<div style="display:flex;gap:8px;padding:5px 8px;background:var(--bg3);border-radius:var(--radius);margin-bottom:3px;font-size:12px;"><span style="flex:1;">'+esc(pd.nome)+' · '+qtdPed(pd)+' un</span><span class="tag '+(res?'tag-amber':'tag-blue')+'" style="font-size:10px;">'+(res?'reserva':'produz')+'</span><span style="color:var(--text3);min-width:70px;text-align:right;">'+esc(pd.status||'')+'</span></div>'; }).join('')+'</div>';
+  }
+  function refPedidoHtml(p){
+    var l=pedidosDoProduto(p.id).filter(function(pd){ return aberto(pd)&&modo(pd)==='producao'; }); if(!l.length) return '';
+    return '<label style="font-size:11px;color:var(--text3);">Referente ao pedido<br><select class="akp-pe-ped" style="'+INP+'max-width:190px;"><option value="">— nenhum —</option>'+l.map(function(pd){ return '<option value="'+esc(pd.id)+'">'+esc(pd.nome)+' ('+qtdPed(pd)+' un)</option>'; }).join('')+'</select></label>';
+  }
+
   /* ---------- janela do produto ---------- */
   var INP='border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:13px;background:var(--bg2);color:var(--text);';
   function overlay(id){
@@ -16298,7 +16322,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if(!ov){ ov=document.createElement('div'); ov.id=id; ov.className='modal-overlay'; ov.addEventListener('click',function(e){ if(e.target===ov) ov.style.display='none'; }); document.body.appendChild(ov); }
     return ov;
   }
-  function atualizarTelas(){ try{ if(typeof renderProds==='function') renderProds(); if(typeof atualizarChips==='function') atualizarChips(); }catch(e){} }
+  function atualizarTelas(){ try{ if(typeof renderProds==='function') renderProds(); if(typeof renderPedidos==='function') renderPedidos(); if(typeof atualizarChips==='function') atualizarChips(); }catch(e){} }
   function abrir(prodId){
     var x=porId(prodId); if(!x){ alert('Produto não encontrado.'); return; }
     var p=x.p, ov=overlay('modal-prod-estoque');
@@ -16311,6 +16335,7 @@ document.addEventListener('DOMContentLoaded', function() {
             '<div style="flex:1;min-width:110px;background:var(--bg3);border-radius:var(--radius);padding:10px;text-align:center;"><div style="font-size:11px;color:var(--text3);">Estoque</div><div style="font-size:24px;font-weight:700;color:'+(s<=0?'var(--red-text)':'var(--neon)')+';">'+s+'</div></div>'+
             '<div style="flex:1;min-width:110px;background:var(--bg3);border-radius:var(--radius);padding:10px;text-align:center;"><div style="font-size:11px;color:var(--text3);">Reservado</div><div style="font-size:24px;font-weight:700;">'+res+'</div></div>'+
             '<div style="flex:1;min-width:110px;background:var(--bg3);border-radius:var(--radius);padding:10px;text-align:center;"><div style="font-size:11px;color:var(--text3);">Disponível p/ venda</div><div style="font-size:24px;font-weight:700;">'+(s-res)+'</div></div></div>'+
+          pedidosHtml(p)+
           '<div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:12px;">'+
             '<label style="font-size:11px;color:var(--text3);">Estoque mínimo (avisa quando chegar nele)<br><input type="number" min="0" step="1" class="akp-pe-min" value="'+esc(p.estoqueMin||'')+'" style="width:130px;'+INP+'"></label>'+
             '<button class="btn" data-min>Salvar mínimo</button><button class="btn" data-off style="margin-left:auto;">Desligar controle</button></div>'+
@@ -16319,6 +16344,7 @@ document.addEventListener('DOMContentLoaded', function() {
             '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;">'+
               '<label style="font-size:11px;color:var(--text3);">Qtd<br><input type="number" min="1" step="1" class="akp-pe-q" value="1" style="width:80px;'+INP+'"></label>'+
               '<label style="font-size:11px;color:var(--text3);">Observação (opcional)<br><input type="text" class="akp-pe-obs" style="width:190px;'+INP+'"></label>'+
+              refPedidoHtml(p)+
               '<button class="btn-ok" data-prod><i class="ti ti-plus"></i> Registrei produção</button>'+
               '<button class="btn" data-baixa><i class="ti ti-minus"></i> Baixa (perda/brinde)</button></div>'+
             '<div style="display:flex;gap:6px;align-items:end;margin-top:8px;"><label style="font-size:11px;color:var(--text3);">Contagem física: tenho<br><input type="number" step="1" class="akp-pe-cont" style="width:100px;'+INP+'"></label><button class="btn" data-cont>Ajustar saldo para este valor</button></div></div>'+
@@ -16346,7 +16372,7 @@ document.addEventListener('DOMContentLoaded', function() {
         p.controlarEstoque=false; S.set('produtos',produtos); atualizarTelas(); desenhar();
       });
       var mn=ov.querySelector('[data-min]'); if(mn) mn.addEventListener('click',function(){ p.estoqueMin=val('.akp-pe-min')||''; S.set('produtos',produtos); atualizarTelas(); desenhar(); });
-      var pr=ov.querySelector('[data-prod]'); if(pr) pr.addEventListener('click',function(){ var q=val('.akp-pe-q'); if(q<1){ alert('Informe a quantidade.'); return; } registrar(p.id,'entrada',q,'Produção'+((ov.querySelector('.akp-pe-obs')||{}).value?': '+ov.querySelector('.akp-pe-obs').value:''),{tipo:'producao'}); atualizarTelas(); desenhar(); });
+      var pr=ov.querySelector('[data-prod]'); if(pr) pr.addEventListener('click',function(){ var q=val('.akp-pe-q'); if(q<1){ alert('Informe a quantidade.'); return; } var refPed=(ov.querySelector('.akp-pe-ped')||{}).value; registrar(p.id,'entrada',q,'Produção'+(refPed?' (pedido)':'')+((ov.querySelector('.akp-pe-obs')||{}).value?': '+ov.querySelector('.akp-pe-obs').value:''),refPed?{tipo:'pedido',id:refPed}:{tipo:'producao'}); atualizarTelas(); desenhar(); });
       var bx=ov.querySelector('[data-baixa]'); if(bx) bx.addEventListener('click',function(){ var q=val('.akp-pe-q'); if(q<1){ alert('Informe a quantidade.'); return; } registrar(p.id,'saida',q,'Baixa'+((ov.querySelector('.akp-pe-obs')||{}).value?': '+ov.querySelector('.akp-pe-obs').value:''),{tipo:'baixa'}); avisoNivel(p); atualizarTelas(); desenhar(); });
       var ct=ov.querySelector('[data-cont]'); if(ct) ct.addEventListener('click',function(){
         var campo=ov.querySelector('.akp-pe-cont'); if(campo.value===''){ alert('Informe a contagem.'); return; }
@@ -16406,11 +16432,11 @@ document.addEventListener('DOMContentLoaded', function() {
       var sel=row.querySelector('select'), qtdI=row.querySelector('input'), chipEl=row.querySelector('.akp-disp');
       var idx=sel?parseInt(sel.value):NaN, p=(!isNaN(idx)&&produtos[idx])?produtos[idx]:null;
       if(!p||!controla(p)){ if(chipEl) chipEl.remove(); return; }
-      var disp=disponivel(p.id), q=inteiro(qtdI&&qtdI.value);
+      var est=saldo(p.id), res=reservado(p.id), disp=est-res, q=inteiro(qtdI&&qtdI.value);
       if(!chipEl){ chipEl=document.createElement('span'); chipEl.className='akp-disp'; chipEl.style.cssText='font-size:11px;font-weight:600;white-space:nowrap;align-self:center;'; row.appendChild(chipEl); }
-      var falta=q>disp;
-      chipEl.style.color=falta?'var(--red-text)':(disp<=inteiro(p.estoqueMin)&&inteiro(p.estoqueMin)>0?'var(--amber-text)':'var(--neon)');
-      chipEl.textContent='Disponível: '+disp+(falta?' · faltam '+(q-disp):'');
+      var falta=q>est, usaReserva=!falta&&q>disp&&res>0;
+      chipEl.style.color=falta?'var(--red-text)':(usaReserva?'var(--amber-text)':(disp<=inteiro(p.estoqueMin)&&inteiro(p.estoqueMin)>0?'var(--amber-text)':'var(--neon)'));
+      chipEl.textContent='Disponível: '+disp+(res>0?' (estoque '+est+' · reservado '+res+')':'')+(falta?' · faltam '+(q-est):(usaReserva?' · usa '+(q-disp)+' reservada(s)':''));
     });
   }
   window.atualizarChips=atualizarChips;
@@ -16449,7 +16475,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   envolver('salvarVenda',function(o,t,a){
     var ctrl=itensDaTela(), soma={}; ctrl.forEach(function(c){ soma[c.prodId]=(soma[c.prodId]||0)+c.qtd; });
-    var falta=Object.keys(soma).filter(function(id){ return soma[id]>disponivel(id); }).map(function(id){ var x=porId(id); return x.p.nome+': vendendo '+soma[id]+', disponível '+disponivel(id); });
+    var falta=Object.keys(soma).filter(function(id){ return soma[id]>saldo(id); }).map(function(id){ var x=porId(id); return x.p.nome+': vendendo '+soma[id]+', em estoque '+saldo(id); });
     if(falta.length && !confirm('ATENÇÃO: quantidade maior que o estoque disponível:\n\n'+falta.join('\n')+'\n\nSalvar mesmo assim? O saldo ficará negativo.')) return;
     var antes=vendas.length, primeiro=vendas[0]&&vendas[0].id, r=o.apply(t,a);
     if(vendas.length>antes && vendas[0] && vendas[0].id!==primeiro) aplicarVenda(vendas[0]);
@@ -16459,6 +16485,103 @@ document.addEventListener('DOMContentLoaded', function() {
   envolver('cancelarVenda',function(o,t,a){ var v=vendas[a[0]], r=o.apply(t,a); if(v&&v.statusPgto==='cancelado') devolver(v,'Estorno: venda cancelada'); return r; });
   envolver('addItemVenda',function(o,t,a){ var r=o.apply(t,a); setTimeout(atualizarChips,0); return r; });
 
+
+  /* ---------- Fase 2: pedido ligado ao produto ---------- */
+  function pedidoBotao(pd){
+    var x=pedLigado(pd);
+    if(!x&&!(produtos||[]).some(controla)) return '';                       // sem produto controlado, o botao so atrapalharia
+    var chipH=x?'<span class="tag '+(modo(pd)==='reserva'?'tag-amber':'tag-blue')+'" style="font-size:10px;margin-right:4px;" title="Pedido ligado ao estoque de produto"><i class="ti ti-packages"></i> '+(modo(pd)==='reserva'?'Reserva: ':'Produz: ')+esc(x.p.nome)+'</span>':'';
+    return chipH+'<button class="btn" onclick="AKPProdEstoque.abrirPedido('+JSON.stringify(String(pd.id)).replace(/"/g,'&quot;')+')" style="font-size:11px;padding:5px 10px;" title="Ligar este pedido ao estoque de um produto"><i class="ti ti-packages"></i> Estoque</button>';
+  }
+  function abrirPedido(pedId){
+    var pd=peds().filter(function(x){ return String(x.id)===String(pedId); })[0]; if(!pd) return;
+    var ctrl=(produtos||[]).filter(controla), cur=pedLigado(pd), sug=cur?cur.p:(ctrl.filter(function(p){ return up(p.nome)===up(pd.nome); })[0]||null);
+    var ov=overlay('modal-ped-estoque');
+    ov.innerHTML='<div class="modal-box" style="max-width:520px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;"><strong style="font-size:16px;color:var(--neon);"><i class="ti ti-packages"></i> Pedido e estoque</strong><button class="btn" data-f><i class="ti ti-x"></i></button></div>'+
+      '<div style="font-size:13px;margin-bottom:10px;"><b>'+esc(pd.nome)+'</b> · '+qtdPed(pd)+' un · '+esc(pd.status||'')+'</div>'+
+      (ctrl.length?
+        '<label style="font-size:12px;color:var(--text3);">Produto com controle de estoque</label><select class="akp-pp-prod" style="width:100%;'+INP+'margin:4px 0 10px;"><option value="">— sem vínculo —</option>'+ctrl.map(function(p){ return '<option value="'+esc(p.id)+'"'+(sug&&String(sug.id)===String(p.id)?' selected':'')+'>'+esc(p.nome)+' (estoque '+saldo(p.id)+')</option>'; }).join('')+'</select>'+
+        '<div style="font-size:12px;color:var(--text3);margin-bottom:4px;">Como este pedido se relaciona com o estoque?</div>'+
+        '<label style="display:block;font-size:13px;margin-bottom:4px;"><input type="radio" name="akp-pp-modo" value="producao" '+(modo(pd)==='producao'?'checked':'')+'> <b>Produz para o estoque</b>: ao concluir, as '+qtdPed(pd)+' peças <b>entram</b> no estoque.</label>'+
+        '<label style="display:block;font-size:13px;margin-bottom:10px;"><input type="radio" name="akp-pp-modo" value="reserva" '+(modo(pd)==='reserva'?'checked':'')+'> <b>Reserva do estoque</b>: peças que <b>já tenho</b> ficam reservadas enquanto o pedido está aberto; a baixa é a venda.</label>'+
+        (cur&&entradasDoPedido(pd.id)>0?'<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Já entraram '+entradasDoPedido(pd.id)+' peça(s) no estoque por este pedido.</div>':'')
+      :'<div style="font-size:13px;color:var(--text2);margin-bottom:10px;">Nenhum produto tem controle de estoque ainda. Em <b>Produtos</b>, use "Estoque dos lotes" ou o botão "Estoque" do produto.</div>')+
+      '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;"><button class="btn" data-f>Fechar</button>'+(cur?'<button class="btn" data-rm>Remover vínculo</button>':'')+(ctrl.length?'<button class="btn-ok" data-s><i class="ti ti-check"></i> Salvar</button>':'')+'</div></div>';
+    ov.querySelectorAll('[data-f]').forEach(function(b){ b.addEventListener('click',function(){ ov.style.display='none'; }); });
+    var rm=ov.querySelector('[data-rm]'); if(rm) rm.addEventListener('click',function(){ delete pd.produtoId; delete pd.estoqueModo; S.set('pedidos',pedidos); ov.style.display='none'; atualizarTelas(); });
+    var sv=ov.querySelector('[data-s]'); if(sv) sv.addEventListener('click',function(){
+      var id=ov.querySelector('.akp-pp-prod').value; if(!id){ delete pd.produtoId; delete pd.estoqueModo; S.set('pedidos',pedidos); ov.style.display='none'; atualizarTelas(); return; }
+      var md=(ov.querySelector('input[name="akp-pp-modo"]:checked')||{}).value||'producao';
+      pd.produtoId=porId(id).p.id; pd.estoqueModo=md; S.set('pedidos',pedidos); ov.style.display='none';
+      var x=porId(id), falta=qtdPed(pd)-entradasDoPedido(pd.id);
+      if(pd.status==='concluido'&&md==='producao'&&falta>0&&confirm('Este pedido já está concluído.\n\nDar entrada de '+falta+' peça(s) no estoque de "'+x.p.nome+'" agora?')) registrar(x.p.id,'entrada',falta,'Produção: pedido '+pd.nome,{tipo:'pedido',id:pd.id});
+      atualizarTelas();
+    });
+    ov.style.display='flex';
+  }
+  function toast(m){ if(window.akpToast) akpToast(m); }
+  function aoConcluir(pd){
+    var x=pedLigado(pd);
+    if(!x){                                                                // sem vinculo: se o nome bate com um produto controlado, sugere ligar
+      var cand=(produtos||[]).filter(function(p){ return controla(p)&&up(p.nome)===up(pd.nome); });
+      if(cand.length!==1) return;
+      if(!confirm('Este pedido ("'+pd.nome+'") parece ser do produto "'+cand[0].nome+'", que tem controle de estoque.\n\nLigar ao produto e dar entrada de '+qtdPed(pd)+' peça(s) no estoque?')) return;
+      pd.produtoId=cand[0].id; pd.estoqueModo='producao'; S.set('pedidos',pedidos); x=porId(cand[0].id);
+    }
+    if(!x||!controla(x.p)) return;
+    if(modo(pd)==='reserva'){ toast('Reserva do pedido "'+pd.nome+'" encerrada. Registre a venda para baixar '+qtdPed(pd)+' do estoque de "'+x.p.nome+'".'); atualizarTelas(); return; }
+    var falta=qtdPed(pd)-entradasDoPedido(pd.id);
+    if(falta>0){ registrar(x.p.id,'entrada',falta,'Produção: pedido '+pd.nome,{tipo:'pedido',id:pd.id}); toast('Entrada de '+falta+' peça(s) no estoque de "'+x.p.nome+'" (pedido concluído). Estoque: '+saldo(x.p.id)+'.'); }
+    atualizarTelas();
+  }
+  function aoReabrir(pd){
+    var x=pedLigado(pd); if(!x||!controla(x.p)||modo(pd)==='reserva') return;
+    var e=entradasDoPedido(pd.id); if(e>0){ registrar(x.p.id,'saida',e,'Estorno: pedido "'+pd.nome+'" reaberto',{tipo:'estorno_pedido',id:pd.id}); toast('Pedido reaberto: '+e+' peça(s) saíram do estoque de "'+x.p.nome+'". Estoque: '+saldo(x.p.id)+'.'); }
+    atualizarTelas();
+  }
+  function snapStatus(){ var m={}; peds().forEach(function(pd){ if(pd&&pd.id!==undefined) m[pd.id]=pd.status; }); return m; }
+  function processarTransicoes(antes){
+    peds().forEach(function(pd){
+      if(!pd||pd.id===undefined) return; var a=antes[pd.id], n=pd.status; if(a===undefined||a===n) return;
+      if(n==='concluido') aoConcluir(pd); else if(a==='concluido') aoReabrir(pd);
+    });
+  }
+  var prof=0, fotoInicial=null;                                             // so a chamada MAIS EXTERNA processa (salvarEdicaoPedido pode chamar updPedSt por dentro)
+  function comTransicoes(o,t,a){
+    if(prof===0) fotoInicial=snapStatus();
+    prof++; var r; try{ r=o.apply(t,a); } finally{ prof--; }
+    if(prof===0){ var antes=fotoInicial; fotoInicial=null; processarTransicoes(antes); }
+    return r;
+  }
+  envolver('updPedSt',comTransicoes);
+  envolver('salvarEdicaoPedido',comTransicoes);
+
+  /* ---------- Dashboard: pecas disponiveis para venda ---------- */
+  function niveis(){
+    return (produtos||[]).filter(controla).map(function(p){ var s=saldo(p.id), r=reservado(p.id), mn=inteiro(p.estoqueMin); return {p:p,s:s,r:r,d:s-r,nivel:s<=0?0:(mn>0&&s<=mn?1:2),mn:mn}; }).sort(function(a,b){ return a.nivel-b.nivel||a.d-b.d; });
+  }
+  function dashboardCartao(){
+    var row=document.getElementById('akp-dash-prod');
+    if(!row){
+      var ref=document.getElementById('dash-estoque-lista'), linha=ref&&ref.closest('.dash-row'); if(!linha) return;
+      row=document.createElement('div'); row.className='dash-row'; row.id='akp-dash-prod';
+      row.innerHTML='<div class="dash-card" style="flex:1;"><div class="dash-card-title" style="display:flex;justify-content:space-between;align-items:center;"><span><i class="ti ti-packages"></i> Peças disponíveis para venda</span><button class="btn" onclick="showTab(\'produtos\')" style="font-size:10px;padding:3px 8px;">Ver produtos</button></div><div id="akp-dash-prod-lista"></div></div>';
+      linha.insertAdjacentElement('afterend',row);
+    }
+    var el=document.getElementById('akp-dash-prod-lista'); if(!el) return; var l=niveis();
+    if(!l.length){ el.innerHTML='<div class="dash-empty"><i class="ti ti-packages"></i>Nenhum produto com controle de estoque. Em Produtos, use "Estoque dos lotes".</div>'; return; }
+    el.innerHTML=l.slice(0,10).map(function(x){
+      var cor=x.nivel===0?'var(--red-text)':(x.nivel===1?'var(--amber-text)':'var(--neon)');
+      return '<div class="dash-item"><div class="nome">'+esc(x.p.nome)+'</div><div style="display:flex;gap:10px;align-items:center;font-size:12px;"><span style="color:var(--text3);">Estoque '+x.s+'</span>'+(x.r>0?'<span style="color:var(--amber-text);">Reservado '+x.r+'</span>':'')+'<span class="valor" style="color:'+cor+';">Disponível '+x.d+'</span></div></div>';
+    }).join('');
+  }
+  function alertaDash(){
+    var el=document.getElementById('dash-alertas'); if(!el) return;
+    var baixos=niveis().filter(function(x){ return x.nivel<=1; }); if(!baixos.length) return;
+    el.innerHTML+='<div class="dash-info-box"><i class="ti ti-packages"></i><span><strong>Estoque de produtos:</strong> '+baixos.slice(0,8).map(function(x){ return esc(x.p.nome)+' ('+(x.s<=0?(x.s<0?'negativo '+x.s:'acabou'):x.s+' un, mínimo '+x.mn)+')'; }).join(', ')+'</span></div>';
+  }
+  envolver('renderDashboard',function(o,t,a){ var r=o.apply(t,a); try{ dashboardCartao(); alertaDash(); }catch(e){ console.warn('[ProdEstoque] dashboard',e); } return r; });
+
   /* ---------- botao do assistente na aba Produtos ---------- */
   function ligar(){
     var b=document.querySelector('#tab-produtos button[onclick="showFormProd(-1)"]'); if(!b||document.getElementById('akp-pe-assistente')) return;
@@ -16467,7 +16590,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',ligar); else ligar();
 
-  window.AKPProdEstoque={saldo:saldo,disponivel:disponivel,registrar:registrar,chip:chip,botao:botao,abrir:abrir,abrirAssistente:abrirAssistente,controla:controla,vendidoEstimado:vendidoEstimado};
+  window.AKPProdEstoque={pedidoBotao:pedidoBotao,abrirPedido:abrirPedido,reservado:reservado,entradasDoPedido:entradasDoPedido,saldo:saldo,disponivel:disponivel,registrar:registrar,chip:chip,botao:botao,abrir:abrir,abrirAssistente:abrirAssistente,controla:controla,vendidoEstimado:vendidoEstimado};
 })();
 </script>
 <script id="akp-estoque">
