@@ -432,7 +432,7 @@ header button{text-transform:none !important;letter-spacing:.01em !important;fon
       var TODAS_CHAVES = [
         'filamentos','produtos','pedidos','vendas','faturas','compras',
         'parceiros','clientes','contas_pagar','movimentacoes','hist_calc',
-        'cfg','consignacoes','oportunidades','impressoes_internas','impressoras','tarefas'
+        'cfg','consignacoes','oportunidades','impressoes_internas','impressoras','tarefas','mov_produtos'
       ];
 
       // Salvar uma chave no Firestore
@@ -3814,7 +3814,7 @@ function renderProds(){
     var vendidoBadge = p.vendido
       ? '<span class="tag tag-green" style="font-size:10px;margin-left:6px;"><i class="ti ti-check"></i> Vendido'+(p.clienteVenda?' - '+p.clienteVenda:'')+'</span>'
       : '';
-    var qtdBadge = p.qtd && p.qtd > 1
+    var qtdBadge = (p.qtd && p.qtd > 1 && !p.controlarEstoque)
       ? '<span class="tag '+(p.estoqueZerado?'tag-red':'tag-blue')+'" style="font-size:10px;margin-left:4px;">'+(p.estoqueZerado?'Estoque zerado':p.qtd+' un')+'</span>'
       : '';
     var btnVender = '<button class="btn-ok" onclick="venderProduto('+i+')" style="padding:5px 10px;font-size:11px;" title="'+(p.vendido?'Vender novamente':'Vender')+'"><i class="ti ti-shopping-cart"></i> '+(p.vendido?'Vender novamente':'Vender')+'</button>';
@@ -3822,7 +3822,7 @@ function renderProds(){
     var margem = (custo > 0 && p.precoNum > 0) ? ((p.precoNum - custo) / p.precoNum * 100) : 0;
     var rowStyle = p.vendido ? 'background:rgba(87,216,88,0.03);' : '';
     return '<tr id="prod-row-'+i+'" style="'+rowStyle+'">' +
-      '<td>'+(p.imgV?'<span class="akp-thumb" data-pid="'+p.id+'" data-v="'+p.imgV+'"></span>':'')+'<strong>'+p.nome+'</strong>'+vendidoBadge+qtdBadge+
+      '<td>'+(p.imgV?'<span class="akp-thumb" data-pid="'+p.id+'" data-v="'+p.imgV+'"></span>':'')+'<strong>'+p.nome+'</strong>'+vendidoBadge+qtdBadge+(window.AKPProdEstoque?AKPProdEstoque.chip(p):'')+
         (p.obs?'<br><span style="font-size:11px;color:var(--text2);">'+p.obs+'</span>':'')+'</td>' +
       '<td><span class="tag tag-blue">'+(p.cat||'Outro')+'</span></td>' +
       '<td style="font-size:12px;">'+filsHtml+'</td>' +
@@ -3832,7 +3832,7 @@ function renderProds(){
       '<td style="font-size:12px;color:'+(margem>0?'var(--neon)':'var(--text3)')+';">'+(margem>0?margem.toFixed(1)+'%':'--')+'</td>' +
       '<td><div class="row-actions">' +
         '<button class="btn-edit" onclick="abrirEditProd('+i+')" title="Editar"><i class="ti ti-edit"></i></button>' +
-        btnVender +
+        (window.AKPProdEstoque?AKPProdEstoque.botao(p):'') + btnVender +
         '<button class="btn-del" onclick="delProd('+i+')"><i class="ti ti-trash"></i></button>' +
       '</div></td>' +
     '</tr>' +
@@ -5750,7 +5750,7 @@ async function sincronizarFirebaseManual() {
 
   var chaves = ['filamentos','produtos','pedidos','vendas','faturas','compras',
                 'parceiros','clientes','contas_pagar','movimentacoes','hist_calc',
-                'cfg','consignacoes','oportunidades','impressoes_internas','impressoras','tarefas'];
+                'cfg','consignacoes','oportunidades','impressoes_internas','impressoras','tarefas','mov_produtos'];
   var ok = [], erro = [];
 
   for(var i = 0; i < chaves.length; i++) {
@@ -5842,7 +5842,7 @@ async function fazerBackup() {
                 'parceiros','clientes','movimentacoes','cfg','mapa_xml','hist_calc',
                 'impressoes_internas','consignacoes','oportunidades','contas_pagar',
                 'impressoras',
-                'tarefas'];
+                'tarefas','mov_produtos'];
   chaves.forEach(function(k) {
     var val = S.get(k);
     if(val !== null) dados['akp3d_'+k] = val;
@@ -5913,7 +5913,7 @@ function lerImporte(input){
 function limparTudo(){
   if(confirm('Apagar TODOS os dados? Esta acao nao pode ser desfeita!')){
     filamentos=[];produtos=[];pedidos=[];vendas=[];faturas=[];cfg={};
-    ['filamentos','produtos','pedidos','vendas','faturas','compras','parceiros','movimentacoes','cfg'].forEach(k=>localStorage.removeItem('akp3d_'+k));
+    ['filamentos','produtos','pedidos','vendas','faturas','compras','parceiros','movimentacoes','mov_produtos','cfg'].forEach(k=>localStorage.removeItem('akp3d_'+k));
     alert('Dados apagados.');buildFilSelect();checkEstoque();renderFils();
   }
 }
@@ -5922,6 +5922,7 @@ function limparTudo(){
 
 /* ========== ESTOQUE ========== */
 let movimentacoes = S.get('movimentacoes') || [];
+let movProdutos = S.get('mov_produtos') || [];  /* AKPProdEstoque: razao do estoque de peca pronta */
 
 
 /* ===== SISTEMA DE LOGIN ===== */
@@ -9829,7 +9830,7 @@ function sincronizarStatusProdutos() {
         idx = i; break;
       }
     }
-    if(idx >= 0 && !produtos[idx].vendido) {
+    if(idx >= 0 && !produtos[idx].vendido && !produtos[idx].controlarEstoque) {  /* AKPProdEstoque: produto com controle usa o saldo */
       produtos[idx].vendido = true;
       produtos[idx].dataVenda = v.data || '';
       produtos[idx].clienteVenda = v.cliente || '';
@@ -12326,7 +12327,7 @@ function recarregarDados() {
   contasPagar=S.get('contas_pagar')||[];movimentacoes=S.get('movimentacoes')||[];
   _histCalc=S.get('hist_calc')||[];cfg=S.get('cfg')||{};
   impressoesInternas=S.get('impressoes_internas')||[];
-  impressoras=S.get('impressoras')||[];
+  impressoras=S.get('impressoras')||[];movProdutos=S.get('mov_produtos')||[];  /* AKPProdEstoque */
   converterDadosParaMaiusculas();sincronizarStatusProdutos();
   migrarImpressoesInternas();
   limparFaturasOrfas();checkEstoque();buildFilSelect();
@@ -15642,9 +15643,9 @@ document.addEventListener('DOMContentLoaded', function() {
   var CH='akp3d_pend', CONF='akp3d_conflitos';
   var NOMES={filamentos:'Filamentos',produtos:'Produtos',pedidos:'Pedidos',vendas:'Vendas',faturas:'Contas a receber',compras:'Compras',
     parceiros:'Fornecedores',clientes:'Clientes',contas_pagar:'Contas a pagar',movimentacoes:'Movimentações de estoque',hist_calc:'Orçamentos',
-    cfg:'Configurações',consignacoes:'Consignações',oportunidades:'Oportunidades',impressoes_internas:'Impressões internas',impressoras:'Impressoras',tarefas:'Tarefas'};
+    cfg:'Configurações',mov_produtos:'Estoque de produtos',consignacoes:'Consignações',oportunidades:'Oportunidades',impressoes_internas:'Impressões internas',impressoras:'Impressoras',tarefas:'Tarefas'};
   var ATRASOS=window.AKP_SYNC_ATRASOS||[5000,15000,45000,120000,300000];
-  var SYNC=['filamentos','produtos','pedidos','vendas','faturas','compras','parceiros','clientes','contas_pagar','movimentacoes','hist_calc','cfg','consignacoes','oportunidades','impressoes_internas','impressoras','tarefas'];
+  var SYNC=['filamentos','produtos','pedidos','vendas','faturas','compras','parceiros','clientes','contas_pagar','movimentacoes','hist_calc','cfg','consignacoes','oportunidades','impressoes_internas','impressoras','tarefas','mov_produtos'];
   function sincroniza(k){ return SYNC.indexOf(k)>=0; }   // so as colecoes de dados vao para a nuvem (login, senha lembrada e sessao NUNCA)
   var T0=Date.now(), GUARDA=(window.AKP_SYNC_GUARDA!=null?window.AKP_SYNC_GUARDA:8000), manut=0;   // GUARDA: nos primeiros segundos so roda a manutencao da abertura
   var seq={}, timer=null, tentativas=0, ultimoErro='', erroEm=0, avisoEm=0;
@@ -15813,8 +15814,8 @@ document.addEventListener('DOMContentLoaded', function() {
         comprimida; da para restaurar pela tela. Complementa o backup manual, nao o substitui.
      Para desligar: apague este bloco <script id="akp-backup">. */
   var CHAVES=['filamentos','produtos','pedidos','vendas','faturas','compras','parceiros','clientes','contas_pagar','movimentacoes','hist_calc',
-              'cfg','consignacoes','oportunidades','impressoes_internas','impressoras','tarefas','mapa_xml'];
-  var NUVEM=CHAVES.slice(0,17);                                   // as que sincronizam com o Firestore (mapa_xml fica so no aparelho)
+              'cfg','consignacoes','oportunidades','impressoes_internas','impressoras','tarefas','mov_produtos','mapa_xml'];
+  var NUVEM=CHAVES.slice(0,18);                                   // as que sincronizam com o Firestore (mapa_xml fica so no aparelho)
   var DIAS=14, TAM_PARTE=window.AKP_BKP_TAM_PARTE||600000;
   var NOMES={mapa_xml:'Mapa de XML'};
   function nome(k){ return NOMES[k]||(window.AKPSync?AKPSync.nome(k):k); }
@@ -16229,6 +16230,244 @@ document.addEventListener('DOMContentLoaded', function() {
   var t=0, h=setInterval(function(){ t++; if(montarCartao()||t>40) clearInterval(h); },500);
 
   window.AKPDrive={lerCfg:lerCfg,idDaPasta:idDaPasta,pedirToken:pedirToken,testarPasta:testarPasta,enviarDrive:enviarDrive,abrirConfig:abrirConfig};
+})();
+</script>
+<script id="akp-prodestoque">
+(function(){
+  'use strict';
+  /* ===== ESTOQUE DE PRODUTO (peca pronta) =====
+     Controle opcional por produto ("controlar estoque"). O saldo NAO e um numero gravado: e a soma das entradas
+     menos as saidas de um razao (mov_produtos), como o estoque de filamento. Assim vendas parciais acumulam
+     (100 pecas: vende 50 -> 50, vende 20 -> 30) e da para auditar.
+     Entradas: "Registrei producao", saldo inicial (assistente) e estorno de venda cancelada/excluida.
+     Saidas: venda (todos os itens, ligados ao produto pelo ID e nao pela posicao na lista), baixa/contagem.
+     O que a venda antiga fazia ("quantidade original - ultima venda") continua valendo SO para produtos sem controle.
+     Para desligar: apague este bloco <script id="akp-prodestoque"> e as ligacoes marcadas "AKPProdEstoque". */
+  function L(){ return (typeof movProdutos!=='undefined'&&Array.isArray(movProdutos))?movProdutos:[]; }
+  function up(s){ return String(s||'').toUpperCase().trim(); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function pad(n){ return (n<10?'0':'')+n; }
+  function hojeISO(){ var d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+  function agoraHM(){ var d=new Date(); return pad(d.getHours())+':'+pad(d.getMinutes()); }
+  function brData(iso){ var m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})/); return m?m[3]+'/'+m[2]+'/'+m[1]:(iso||''); }
+  function porId(id){ var r=null; (produtos||[]).forEach(function(p,i){ if(String(p.id)===String(id)) r={p:p,i:i}; }); return r; }
+  function controla(p){ return !!(p&&p.controlarEstoque); }
+  function inteiro(v){ var n=parseInt(v); return isNaN(n)?0:n; }
+  function novoId(){ return 'mp_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+
+  /* ---------- razao ---------- */
+  function saldo(prodId){
+    var s=0; L().forEach(function(m){ if(String(m.prodId)!==String(prodId)) return; var q=parseFloat(m.qtd)||0; s+=(m.tipo==='saida'?-q:q); });
+    return Math.round(s*1000)/1000;
+  }
+  function reservado(prodId){ return 0; }                                   // fase 2: pedidos em aberto ligados ao produto
+  function disponivel(prodId){ return saldo(prodId)-reservado(prodId); }
+  function movimentos(prodId){ return L().filter(function(m){ return String(m.prodId)===String(prodId); }); }
+  function sincronizarLegado(p){                                           // mantem os campos que as telas antigas leem coerentes com o saldo
+    if(!controla(p)) return;
+    var s=saldo(p.id); p.qtdEstoque=Math.max(0,s); p.vendido=(s<=0&&movimentos(p.id).some(function(m){ return m.tipo==='saida'; })); p.estoqueZerado=(s<=0);
+  }
+  function registrar(prodId,tipo,qtd,motivo,ref){
+    var x=porId(prodId); qtd=Math.abs(parseFloat(qtd)||0); if(!x||!(qtd>0)) return null;
+    var m={id:novoId(),prodId:x.p.id,prodNome:x.p.nome,tipo:tipo,qtd:qtd,motivo:motivo||'',ref:ref||null,data:hojeISO(),hora:agoraHM(),ts:Date.now()};
+    movProdutos.unshift(m); S.set('mov_produtos',movProdutos);
+    sincronizarLegado(x.p); S.set('produtos',produtos); return m;
+  }
+  function avisoNivel(p){                                                  // toast quando o estoque fica baixo ou acaba
+    if(!controla(p)||!window.akpToast) return;
+    var s=saldo(p.id), min=inteiro(p.estoqueMin);
+    if(s<=0) akpToast('Acabou o estoque de "'+p.nome+'"'+(s<0?' (saldo '+s+': vendeu mais do que produziu)':'')+'.');
+    else if(min>0&&s<=min) akpToast('Estoque baixo de "'+p.nome+'": restam '+s+' un (mínimo '+min+').');
+  }
+
+  /* ---------- cartao de produto (Produtos) ---------- */
+  function chip(p){
+    if(!controla(p)) return '';
+    var s=saldo(p.id), min=inteiro(p.estoqueMin), cls='tag-blue', txt='Estoque '+s;
+    if(s<=0){ cls='tag-red'; txt=s<0?'Estoque '+s+' (negativo)':'Sem estoque'; } else if(min>0&&s<=min){ cls='tag-amber'; txt='Estoque baixo: '+s; }
+    return '<span class="tag '+cls+'" style="font-size:10px;margin-left:4px;" title="Mínimo: '+(min||'não definido')+'"><i class="ti ti-packages"></i> '+txt+'</span>';
+  }
+  function botao(p){
+    return '<button class="btn" onclick="AKPProdEstoque.abrir('+JSON.stringify(String(p.id)).replace(/"/g,'&quot;')+')" style="padding:5px 10px;font-size:11px;" title="Estoque deste produto"><i class="ti ti-packages"></i> Estoque</button>';
+  }
+
+  /* ---------- janela do produto ---------- */
+  var INP='border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:13px;background:var(--bg2);color:var(--text);';
+  function overlay(id){
+    var ov=document.getElementById(id);
+    if(!ov){ ov=document.createElement('div'); ov.id=id; ov.className='modal-overlay'; ov.addEventListener('click',function(e){ if(e.target===ov) ov.style.display='none'; }); document.body.appendChild(ov); }
+    return ov;
+  }
+  function atualizarTelas(){ try{ if(typeof renderProds==='function') renderProds(); if(typeof atualizarChips==='function') atualizarChips(); }catch(e){} }
+  function abrir(prodId){
+    var x=porId(prodId); if(!x){ alert('Produto não encontrado.'); return; }
+    var p=x.p, ov=overlay('modal-prod-estoque');
+    function desenhar(){
+      var ctl=controla(p), s=saldo(p.id), res=reservado(p.id), mv=movimentos(p.id).slice(0,15);
+      ov.innerHTML='<div class="modal-box" style="max-width:560px;max-height:90vh;overflow-y:auto;">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;"><strong style="font-size:16px;color:var(--neon);"><i class="ti ti-packages"></i> Estoque: '+esc(p.nome)+'</strong><button class="btn" data-f><i class="ti ti-x"></i></button></div>'+
+        (ctl?
+          '<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">'+
+            '<div style="flex:1;min-width:110px;background:var(--bg3);border-radius:var(--radius);padding:10px;text-align:center;"><div style="font-size:11px;color:var(--text3);">Estoque</div><div style="font-size:24px;font-weight:700;color:'+(s<=0?'var(--red-text)':'var(--neon)')+';">'+s+'</div></div>'+
+            '<div style="flex:1;min-width:110px;background:var(--bg3);border-radius:var(--radius);padding:10px;text-align:center;"><div style="font-size:11px;color:var(--text3);">Reservado</div><div style="font-size:24px;font-weight:700;">'+res+'</div></div>'+
+            '<div style="flex:1;min-width:110px;background:var(--bg3);border-radius:var(--radius);padding:10px;text-align:center;"><div style="font-size:11px;color:var(--text3);">Disponível p/ venda</div><div style="font-size:24px;font-weight:700;">'+(s-res)+'</div></div></div>'+
+          '<div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:12px;">'+
+            '<label style="font-size:11px;color:var(--text3);">Estoque mínimo (avisa quando chegar nele)<br><input type="number" min="0" step="1" class="akp-pe-min" value="'+esc(p.estoqueMin||'')+'" style="width:130px;'+INP+'"></label>'+
+            '<button class="btn" data-min>Salvar mínimo</button><button class="btn" data-off style="margin-left:auto;">Desligar controle</button></div>'+
+          '<div style="background:var(--bg3);border-radius:var(--radius);padding:10px;margin-bottom:12px;">'+
+            '<div style="font-size:12px;font-weight:600;margin-bottom:6px;">Registrar movimento</div>'+
+            '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;">'+
+              '<label style="font-size:11px;color:var(--text3);">Qtd<br><input type="number" min="1" step="1" class="akp-pe-q" value="1" style="width:80px;'+INP+'"></label>'+
+              '<label style="font-size:11px;color:var(--text3);">Observação (opcional)<br><input type="text" class="akp-pe-obs" style="width:190px;'+INP+'"></label>'+
+              '<button class="btn-ok" data-prod><i class="ti ti-plus"></i> Registrei produção</button>'+
+              '<button class="btn" data-baixa><i class="ti ti-minus"></i> Baixa (perda/brinde)</button></div>'+
+            '<div style="display:flex;gap:6px;align-items:end;margin-top:8px;"><label style="font-size:11px;color:var(--text3);">Contagem física: tenho<br><input type="number" step="1" class="akp-pe-cont" style="width:100px;'+INP+'"></label><button class="btn" data-cont>Ajustar saldo para este valor</button></div></div>'+
+          '<div style="font-size:12px;font-weight:600;margin-bottom:6px;">Últimos movimentos</div>'+
+          '<div style="max-height:220px;overflow-y:auto;">'+(mv.length?mv.map(function(m){ return '<div style="display:flex;gap:8px;padding:5px 8px;background:var(--bg3);border-radius:var(--radius);margin-bottom:3px;font-size:12px;"><span style="color:var(--text3);min-width:78px;">'+esc(brData(m.data))+'</span><b style="min-width:52px;color:'+(m.tipo==='saida'?'var(--red-text)':'var(--neon)')+';">'+(m.tipo==='saida'?'−':'+')+m.qtd+'</b><span style="flex:1;">'+esc(m.motivo||'')+'</span></div>'; }).join(''):'<div style="color:var(--text3);font-size:12px;">Nenhum movimento ainda.</div>')+'</div>'
+        :
+          '<div style="font-size:13px;color:var(--text2);margin-bottom:12px;">Este produto <b>não tem controle de estoque</b>. Ative para acompanhar quantas peças você tem prontas e receber aviso quando acabar. As vendas passam a descontar do saldo.</div>'+
+          (movimentos(p.id).length?
+            '<div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Este produto <b>já tem histórico</b> no razão (saldo atual: <b>'+s+'</b>). Ao reativar, o controle volta com esse saldo, sem criar outra entrada.</div><button class="btn-ok" data-re><i class="ti ti-check"></i> Reativar controle</button>'
+          :
+          '<div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;"><label style="font-size:11px;color:var(--text3);">Quantas peças prontas você tem agora?<br><input type="number" min="0" step="1" class="akp-pe-ini" value="'+esc(inteiro(p.qtd)>0?inteiro(p.qtd):0)+'" style="width:130px;'+INP+'"></label>'+
+            '<label style="font-size:11px;color:var(--text3);">Estoque mínimo<br><input type="number" min="0" step="1" class="akp-pe-min" value="" style="width:110px;'+INP+'"></label>'+
+            '<button class="btn-ok" data-on><i class="ti ti-check"></i> Ativar controle</button></div>'))+
+        '</div>';
+      ov.querySelectorAll('[data-f]').forEach(function(b){ b.addEventListener('click',function(){ ov.style.display='none'; }); });
+      function val(c){ return inteiro((ov.querySelector(c)||{}).value); }
+      var on=ov.querySelector('[data-on]'); if(on) on.addEventListener('click',function(){
+        p.controlarEstoque=true; p.estoqueMin=val('.akp-pe-min')||''; var ini=val('.akp-pe-ini');
+        if(ini>0) registrar(p.id,'entrada',ini,'Saldo inicial'); else { sincronizarLegado(p); S.set('produtos',produtos); }
+        atualizarTelas(); desenhar();
+      });
+      var re=ov.querySelector('[data-re]'); if(re) re.addEventListener('click',function(){ p.controlarEstoque=true; sincronizarLegado(p); S.set('produtos',produtos); atualizarTelas(); desenhar(); });
+      var off=ov.querySelector('[data-off]'); if(off) off.addEventListener('click',function(){
+        if(!confirm('Desligar o controle de estoque deste produto?\n\nOs movimentos já registrados ficam guardados; as vendas voltam a se comportar como antes.')) return;
+        p.controlarEstoque=false; S.set('produtos',produtos); atualizarTelas(); desenhar();
+      });
+      var mn=ov.querySelector('[data-min]'); if(mn) mn.addEventListener('click',function(){ p.estoqueMin=val('.akp-pe-min')||''; S.set('produtos',produtos); atualizarTelas(); desenhar(); });
+      var pr=ov.querySelector('[data-prod]'); if(pr) pr.addEventListener('click',function(){ var q=val('.akp-pe-q'); if(q<1){ alert('Informe a quantidade.'); return; } registrar(p.id,'entrada',q,'Produção'+((ov.querySelector('.akp-pe-obs')||{}).value?': '+ov.querySelector('.akp-pe-obs').value:''),{tipo:'producao'}); atualizarTelas(); desenhar(); });
+      var bx=ov.querySelector('[data-baixa]'); if(bx) bx.addEventListener('click',function(){ var q=val('.akp-pe-q'); if(q<1){ alert('Informe a quantidade.'); return; } registrar(p.id,'saida',q,'Baixa'+((ov.querySelector('.akp-pe-obs')||{}).value?': '+ov.querySelector('.akp-pe-obs').value:''),{tipo:'baixa'}); avisoNivel(p); atualizarTelas(); desenhar(); });
+      var ct=ov.querySelector('[data-cont]'); if(ct) ct.addEventListener('click',function(){
+        var campo=ov.querySelector('.akp-pe-cont'); if(campo.value===''){ alert('Informe a contagem.'); return; }
+        var alvo=inteiro(campo.value), dif=alvo-saldo(p.id); if(dif===0){ alert('O saldo já é '+alvo+'.'); return; }
+        registrar(p.id,dif>0?'entrada':'saida',Math.abs(dif),'Contagem física (saldo ajustado para '+alvo+')',{tipo:'contagem'}); atualizarTelas(); desenhar();
+      });
+    }
+    desenhar(); ov.style.display='flex';
+  }
+
+  /* ---------- assistente: saldo inicial dos produtos de lote ---------- */
+  function vendidoEstimado(p){
+    var n=up(p.nome), t=0;
+    (vendas||[]).forEach(function(v){
+      if(v.statusPgto==='cancelado') return;
+      if(Array.isArray(v.itens)&&v.itens.length){ v.itens.forEach(function(it){ if(up(it.nome)===n||(it.prodId!==undefined&&String(it.prodId)===String(p.id))) t+=inteiro(it.qtd); }); }
+      else if(up(v.prodNome)===n) t+=inteiro(v.qtd)||1;
+    });
+    return t;
+  }
+  function abrirAssistente(){
+    var lotes=(produtos||[]).filter(function(p){ return inteiro(p.qtd)>1||controla(p); });
+    var ov=overlay('modal-prod-assistente');
+    var linhas=lotes.map(function(p,i){
+      var ja=controla(p), ve=vendidoEstimado(p), sug=ja?saldo(p.id):Math.max(0,inteiro(p.qtd)-ve), min=ja?inteiro(p.estoqueMin):Math.max(1,Math.ceil(inteiro(p.qtd)*0.2));
+      return '<tr data-i="'+i+'" style="border-bottom:1px solid var(--border2);"><td style="padding:6px;"><input type="checkbox" class="akp-as-chk" '+(ja?'checked disabled':'checked')+'></td>'+
+        '<td style="padding:6px;font-size:13px;"><b>'+esc(p.nome)+'</b>'+(ja?' <span class="tag tag-green" style="font-size:10px;">já controlado</span>':'')+'</td>'+
+        '<td style="padding:6px;text-align:right;font-size:12px;color:var(--text3);">'+inteiro(p.qtd)+'</td><td style="padding:6px;text-align:right;font-size:12px;color:var(--text3);">'+ve+'</td>'+
+        '<td style="padding:6px;"><input type="number" min="0" step="1" class="akp-as-saldo" value="'+sug+'" '+(ja?'disabled':'')+' style="width:80px;'+INP+'"></td>'+
+        '<td style="padding:6px;"><input type="number" min="0" step="1" class="akp-as-min" value="'+min+'" '+(ja?'disabled':'')+' style="width:70px;'+INP+'"></td></tr>';
+    }).join('');
+    ov.innerHTML='<div class="modal-box" style="max-width:720px;max-height:90vh;overflow-y:auto;">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem;"><strong style="font-size:16px;color:var(--neon);"><i class="ti ti-packages"></i> Estoque dos produtos de lote</strong><button class="btn" data-f><i class="ti ti-x"></i></button></div>'+
+      '<div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Confirme quantas peças você tem <b>prontas agora</b> de cada produto de lote. O sistema sugere "produzido − vendido (pelo nome)", mas as vendas antigas nem sempre estão ligadas ao produto: <b>corrija o saldo pela contagem real</b>. O mínimo sugerido é 20% do lote.</div>'+
+      (lotes.length?'<table style="width:100%;border-collapse:collapse;"><thead><tr style="font-size:11px;color:var(--text3);text-align:left;"><th></th><th>Produto</th><th style="text-align:right;">Produzido</th><th style="text-align:right;">Vendido*</th><th>Saldo agora</th><th>Mínimo</th></tr></thead><tbody>'+linhas+'</tbody></table><div style="font-size:11px;color:var(--text3);margin-top:6px;">*pelo nome do produto nas vendas.</div>':'<div style="color:var(--text3);">Nenhum produto com lote (quantidade maior que 1) cadastrado.</div>')+
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;"><button class="btn" data-f>Cancelar</button><button class="btn-ok" data-ok><i class="ti ti-check"></i> Ativar controle dos marcados</button></div></div>';
+    ov.querySelectorAll('[data-f]').forEach(function(b){ b.addEventListener('click',function(){ ov.style.display='none'; }); });
+    ov.querySelector('[data-ok]').addEventListener('click',function(){
+      var n=0;
+      ov.querySelectorAll('tbody tr').forEach(function(tr){
+        var chk=tr.querySelector('.akp-as-chk'); if(!chk.checked||chk.disabled) return;
+        var p=lotes[parseInt(tr.getAttribute('data-i'))]; if(!p||controla(p)) return;
+        var s=inteiro(tr.querySelector('.akp-as-saldo').value), mn=inteiro(tr.querySelector('.akp-as-min').value);
+        p.controlarEstoque=true; p.estoqueMin=mn||''; if(s>0) registrar(p.id,'entrada',s,'Saldo inicial (assistente)',{tipo:'saldo_inicial'}); else sincronizarLegado(p);
+        n++;
+      });
+      S.set('produtos',produtos); ov.style.display='none'; atualizarTelas();
+      if(window.akpToast) akpToast(n?'Controle de estoque ativado em '+n+' produto(s).':'Nenhum produto novo marcado.');
+    });
+    ov.style.display='flex';
+  }
+
+  /* ---------- tela de venda: "Disponivel" em cada item ---------- */
+  function atualizarChips(){
+    var lista=document.getElementById('v-itens-lista'); if(!lista) return;
+    lista.querySelectorAll('.fil-multi-item').forEach(function(row){
+      var sel=row.querySelector('select'), qtdI=row.querySelector('input'), chipEl=row.querySelector('.akp-disp');
+      var idx=sel?parseInt(sel.value):NaN, p=(!isNaN(idx)&&produtos[idx])?produtos[idx]:null;
+      if(!p||!controla(p)){ if(chipEl) chipEl.remove(); return; }
+      var disp=disponivel(p.id), q=inteiro(qtdI&&qtdI.value);
+      if(!chipEl){ chipEl=document.createElement('span'); chipEl.className='akp-disp'; chipEl.style.cssText='font-size:11px;font-weight:600;white-space:nowrap;align-self:center;'; row.appendChild(chipEl); }
+      var falta=q>disp;
+      chipEl.style.color=falta?'var(--red-text)':(disp<=inteiro(p.estoqueMin)&&inteiro(p.estoqueMin)>0?'var(--amber-text)':'var(--neon)');
+      chipEl.textContent='Disponível: '+disp+(falta?' · faltam '+(q-disp):'');
+    });
+  }
+  window.atualizarChips=atualizarChips;
+  document.addEventListener('input',function(e){ if(e.target&&e.target.closest&&e.target.closest('#v-itens-lista')) atualizarChips(); });
+  document.addEventListener('change',function(e){ if(e.target&&e.target.closest&&e.target.closest('#v-itens-lista')) atualizarChips(); });
+
+  /* ---------- ao salvar / excluir / cancelar a venda ---------- */
+  function envolver(nome,fn){ var o=window[nome]; if(typeof o!=='function') return; window[nome]=function(){ return fn(o,this,arguments); }; }
+  function itensDaTela(){                                                  // itens com produto controlado, como estao no formulario
+    var out=[], lista=document.getElementById('v-itens-lista'); if(!lista) return out;
+    lista.querySelectorAll('.fil-multi-item').forEach(function(row){
+      var sel=row.querySelector('select'), inp=row.querySelectorAll('input'), idx=sel?parseInt(sel.value):NaN, p=(!isNaN(idx)&&produtos[idx])?produtos[idx]:null;
+      if(!p||!controla(p)) return;
+      var q=inteiro(inp[0]&&inp[0].value), preco=parseFloat(inp[1]&&inp[1].value)||0; if(q<1||preco<=0) return;   // salvarVenda ignora item sem preco
+      out.push({prodId:p.id,nome:p.nome,qtd:q});
+    });
+    return out;
+  }
+  function aplicarVenda(v){
+    var feitos=[], avisar=[];
+    (v.itens||[]).forEach(function(it,k){
+      var idx=it.prodIdx, p=(typeof idx==='number'&&idx>=0)?produtos[idx]:null; if(!p) return;
+      it.prodId=p.id;                                                       // ligacao pelo ID (a posicao muda quando se apaga um produto)
+      if(!controla(p)) return;
+      var m=registrar(p.id,'saida',inteiro(it.qtd)||1,'Venda'+(v.cliente?' - '+v.cliente:''),{tipo:'venda',id:v.id,item:k});
+      if(m){ feitos.push({prodId:p.id,qtd:m.qtd,movId:m.id}); if(avisar.indexOf(p)<0) avisar.push(p); }
+    });
+    if(feitos.length) v.estoqueProd=feitos;
+    S.set('vendas',vendas); avisar.forEach(avisoNivel); atualizarTelas();
+  }
+  function devolver(v,motivo){
+    if(!v||!v.estoqueProd||!v.estoqueProd.length) return;
+    var ja=L().some(function(m){ return m.ref&&m.ref.tipo==='estorno'&&String(m.ref.id)===String(v.id); }); if(ja) return;   // nao devolve duas vezes
+    v.estoqueProd.forEach(function(e){ registrar(e.prodId,'entrada',e.qtd,motivo,{tipo:'estorno',id:v.id}); });
+    atualizarTelas();
+  }
+  envolver('salvarVenda',function(o,t,a){
+    var ctrl=itensDaTela(), soma={}; ctrl.forEach(function(c){ soma[c.prodId]=(soma[c.prodId]||0)+c.qtd; });
+    var falta=Object.keys(soma).filter(function(id){ return soma[id]>disponivel(id); }).map(function(id){ var x=porId(id); return x.p.nome+': vendendo '+soma[id]+', disponível '+disponivel(id); });
+    if(falta.length && !confirm('ATENÇÃO: quantidade maior que o estoque disponível:\n\n'+falta.join('\n')+'\n\nSalvar mesmo assim? O saldo ficará negativo.')) return;
+    var antes=vendas.length, primeiro=vendas[0]&&vendas[0].id, r=o.apply(t,a);
+    if(vendas.length>antes && vendas[0] && vendas[0].id!==primeiro) aplicarVenda(vendas[0]);
+    return r;
+  });
+  envolver('delVenda',function(o,t,a){ var v=vendas[a[0]], r=o.apply(t,a); if(v&&vendas.indexOf(v)<0) devolver(v,'Estorno: venda excluída'); return r; });
+  envolver('cancelarVenda',function(o,t,a){ var v=vendas[a[0]], r=o.apply(t,a); if(v&&v.statusPgto==='cancelado') devolver(v,'Estorno: venda cancelada'); return r; });
+  envolver('addItemVenda',function(o,t,a){ var r=o.apply(t,a); setTimeout(atualizarChips,0); return r; });
+
+  /* ---------- botao do assistente na aba Produtos ---------- */
+  function ligar(){
+    var b=document.querySelector('#tab-produtos button[onclick="showFormProd(-1)"]'); if(!b||document.getElementById('akp-pe-assistente')) return;
+    var bt=document.createElement('button'); bt.className='btn'; bt.id='akp-pe-assistente'; bt.innerHTML='<i class="ti ti-packages"></i> Estoque dos lotes'; bt.addEventListener('click',abrirAssistente);
+    b.parentElement.insertBefore(bt,b);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',ligar); else ligar();
+
+  window.AKPProdEstoque={saldo:saldo,disponivel:disponivel,registrar:registrar,chip:chip,botao:botao,abrir:abrir,abrirAssistente:abrirAssistente,controla:controla,vendidoEstimado:vendidoEstimado};
 })();
 </script>
 <script id="akp-estoque">
