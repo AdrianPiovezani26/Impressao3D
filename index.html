@@ -437,6 +437,7 @@ header button{text-transform:none !important;letter-spacing:.01em !important;fon
 
       // Salvar uma chave no Firestore
       window.fbSalvar = function(chave, valor) {
+        if(window.AKPSync) return window.AKPSync.salvar(chave, valor);  // AKPSync: so conclui quando o servidor confirma
         if(!window._firebaseOk || !window._fbDb) return Promise.resolve();
         return window._fbDb.collection('akp3d').doc(chave)
           .set({ data: JSON.stringify(valor) })
@@ -448,7 +449,7 @@ header button{text-transform:none !important;letter-spacing:.01em !important;fon
         if(!window._firebaseOk || !window._fbDb) return Promise.resolve(null);
         return window._fbDb.collection('akp3d').doc(chave).get()
           .then(function(s){ return s.exists ? JSON.parse(s.data().data) : null; })
-          .catch(function(){ return null; });
+          .catch(function(e){ console.warn('[Firebase] erro ao ler '+chave+':', e && e.message); return undefined; });  // AKPSync: undefined = leitura falhou (null = nao existe)
       };
 
       // Sincronizar todas as chaves: Firebase -> localStorage (prioridade Firebase se tiver mais dados)
@@ -462,6 +463,8 @@ header button{text-transform:none !important;letter-spacing:.01em !important;fon
 
         var promises = TODAS_CHAVES.map(function(k) {
           return window.fbCarregar(k).then(function(fb) {
+            if(fb === undefined) return;  // AKPSync: a leitura falhou: nao e 'nuvem vazia'; nao sobrescreve nada
+            if(window.AKPSync && window.AKPSync.pendente(k)) return window.AKPSync.enviarPendente(k, fb);  // AKPSync
             var loc = localStorage.getItem('akp3d_'+k);
             var locDados = loc ? JSON.parse(loc) : null;
             var locTam = Array.isArray(locDados) ? locDados.length : (locDados ? 1 : 0);
@@ -507,6 +510,7 @@ header button{text-transform:none !important;letter-spacing:.01em !important;fon
               if(doc.metadata.hasPendingWrites) return;
               if(!doc.exists) return;
               if(!ativo) return;
+              if(window.AKPSync && window.AKPSync.pendente(chave)) return;  // AKPSync: ha dado local ainda nao enviado
               try {
                 var fbStr = doc.data().data;
                 var locStr = localStorage.getItem('akp3d_'+chave);
@@ -517,10 +521,12 @@ header button{text-transform:none !important;letter-spacing:.01em !important;fon
                     if(typeof recarregarDados === 'function') {
                       // Bloquear temporariamente o fbSalvar durante recarregarDados
                       // para evitar que migrations escrevam de volta para Firebase
-                      var eraSyncCompleto = window._fbSyncCompleto;
+                      // AKPSync: antes, a 2a atualizacao guardava o 'false' da 1a e o restaurava: o envio travava para sempre. Agora o valor de ANTES da 1a janela volta quando a ULTIMA termina.
+                      window._fbJanelas = (window._fbJanelas || 0) + 1;
+                      if(window._fbJanelas === 1) window._fbAntesJanela = window._fbSyncCompleto;
                       window._fbSyncCompleto = false;
                       recarregarDados();
-                      setTimeout(function(){ window._fbSyncCompleto = eraSyncCompleto; }, 2000);
+                      setTimeout(function(){ window._fbJanelas = Math.max(0, window._fbJanelas - 1); if(window._fbJanelas === 0) window._fbSyncCompleto = window._fbAntesJanela; }, 2000);
                       var ind = document.getElementById('fb-sync-status');
                       if(ind) {
                         ind.style.display='flex';
@@ -3302,7 +3308,7 @@ function setTipoCalc(tipo) {
   calcular();
 }
 
-const S={get:k=>{try{return JSON.parse(localStorage.getItem('akp3d_'+k)||'null');}catch{return null;}},set:(k,v)=>{try{localStorage.setItem('akp3d_'+k,JSON.stringify(v));}catch(e){console.error('S.set falhou para '+k+':',e);}if(window._fbSyncCompleto && typeof window.fbSalvar==='function')window.fbSalvar(k,v).catch(()=>{});}};
+const S={get:k=>{try{return JSON.parse(localStorage.getItem('akp3d_'+k)||'null');}catch{return null;}},set:(k,v)=>{try{localStorage.setItem('akp3d_'+k,JSON.stringify(v));}catch(e){console.error('S.set falhou para '+k+':',e);}if(window._fbSyncCompleto && typeof window.fbSalvar==='function')window.fbSalvar(k,v).catch(()=>{});else if(window.AKPSync)window.AKPSync.escrita(k);/*AKPSync*/}};
 // Protecao: so sincroniza com Firebase apos o sync inicial estar completo
 // Evita que migrations na carga inicial sobrescrevam Firebase com arrays vazios
 window._fbSyncCompleto = false;
@@ -15267,8 +15273,9 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   function syncStatus(){
     var el=document.getElementById('jv-sync'); if(!el) return;
-    var st,txt;
-    if(!navigator.onLine){st='off';txt='Sem internet';}
+    var st,txt,n=(window.AKPSync?AKPSync.pendentes().length:0);  /* AKPSync */
+    if(!navigator.onLine){st='off';txt='Sem internet'+(n?' · '+n+' pendente(s)':'');}
+    else if(n){st='off';txt='Dados não enviados ('+n+')';}
     else if(window._fbSyncCompleto===true){st='ok';txt='Sincronizado';}
     else if(window._fbDb){st='wait';txt='Sincronizando…';}
     else {st='off';txt='Somente local';}
@@ -15620,6 +15627,180 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 })();
 
+</script>
+<script id="akp-sync">
+(function(){
+  'use strict';
+  /* ===== SINCRONIZACAO SEGURA =====
+     Problema que resolve: a gravacao na nuvem falhava em silencio (o erro so ia para o console) e, ao
+     recarregar, a nuvem (mais antiga) substituia o que estava so neste aparelho: a compra "sumia".
+     Agora: toda gravacao fica PENDENTE (lista guardada no aparelho, sobrevive a recarregar) ate o servidor
+     CONFIRMAR; enquanto houver pendencia a abertura e o tempo real NAO sobrescrevem o dado local; o envio e
+     refeito sozinho; e o indicador da barra lateral mostra o que nao chegou. Se a nuvem tiver uma versao
+     diferente de uma colecao pendente, as duas sao mescladas pelo id e a copia da nuvem fica guardada.
+     Para desligar: apague este bloco <script id="akp-sync"> e as 5 ligacoes marcadas "AKPSync". */
+  var CH='akp3d_pend', CONF='akp3d_conflitos';
+  var NOMES={filamentos:'Filamentos',produtos:'Produtos',pedidos:'Pedidos',vendas:'Vendas',faturas:'Contas a receber',compras:'Compras',
+    parceiros:'Fornecedores',clientes:'Clientes',contas_pagar:'Contas a pagar',movimentacoes:'Movimentações de estoque',hist_calc:'Orçamentos',
+    cfg:'Configurações',consignacoes:'Consignações',oportunidades:'Oportunidades',impressoes_internas:'Impressões internas',impressoras:'Impressoras',tarefas:'Tarefas'};
+  var ATRASOS=window.AKP_SYNC_ATRASOS||[5000,15000,45000,120000,300000];
+  var SYNC=['filamentos','produtos','pedidos','vendas','faturas','compras','parceiros','clientes','contas_pagar','movimentacoes','hist_calc','cfg','consignacoes','oportunidades','impressoes_internas','impressoras','tarefas'];
+  function sincroniza(k){ return SYNC.indexOf(k)>=0; }   // so as colecoes de dados vao para a nuvem (login, senha lembrada e sessao NUNCA)
+  var T0=Date.now(), GUARDA=(window.AKP_SYNC_GUARDA!=null?window.AKP_SYNC_GUARDA:8000), manut=0;   // GUARDA: nos primeiros segundos so roda a manutencao da abertura
+  var seq={}, timer=null, tentativas=0, ultimoErro='', erroEm=0, avisoEm=0;
+
+  function ler(){ try{ return JSON.parse(localStorage.getItem(CH)||'{}')||{}; }catch(e){ return {}; } }
+  function gravar(o){ try{ localStorage.setItem(CH,JSON.stringify(o)); }catch(e){} }
+  function marcar(k){ if(!sincroniza(k)) return; var p=ler(); if(!p[k]){ p[k]=Date.now(); gravar(p); } }
+  function limpar(k){ var p=ler(); if(p[k]!==undefined){ delete p[k]; gravar(p); } }
+  function pendente(k){ return ler()[k]!==undefined; }
+  function pendentes(){ return Object.keys(ler()); }
+  function nome(k){ return NOMES[k]||k; }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function traduzir(m){
+    m=String(m||'');
+    if(/permission|denied/i.test(m)) return 'o Firebase recusou a gravação (permissão)';
+    if(/quota|exhausted|resource/i.test(m)) return 'limite diário do Firebase atingido';
+    if(/unavailable|offline|network|conex|internet/i.test(m)) return 'sem conexão com a nuvem';
+    return m.slice(0,90);
+  }
+
+  function falha(chave,msg,meu,alertar){
+    if(seq[chave]!==meu) return;                       // houve uma gravacao mais nova: ela decide
+    ultimoErro=msg; erroEm=Date.now(); marcar(chave); agendar();
+    if(alertar && Date.now()-avisoEm>300000){          // no maximo um aviso a cada 5 minutos
+      avisoEm=Date.now();
+      if(window.akpToast) akpToast('Não consegui enviar "'+nome(chave)+'" para a nuvem ('+traduzir(msg)+'). Seus dados estão salvos neste aparelho: não limpe o navegador. Vou tentar de novo sozinho.');
+    }
+  }
+
+  /** Grava na nuvem. Resolve true so quando o servidor confirmou; senao deixa a colecao pendente. */
+  function salvar(chave,valor){
+    if(!sincroniza(chave)) return Promise.resolve(true);
+    if((!window._firebaseOk||!window._fbDb) && Date.now()-T0<GUARDA && !pendente(chave)) return Promise.resolve(false);   // manutencao da abertura sem nuvem: nao e edicao do usuario
+    marcar(chave);
+    var meu=(seq[chave]=(seq[chave]||0)+1);
+    if(!window._firebaseOk || !window._fbDb){ falha(chave,'sem conexao com a nuvem',meu,false); return Promise.resolve(false); }
+    var texto; try{ texto=JSON.stringify(valor); }catch(e){ falha(chave,'dado invalido: '+e.message,meu,true); return Promise.resolve(false); }
+    var p; try{ p=window._fbDb.collection('akp3d').doc(chave).set({data:texto}); }catch(e){ falha(chave,e.message,meu,true); return Promise.resolve(false); }
+    return Promise.resolve(p).then(function(){
+      if(seq[chave]===meu){ limpar(chave); tentativas=0; ultimoErro=''; }
+      return true;
+    }).catch(function(e){ falha(chave,(e&&e.message)||String(e),meu,true); return false; });
+  }
+
+  function agendar(){
+    if(timer) return;
+    var d=ATRASOS[Math.min(tentativas,ATRASOS.length-1)];
+    timer=setTimeout(function(){ timer=null; tentativas++; reenviar(); },d);
+  }
+  function reenviar(){
+    var ks=pendentes(); if(!ks.length) return Promise.resolve();
+    if(window._fbDb && window._fbSyncCompleto!==true){ agendar(); return Promise.resolve(); }   // espera a sincronizacao inicial
+    return Promise.all(ks.map(function(k){
+      var v=S.get(k); if(v===null){ limpar(k); return true; }
+      return salvar(k,v);
+    }));
+  }
+
+  /** Abertura/sincronizacao manual: a colecao tem pendencia, entao o dado DESTE aparelho vence. */
+  function guardarConflito(k,fb){
+    try{ var c=JSON.parse(localStorage.getItem(CONF)||'{}'); c[k]={ts:Date.now(),data:fb}; localStorage.setItem(CONF,JSON.stringify(c)); }catch(e){}
+  }
+  /** Une pelo id: tudo que so existe na nuvem e acrescentado ao que esta neste aparelho (que vence nos ids repetidos). */
+  function mesclar(loc,fb){
+    if(!Array.isArray(loc)||!Array.isArray(fb)) return null;
+    var ids={};
+    for(var i=0;i<loc.length;i++){ var r=loc[i]; if(!r||r.id===undefined) return null; ids[String(r.id)]=1; }
+    var extra=[];
+    for(var j=0;j<fb.length;j++){ var f=fb[j]; if(!f||f.id===undefined) return null; if(!ids[String(f.id)]) extra.push(f); }
+    return {lista:extra.concat(loc),adicionados:extra.length};
+  }
+  function enviarPendente(k,fb){
+    var loc=S.get(k);
+    if(loc===null){ limpar(k); return Promise.resolve(); }
+    var final=loc;
+    try{
+      if(fb!==null && fb!==undefined && JSON.stringify(fb)!==JSON.stringify(loc)){
+        guardarConflito(k,fb);
+        var m=mesclar(loc,fb), msg;
+        if(m){
+          final=m.lista; localStorage.setItem('akp3d_'+k,JSON.stringify(final));
+          msg='Mesclei "'+nome(k)+'": mantive o que estava só neste aparelho'+(m.adicionados?' e acrescentei '+m.adicionados+' registro(s) que só existiam na nuvem':'')+'. A cópia da nuvem ficou guardada.';
+        } else msg='A nuvem tinha uma versão diferente de "'+nome(k)+'". Mantive a do seu aparelho (que ainda não tinha sido enviada) e guardei uma cópia da nuvem.';
+        if(window.akpToast) akpToast(msg);
+      }
+    }catch(e){ console.warn('[AKPSync] conflito:',e); }
+    return salvar(k,final);
+  }
+
+  /** Edicao do usuario feita enquanto o envio esta bloqueado (janela de ~2,6 s apos uma atualizacao remota): entra em fila. */
+  function escrita(k){
+    if(!sincroniza(k)) return;
+    if(manut>0 || Date.now()-T0<GUARDA) return;           // manutencao (recarregarDados) e abertura nao sao edicoes
+    marcar(k); agendar();
+  }
+  if(typeof window.recarregarDados==='function'){          // tudo que recarregarDados escreve e manutencao
+    var rd=window.recarregarDados; window.recarregarDados=function(){ manut++; try{ return rd.apply(this,arguments); } finally{ manut--; } };
+  }
+
+  function resumo(){ var n=pendentes().length; return n? 'Dados não enviados ('+n+')' : ''; }
+
+  /* ---------- painel de detalhes (clique no indicador da barra lateral) ---------- */
+  function abrirDetalhes(){
+    var ov=document.getElementById('modal-sync-detalhes');
+    if(!ov){ ov=document.createElement('div'); ov.id='modal-sync-detalhes'; ov.className='modal-overlay';
+      ov.addEventListener('click',function(e){ if(e.target===ov) ov.style.display='none'; }); document.body.appendChild(ov); }
+    function desenhar(){
+      var p=ler(), ks=Object.keys(p), conf=[]; try{ conf=Object.keys(JSON.parse(localStorage.getItem(CONF)||'{}')); }catch(e){}
+      var online=navigator.onLine!==false, nuvem=!!(window._firebaseOk&&window._fbDb);
+      var estado=!online?'Sem internet':(!nuvem?'Nuvem indisponível (somente local)':(ks.length?'Há dados que ainda não chegaram à nuvem':'Tudo sincronizado'));
+      ov.innerHTML='<div class="modal-box" style="max-width:520px;">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;"><strong style="font-size:16px;color:var(--neon);"><i class="ti ti-cloud"></i> Sincronização</strong><button class="btn" data-f><i class="ti ti-x"></i></button></div>'+
+        '<div style="font-size:13px;margin-bottom:10px;"><b>'+esc(estado)+'</b></div>'+
+        (ks.length?'<div style="font-size:12px;color:var(--text3);margin-bottom:6px;">Coleções aguardando envio (o dado está salvo neste aparelho):</div>'+
+          '<div style="margin-bottom:10px;">'+ks.map(function(k){ var min=Math.max(0,Math.round((Date.now()-p[k])/60000)); return '<div style="padding:6px 10px;background:var(--bg3);border-radius:var(--radius);margin-bottom:4px;font-size:13px;display:flex;justify-content:space-between;"><span>'+esc(nome(k))+'</span><span style="color:var(--text3);font-size:11px;">há '+(min<1?'menos de 1 min':min+' min')+'</span></div>'; }).join('')+'</div>':'')+
+        (ultimoErro?'<div style="font-size:12px;color:var(--amber-text);margin-bottom:10px;">Último erro: '+esc(traduzir(ultimoErro))+'</div>':'')+
+        (conf.length?'<div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Cópias da nuvem guardadas por conflito: '+conf.map(function(k){ return esc(nome(k)); }).join(', ')+'.</div>':'')+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">'+
+          (ks.length?'<button class="btn-ok" data-r><i class="ti ti-refresh"></i> Tentar enviar agora</button>':'')+
+          '<button class="btn" data-b><i class="ti ti-database-export"></i> Baixar backup agora</button><button class="btn" data-f>Fechar</button></div></div>';
+      ov.querySelectorAll('[data-f]').forEach(function(b){ b.addEventListener('click',function(){ ov.style.display='none'; }); });
+      var r=ov.querySelector('[data-r]'); if(r) r.addEventListener('click',function(){ r.disabled=true; r.textContent='Enviando…'; tentativas=0; reenviar().then(function(){ setTimeout(desenhar,300); }); });
+      ov.querySelector('[data-b]').addEventListener('click',function(){ if(typeof fazerBackup==='function') fazerBackup(); });
+    }
+    desenhar(); ov.style.display='flex';
+  }
+
+  /* ---------- limpeza unica: a versao anterior enviava 'lembrar_login' (usuario e SENHA em texto puro), 'usuarios' e 'sessao' para a nuvem ---------- */
+  function limparCredenciais(){
+    if(localStorage.getItem('akp3d_limpeza_cred_v1')) return;
+    if(!window._firebaseOk||!window._fbDb) return;
+    var c=window._fbDb.collection('akp3d'), achou=false;
+    Promise.all(['lembrar_login','sessao','usuarios'].map(function(id){
+      return Promise.resolve(c.doc(id).get()).then(function(d){ if(d&&d.exists){ achou=true; return c.doc(id).delete(); } });
+    })).then(function(){
+      localStorage.setItem('akp3d_limpeza_cred_v1','1');
+      if(achou && window.akpToast) akpToast('Removi da nuvem a senha lembrada e os dados de login que eram enviados por engano. Por precaução, troque sua senha em Configurações.');
+    }).catch(function(e){ console.warn('[Seguranca] limpeza de credenciais adiada:',e&&e.message); });
+  }
+  var tc=0, hc=setInterval(function(){ tc++; if(tc>60){ clearInterval(hc); return; }
+    if(window._fbSyncCompleto===true && window._firebaseOk && window._fbDb){ clearInterval(hc); setTimeout(limparCredenciais,(window.AKP_LIMPEZA_ATRASO!=null?window.AKP_LIMPEZA_ATRASO:6000)); } },2000);
+
+  /* ---------- ganchos ---------- */
+  window.addEventListener('online',function(){ tentativas=0; reenviar(); });
+  document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible' && pendentes().length) reenviar(); });
+  function ligarIndicador(){
+    var el=document.getElementById('jv-sync'); if(!el) return;
+    el.style.cursor='pointer'; el.title='Clique para ver o estado da sincronização'; el.addEventListener('click',abrirDetalhes);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',ligarIndicador); else ligarIndicador();
+  if(pendentes().length) setTimeout(function(){ agendar(); },4000);        // sobrou pendencia de uma sessao anterior
+
+  window.AKPSync={escrita:escrita,sincroniza:sincroniza,limparCredenciais:limparCredenciais,marcar:marcar,limpar:limpar,pendente:pendente,pendentes:pendentes,salvar:salvar,reenviar:reenviar,enviarPendente:enviarPendente,
+                  resumo:resumo,abrirDetalhes:abrirDetalhes,nome:nome,conflitos:function(){ try{ return JSON.parse(localStorage.getItem(CONF)||'{}'); }catch(e){ return {}; } },
+                  ultimoErro:function(){ return ultimoErro; }};
+})();
 </script>
 <script id="akp-backup">
 (function(){
