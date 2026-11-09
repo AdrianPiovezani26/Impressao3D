@@ -16049,6 +16049,188 @@ document.addEventListener('DOMContentLoaded', function() {
   window.AKPBackup={abrirRestauracao:abrirRestauracao,normalizar:normalizar,montarDados:montarDados,snapshotNuvem:snapshotNuvem,listarNuvem:listarNuvem,lerNuvem:lerNuvem,desfazer:desfazer,purgar:purgar};
 })();
 </script>
+<script id="akp-drive">
+(function(){
+  'use strict';
+  /* ===== BACKUP NO GOOGLE DRIVE =====
+     Botoes em Configuracoes: "Enviar para o Drive", "Baixar na maquina" e "Fazer os dois".
+     O envio usa o login do Google (um "ID de cliente" OAuth criado por voce, uma unica vez) e grava um arquivo
+     NOVO por backup na pasta escolhida (AKP3D_backup_AAAA-MM-DD_HHMM.json), sem sobrescrever os anteriores.
+     O token do Google fica SO na memoria (no maximo 10 min) e nunca e gravado no navegador.
+     O arquivo e o mesmo do "Backup Agora": a restauracao continua funcionando com ele.
+     Para desligar: apague este bloco <script id="akp-drive">. */
+  var CFG='akp3d_drive_cfg', ULT='akp3d_drive_ultimo';
+  var PASTA_PADRAO='1MktTlx3iyHMx2qfeZCC5g18fOKEADCed';              // pasta "Backup_AKP3D"
+  var ESCOPO='https://www.googleapis.com/auth/drive';                 // precisa enxergar uma pasta criada fora do sistema
+  var CACHE_MS=10*60*1000, cache=null, gisP=null;
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function pad(n){ return (n<10?'0':'')+n; }
+  function carimbo(){ var d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'_'+pad(d.getHours())+pad(d.getMinutes()); }
+  function dataHora(ts){ var d=new Date(ts); return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()+' às '+pad(d.getHours())+':'+pad(d.getMinutes()); }
+  function kb(n){ return n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB'; }
+  function lerCfg(){ try{ var c=JSON.parse(localStorage.getItem(CFG)||'{}')||{}; return {clientId:String(c.clientId||'').trim(),folderId:String(c.folderId||PASTA_PADRAO).trim()}; }catch(e){ return {clientId:'',folderId:PASTA_PADRAO}; } }
+  function gravarCfg(c){ try{ localStorage.setItem(CFG,JSON.stringify(c)); }catch(e){} }
+  /** Aceita o ID puro ou o link da pasta (https://drive.google.com/drive/folders/ID?...). */
+  function idDaPasta(t){ t=String(t||'').trim(); var m=t.match(/\/folders\/([A-Za-z0-9_-]{10,})/)||t.match(/[?&]id=([A-Za-z0-9_-]{10,})/); if(m) return m[1]; return /^[A-Za-z0-9_-]{10,}$/.test(t)?t:''; }
+
+  /* ---------- login do Google (token so na memoria) ---------- */
+  function carregarGIS(){
+    if(window.google&&google.accounts&&google.accounts.oauth2) return Promise.resolve();
+    if(gisP) return gisP;
+    gisP=new Promise(function(res,rej){
+      var s=document.createElement('script'); s.src='https://accounts.google.com/gsi/client'; s.async=true;
+      s.onload=function(){ res(); }; s.onerror=function(){ gisP=null; rej(new Error('não consegui carregar o login do Google (sem internet?)')); };
+      document.head.appendChild(s);
+    });
+    return gisP;
+  }
+  function pedirToken(clientId){
+    if(cache&&cache.ate>Date.now()) return Promise.resolve(cache.token);
+    return carregarGIS().then(function(){
+      return new Promise(function(res,rej){
+        var tc=google.accounts.oauth2.initTokenClient({
+          client_id:clientId, scope:ESCOPO,
+          callback:function(r){
+            if(r&&r.access_token){ cache={token:r.access_token,ate:Date.now()+Math.min(CACHE_MS,Math.max(0,((r.expires_in||3600)-60)*1000))}; res(r.access_token); }
+            else rej(new Error((r&&(r.error_description||r.error))||'autorização negada'));
+          },
+          error_callback:function(e){ rej(new Error(e&&e.type==='popup_closed'?'a janela de autorização foi fechada':(e&&e.type==='popup_failed_to_open'?'o navegador bloqueou a janela de autorização (permita pop-ups deste site)':((e&&e.message)||'falha na autorização')))); }
+        });
+        tc.requestAccessToken({prompt:''});
+      });
+    });
+  }
+
+  /* ---------- API do Drive ---------- */
+  function erroDrive(status,j){
+    var e=(j&&j.error)||{}, razao=((e.errors&&e.errors[0]&&e.errors[0].reason)||e.status||'')+' '+(e.message||'');
+    if(status===401) return new Error('o Google recusou a autorização (tente de novo)');
+    if(status===403&&/accessNotConfigured|SERVICE_DISABLED|has not been used|is disabled/i.test(razao)) return new Error('a API do Google Drive não está ativada no seu projeto do Google Cloud (passo 2 das instruções)');
+    if(status===403) return new Error('sem permissão para gravar nesta pasta ('+(e.message||'403')+')');
+    if(status===404) return new Error('pasta não encontrada ou sem acesso: confira o ID da pasta');
+    if(status>=500) return new Error('o Google está instável agora; tente em instantes');
+    return new Error((e.message||('erro '+status)));
+  }
+  async function chamar(url,opts){
+    var r; try{ r=await fetch(url,opts); }catch(x){ throw new Error('sem conexão com o Google'); }
+    var j=await r.json().catch(function(){ return {}; });
+    if(!r.ok) throw erroDrive(r.status,j);
+    return j;
+  }
+  async function testarPasta(token,folderId){
+    var j=await chamar('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(folderId)+'?supportsAllDrives=true&fields=id,name,mimeType,trashed,capabilities(canAddChildren)',{headers:{Authorization:'Bearer '+token}});
+    if(j.mimeType!=='application/vnd.google-apps.folder') throw new Error('este ID não é de uma pasta');
+    if(j.trashed) throw new Error('a pasta está na lixeira');
+    if(j.capabilities&&j.capabilities.canAddChildren===false) throw new Error('sem permissão para gravar nesta pasta');
+    return j;
+  }
+  async function enviarArquivo(token,nome,texto,folderId){
+    var b='akp3d'+Math.random().toString(36).slice(2)+Date.now().toString(36);
+    var corpo='--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify({name:nome,parents:[folderId],mimeType:'application/json'})+
+              '\r\n--'+b+'\r\nContent-Type: application/json\r\n\r\n'+texto+'\r\n--'+b+'--';
+    var j=await chamar('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,size,webViewLink,parents',
+      {method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'multipart/related; boundary='+b},body:corpo});
+    var esperado=new Blob([texto]).size;
+    if(j.size!==undefined&&Number(j.size)!==esperado) j._aviso='o tamanho no Drive ('+kb(Number(j.size))+') difere do enviado ('+kb(esperado)+'): confira o arquivo';
+    j._bytes=esperado; return j;
+  }
+  async function enviarDrive(token){
+    var cfg=lerCfg();
+    if(!window.AKPBackup||typeof AKPBackup.montarDados!=='function') throw new Error('módulo de backup indisponível');
+    var dados=await AKPBackup.montarDados(true), texto=JSON.stringify(dados,null,2), nome='AKP3D_backup_'+carimbo()+'.json';
+    var f=await enviarArquivo(token,nome,texto,cfg.folderId);
+    var info={ts:Date.now(),nome:f.name||nome,bytes:f._bytes,id:f.id||'',aviso:f._aviso||''};
+    try{ localStorage.setItem(ULT,JSON.stringify(info)); localStorage.setItem('akp3d_ultimo_backup',Date.now().toString()); }catch(e){}
+    var av=document.getElementById('aviso-backup'); if(av) av.style.display='none';
+    info.resumo=(dados.akp3d_filamentos||[]).length+' filamentos · '+(dados.akp3d_vendas||[]).length+' vendas · '+(dados.akp3d_pedidos||[]).length+' pedidos';
+    return info;
+  }
+
+  /* ---------- interface ---------- */
+  function toast(m){ if(window.akpToast) akpToast(m); else alert(m); }
+  function atualizarCartao(){
+    var st=document.getElementById('akp-drive-status'); if(!st) return;
+    var cfg=lerCfg(), u=null; try{ u=JSON.parse(localStorage.getItem(ULT)||'null'); }catch(e){}
+    st.innerHTML=(cfg.clientId?'':'<b style="color:var(--amber-text);">Ainda não configurado.</b> Clique em "Configurar" (uma vez só).<br>')+
+      (u?'Último envio ao Drive: <b>'+esc(dataHora(u.ts))+'</b> · '+esc(u.nome)+' ('+kb(u.bytes)+')':'Nenhum envio ao Drive ainda neste aparelho.');
+  }
+  function ocupar(on,txt){ ['akp-drive-enviar','akp-drive-dois'].forEach(function(id){ var b=document.getElementById(id); if(b){ b.disabled=!!on; } }); var s=document.getElementById('akp-drive-ocupado'); if(s) s.textContent=on?(txt||'Trabalhando…'):''; }
+  function sucesso(info){
+    atualizarCartao();
+    if(info.aviso) alert('Enviado ao Drive, mas atenção: '+info.aviso);
+    else toast('Backup enviado ao Drive: '+info.nome+' ('+kb(info.bytes)+'). '+info.resumo+'.');
+  }
+  function falha(e){ alert('Não consegui enviar para o Drive: '+((e&&e.message)||e)+'\n\nSeus dados não foram alterados. O botão "Baixar na máquina" continua funcionando.'); }
+
+  function acao(modo){
+    var cfg=lerCfg(); if(!cfg.clientId){ abrirConfig(); return; }
+    ocupar(true,'Autorizando no Google…');
+    pedirToken(cfg.clientId).then(function(token){
+      var antes=(modo==='dois'&&typeof fazerBackup==='function')?Promise.resolve(fazerBackup()):Promise.resolve();
+      return antes.then(function(){ ocupar(true,'Enviando ao Drive…'); return enviarDrive(token); });
+    }).then(sucesso).catch(falha).then(function(){ ocupar(false); });
+  }
+
+  function abrirConfig(){
+    var cfg=lerCfg(), ov=document.getElementById('modal-drive-cfg');
+    if(!ov){ ov=document.createElement('div'); ov.id='modal-drive-cfg'; ov.className='modal-overlay'; ov.addEventListener('click',function(e){ if(e.target===ov) ov.style.display='none'; }); document.body.appendChild(ov); }
+    var inp='width:100%;border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:13px;background:var(--bg2);color:var(--text);';
+    ov.innerHTML='<div class="modal-box" style="max-width:620px;max-height:90vh;overflow-y:auto;">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;"><strong style="font-size:16px;color:var(--neon);"><i class="ti ti-brand-google-drive"></i> Configurar Google Drive</strong><button class="btn" data-f><i class="ti ti-x"></i></button></div>'+
+      '<label style="font-size:12px;color:var(--text3);">ID do cliente do Google (termina em .apps.googleusercontent.com)</label><input class="akp-dr-cid no-upper" style="'+inp+'margin:4px 0 12px;" placeholder="123456-abc.apps.googleusercontent.com" value="'+esc(cfg.clientId)+'">'+
+      '<label style="font-size:12px;color:var(--text3);">Pasta do Drive (ID ou link da pasta)</label><input class="akp-dr-pasta no-upper" style="'+inp+'margin:4px 0 6px;" value="'+esc(cfg.folderId)+'">'+
+      '<div class="akp-dr-msg" style="font-size:12px;min-height:18px;margin:6px 0 10px;"></div>'+
+      '<details style="margin-bottom:12px;"><summary style="cursor:pointer;font-size:13px;color:var(--neon);">Como obter o ID do cliente (5 passos, uma vez só)</summary>'+
+      '<ol style="font-size:12px;color:var(--text2);line-height:1.7;margin:8px 0 0 18px;">'+
+      '<li>Abra <b>console.cloud.google.com</b> com a conta do Drive e escolha o projeto <b>akp3d-oficial</b> (ou crie um).</li>'+
+      '<li><b>APIs e serviços → Biblioteca</b>: procure <b>Google Drive API</b> e clique em <b>Ativar</b>.</li>'+
+      '<li><b>Tela de consentimento OAuth</b>: tipo <b>Externo</b>, nome "AKP3D", e em <b>Usuários de teste</b> adicione o seu e-mail.</li>'+
+      '<li><b>Credenciais → Criar credenciais → ID do cliente OAuth → Aplicativo da Web</b>. Em <b>Origens JavaScript autorizadas</b> coloque <b>https://adrianpiovezani26.github.io</b> (sem barra no final).</li>'+
+      '<li>Copie o <b>ID do cliente</b> e cole acima. Na 1ª vez o Google avisa "app não verificado": <b>Avançado → continuar</b> (é o seu próprio app).</li></ol></details>'+
+      '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;"><button class="btn" data-t>Testar conexão</button><button class="btn" data-f>Cancelar</button><button class="btn-ok" data-s><i class="ti ti-check"></i> Salvar</button></div></div>';
+    var msg=ov.querySelector('.akp-dr-msg');
+    function ler(){ return {clientId:ov.querySelector('.akp-dr-cid').value.trim(),folderId:idDaPasta(ov.querySelector('.akp-dr-pasta').value)}; }
+    function dizer(t,cor){ msg.style.color=cor||'var(--text2)'; msg.textContent=t; }
+    ov.querySelectorAll('[data-f]').forEach(function(b){ b.addEventListener('click',function(){ ov.style.display='none'; }); });
+    ov.querySelector('[data-s]').addEventListener('click',function(){
+      var c=ler(); if(!c.clientId||!/\.apps\.googleusercontent\.com$/.test(c.clientId)){ dizer('O ID do cliente deve terminar em .apps.googleusercontent.com','var(--red-text)'); return; }
+      if(!c.folderId){ dizer('Não reconheci o ID/link da pasta.','var(--red-text)'); return; }
+      gravarCfg(c); carregarGIS().catch(function(){}); atualizarCartao(); ov.style.display='none'; toast('Google Drive configurado.');
+    });
+    ov.querySelector('[data-t]').addEventListener('click',function(){
+      var c=ler(); if(!c.clientId||!c.folderId){ dizer('Preencha o ID do cliente e a pasta.','var(--red-text)'); return; }
+      dizer('Autorizando no Google…'); cache=null;
+      pedirToken(c.clientId).then(function(t){ return testarPasta(t,c.folderId); }).then(function(p){ dizer('✔ Pasta "'+p.name+'" encontrada e com permissão para gravar.','var(--green-text)'); }).catch(function(e){ dizer('✖ '+((e&&e.message)||e),'var(--red-text)'); });
+    });
+    ov.style.display='flex';
+  }
+
+  function montarCartao(){
+    if(document.getElementById('akp-drive-box')) return true;
+    var ancora=document.getElementById('akp-nuvem-box')||(document.getElementById('import-file')&&document.getElementById('import-file').parentElement); if(!ancora) return false;
+    var box=document.createElement('div'); box.id='akp-drive-box';
+    box.innerHTML='<div class="sep"></div><div class="stitle" style="font-size:11px;margin-bottom:.75rem;"><i class="ti ti-brand-google-drive"></i> Backup no Google Drive e na máquina</div>'+
+      '<div id="akp-drive-status" style="font-size:12px;color:var(--text3);margin-bottom:8px;"></div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'+
+      '<button class="btn-ok" id="akp-drive-enviar"><i class="ti ti-brand-google-drive"></i> Enviar para o Drive</button>'+
+      '<button class="btn-ok" id="akp-drive-baixar" style="background:rgba(0,200,255,0.10);border-color:var(--blue-border);color:var(--blue-text);"><i class="ti ti-download"></i> Baixar na máquina</button>'+
+      '<button class="btn-ok" id="akp-drive-dois"><i class="ti ti-files"></i> Fazer os dois</button>'+
+      '<button class="btn" id="akp-drive-cfg"><i class="ti ti-settings"></i> Configurar</button><span id="akp-drive-ocupado" style="font-size:12px;color:var(--text3);"></span></div>'+
+      '<div style="font-size:11px;color:var(--text3);margin-top:6px;">Cada backup vira um arquivo novo na pasta do Drive (nunca sobrescreve o anterior). "Baixar na máquina" é o mesmo "Backup Agora".</div>';
+    ancora.insertAdjacentElement('afterend',box);
+    document.getElementById('akp-drive-enviar').addEventListener('click',function(){ acao('drive'); });
+    document.getElementById('akp-drive-dois').addEventListener('click',function(){ acao('dois'); });
+    document.getElementById('akp-drive-baixar').addEventListener('click',function(){ if(typeof fazerBackup==='function') fazerBackup(); });
+    document.getElementById('akp-drive-cfg').addEventListener('click',abrirConfig);
+    atualizarCartao(); if(lerCfg().clientId) carregarGIS().catch(function(){});       // ja carregado na hora do clique: o navegador nao bloqueia a janela
+    return true;
+  }
+  var t=0, h=setInterval(function(){ t++; if(montarCartao()||t>40) clearInterval(h); },500);
+
+  window.AKPDrive={lerCfg:lerCfg,idDaPasta:idDaPasta,pedirToken:pedirToken,testarPasta:testarPasta,enviarDrive:enviarDrive,abrirConfig:abrirConfig};
+})();
+</script>
 <script id="akp-estoque">
 (function(){
   'use strict';
