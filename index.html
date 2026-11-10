@@ -16768,6 +16768,171 @@ document.addEventListener('DOMContentLoaded', function() {
   window.AKPReposicao={giro:giro,sugestao:sugestao,receita:receita,plano:plano,criarPedido:criarPedido,abrirPainel:abrirPainel,abrirPlano:abrirPlano,vendasDoProduto:vendasDoProduto};
 })();
 </script>
+<script id="akp-pedproduto">
+(function(){
+  'use strict';
+  /* ===== ADICIONAR PRODUTO A PARTIR DO PEDIDO CONCLUIDO =====
+     - Botao "Adicionar produto" no cartao do pedido, so quando o pedido esta CONCLUIDO.
+     - Regra (ligada por padrao, desliga em Configuracoes): produto novo so nasce de pedido concluido. Bloqueia
+       "Salvar nos Produtos" da Precificacao, "produto" do historico de calculo e o botao antigo da tela de editar
+       pedido enquanto o pedido nao esta concluido. O cadastro manual (Novo Produto) NAO e bloqueado.
+     - A receita do produto e gravada como PESO DO LOTE (peso x qtd) e o horas do pedido, o mesmo padrao dos produtos de
+       lote ja existentes (e o que a Reposicao da fase 3 espera). Produto existente nunca e sobrescrito sem pedir.
+     Para desligar: apague este bloco <script id="akp-pedproduto">. */
+  var PE=window.AKPProdEstoque;
+  var MSG='Só é possível cadastrar um produto a partir de um pedido CONCLUÍDO.\n\nCaminho: salve como pedido, marque o pedido como concluído e use o botão "Adicionar produto".\n\n(Para mudar essa regra: Configurações > Regras de cadastro de produto.)';
+  function up(s){ return String(s||'').toUpperCase().trim(); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function inteiro(v){ var n=parseInt(v); return isNaN(n)?0:n; }
+  function num(v){ var n=parseFloat(v); return isNaN(n)?0:n; }
+  function r2(v){ return Math.round(v*100)/100; }
+  function dinheiro(v){ return (typeof fmt==='function')?fmt(v):'R$ '+v.toFixed(2).replace('.',','); }
+  function regraAtiva(){ return !(typeof cfg!=='undefined'&&cfg&&cfg.produtoSoConcluido===false); }
+  function pedPorId(id){ var r=null; (pedidos||[]).forEach(function(p){ if(String(p.id)===String(id)) r=p; }); return r; }
+  function produtoDoPedido(pd){
+    var lig=null; if(pd.produtoId!==undefined&&pd.produtoId!==null&&pd.produtoId!=='') (produtos||[]).forEach(function(x){ if(String(x.id)===String(pd.produtoId)) lig=x; });
+    if(lig) return {p:lig,ligado:true};
+    var nome=null; (produtos||[]).forEach(function(x){ if(!nome&&up(x.nome)===up(pd.nome)) nome=x; });
+    return {p:nome,ligado:false};
+  }
+  function toast(m){ if(window.akpToast) akpToast(m); }
+  function envolver(nome,fn){ var o=window[nome]; if(typeof o!=='function') return; window[nome]=function(){ return fn(o,this,arguments); }; }
+  function overlay(id){ var ov=document.getElementById(id); if(!ov){ ov=document.createElement('div'); ov.id=id; ov.className='modal-overlay'; ov.addEventListener('click',function(e){ if(e.target===ov) ov.style.display='none'; }); document.body.appendChild(ov); } return ov; }
+  var INP='border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:13px;background:var(--bg2);color:var(--text);';
+  var CATS=['Decoracao','Utilidade','Miniatura','Suporte','Chaveiro','Placa','Caixa','Peca Tecnica','Outro'];
+  function novoIdProd(){ var id=Date.now(); while((produtos||[]).some(function(x){ return x.id===id; })) id++; return id; }
+
+  /* receita do produto = peso do LOTE (peso total do pedido), resolvendo o filamento pelo nome */
+  function receitaDoPedido(pd){
+    var qtd=Math.max(1,inteiro(pd.qtd)||1);
+    return (pd.filsEstoque||[]).map(function(f){
+      var total=num(f.peso)||num(f.pesoUnit)*qtd, res=window.AKPEstoque?AKPEstoque.resolver({filIdx:f.filIdx,filNome:f.filNome,peso:total}):{idx:f.filIdx}, fi=(res.idx>=0&&filamentos[res.idx])?filamentos[res.idx]:null;
+      return {filIdx:fi?res.idx:f.filIdx,filNome:fi?[fi.marca,fi.modelo,fi.corNome].filter(Boolean).join(' '):f.filNome,corHex:(fi&&fi.corHex)||'#888',peso:r2(total),precoRolo:fi?num(fi.preco):0,pesoRolo:fi?(num(fi.pesoRolo)||1000):1000};
+    });
+  }
+  function vendidoPorNome(nome){ return PE&&PE.vendidoEstimado?PE.vendidoEstimado({nome:nome,id:-1}):0; }
+
+  /* ---------- janela ---------- */
+  function abrir(pedId){
+    var pd=pedPorId(pedId); if(!pd) return;
+    if(pd.status!=='concluido'){ alert(MSG); return; }
+    var x=produtoDoPedido(pd), ov=overlay('modal-ped-produto'), qtd=Math.max(1,inteiro(pd.qtd)||1);
+    function fechar(){ ov.style.display='none'; }
+    function cab(t){ return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;"><strong style="font-size:16px;color:var(--neon);"><i class="ti ti-box"></i> '+t+'</strong><button class="btn" data-f><i class="ti ti-x"></i></button></div>'; }
+    function pos(){ ov.querySelectorAll('[data-f]').forEach(function(b){ b.addEventListener('click',fechar); }); ov.style.display='flex'; }
+    function atualizar(){ try{ if(typeof renderProds==='function') renderProds(); if(typeof renderPedidos==='function') renderPedidos(); if(typeof sincronizarStatusProdutos==='function') sincronizarStatusProdutos(); }catch(e){} }
+    function concluiu(texto){ ov.innerHTML='<div class="modal-box" style="max-width:520px;">'+cab('Produto')+'<div style="padding:12px;background:var(--bg3);border-radius:var(--radius);font-size:13px;">'+texto+'<br><button class="btn" style="margin-top:8px;" onclick="document.getElementById(\'modal-ped-produto\').style.display=\'none\';showTab(\'produtos\')">Ver produtos</button></div></div>'; pos(); }
+
+    if(!x.p){                                                              /* ===== produto novo ===== */
+      var fils=receitaDoPedido(pd), vend=vendidoPorNome(pd.nome), est0=Math.max(0,qtd-vend), min0=Math.max(1,Math.ceil(qtd*0.2)), precoU=num(pd.precoUnit), custoU=num(pd.custoUnit);
+      ov.innerHTML='<div class="modal-box" style="max-width:600px;max-height:90vh;overflow-y:auto;">'+cab('Adicionar produto')+
+        '<div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Dados copiados do pedido concluído. Confira antes de salvar.</div>'+
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'+
+          '<label style="font-size:11px;color:var(--text3);grid-column:1/3;">Nome<br><input type="text" class="akp-np-nome" value="'+esc(pd.nome)+'" style="width:100%;'+INP+'"></label>'+
+          '<label style="font-size:11px;color:var(--text3);">Categoria<br><select class="akp-np-cat" style="width:100%;'+INP+'">'+CATS.map(function(c){ return '<option'+(c==='Outro'?' selected':'')+'>'+c+'</option>'; }).join('')+'</select></label>'+
+          '<label style="font-size:11px;color:var(--text3);">Quantidade do lote<br><input type="number" min="1" step="1" class="akp-np-qtd" value="'+qtd+'" style="width:100%;'+INP+'"></label>'+
+          '<label style="font-size:11px;color:var(--text3);">Preço unitário (R$)<br><input type="number" min="0" step="0.01" class="akp-np-preco" value="'+precoU+'" style="width:100%;'+INP+'"></label>'+
+          '<label style="font-size:11px;color:var(--text3);">Custo unitário (R$)<br><input type="number" min="0" step="0.01" class="akp-np-custo" value="'+custoU+'" style="width:100%;'+INP+'"></label></div>'+
+        '<div style="font-size:12px;margin:10px 0;color:var(--text2);">Tempo: <b>'+esc(pd.horas||'--')+'</b> (do pedido inteiro) · Receita: '+(fils.length?fils.map(function(f){ return esc(f.filNome)+' <b>'+f.peso+' g</b>'; }).join(', ')+' <span style="color:var(--text3);">(peso do lote de '+qtd+')</span>':'<span style="color:var(--text3);">pedido sem filamentos registrados</span>')+'</div>'+
+        '<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);margin-bottom:12px;">'+
+          '<label style="display:flex;gap:6px;align-items:center;font-size:13px;margin-bottom:6px;"><input type="checkbox" class="akp-np-ctl" '+(qtd>1?'checked':'')+'> <b>Controlar estoque deste produto</b></label>'+
+          '<div style="display:flex;gap:10px;flex-wrap:wrap;"><label style="font-size:11px;color:var(--text3);">Peças em estoque agora<br><input type="number" min="0" step="1" class="akp-np-est" value="'+est0+'" style="width:120px;'+INP+'"></label>'+
+          '<label style="font-size:11px;color:var(--text3);">Estoque mínimo<br><input type="number" min="0" step="1" class="akp-np-min" value="'+min0+'" style="width:100px;'+INP+'"></label></div>'+
+          '<div style="font-size:11px;color:var(--text3);margin-top:6px;">Sugestão = produzido ('+qtd+') − já vendido com esse nome ('+vend+'). As que já saíram entram no histórico como baixa, sem criar estoque fantasma.</div></div>'+
+        '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn" data-f>Cancelar</button><button class="btn-ok" data-s><i class="ti ti-check"></i> Adicionar produto</button></div></div>';
+      pos();
+      ov.querySelector('[data-s]').addEventListener('click',function(){
+        var $=function(c){ return ov.querySelector(c); }, nome=up(($('.akp-np-nome').value||'')); if(!nome){ alert('Informe o nome do produto.'); return; }
+        if((produtos||[]).some(function(p){ return up(p.nome)===nome; })){ alert('Já existe um produto chamado "'+nome+'". Feche esta janela e use o botão "Produto" do pedido para ligá-lo.'); return; }
+        var q=Math.max(1,inteiro($('.akp-np-qtd').value)||1), pu=num($('.akp-np-preco').value), cu=num($('.akp-np-custo').value);
+        var fs=receitaDoPedido(Object.assign({},pd,{qtd:q})), obs=(num(pd.precoLojista)>0)?'LOJISTA: '+dinheiro(num(pd.precoLojista)):'';
+        var prod={id:novoIdProd(),nome:nome,cat:$('.akp-np-cat').value||'Outro',fils:fs,filNome:pd.filNome||(fs.length?fs.map(function(f){ return f.filNome+' ('+f.peso+'G)'; }).join(', '):'--'),horas:pd.horas||'--',qtd:q,precoNum:pu,preco:pu>0?dinheiro(pu):'--',custoNum:cu,obs:obs};
+        produtos.unshift(prod); pd.produtoId=prod.id; pd.estoqueModo='producao'; pd.produtoCriado=true;
+        var msg='Produto adicionado: <b>'+esc(nome)+'</b>.';
+        if($('.akp-np-ctl').checked&&PE){
+          prod.controlarEstoque=true; prod.estoqueMin=inteiro($('.akp-np-min').value)||''; var est=inteiro($('.akp-np-est').value), entrada=Math.max(q,est);
+          S.set('produtos',produtos); S.set('pedidos',pedidos);
+          PE.registrar(prod.id,'entrada',entrada,'Produção: pedido '+pd.nome+' (produto adicionado)',{tipo:'pedido',id:pd.id});
+          if(entrada-est>0) PE.registrar(prod.id,'saida',entrada-est,'Já vendidas/entregues antes do cadastro do produto',{tipo:'baixa'});
+          msg+=' Estoque: <b>'+PE.saldo(prod.id)+'</b> peça(s).';
+        } else { S.set('produtos',produtos); S.set('pedidos',pedidos); }
+        atualizar(); toast('Produto adicionado: '+nome+'.'); concluiu(msg);
+      });
+      return;
+    }
+    /* ===== produto que ja existe: ligar (padrao) ou atualizar preco/custo ===== */
+    var p=x.p, ctl=PE&&PE.controla(p);
+    ov.innerHTML='<div class="modal-box" style="max-width:560px;">'+cab('Produto deste pedido')+
+      '<div style="font-size:13px;margin-bottom:10px;">Já existe o produto <b>'+esc(p.nome)+'</b> (preço '+esc(p.preco||'--')+', lote '+inteiro(p.qtd)+(ctl?', estoque '+PE.saldo(p.id):'')+').'+(x.ligado?' <span class="tag tag-green" style="font-size:10px;">este pedido já está ligado a ele</span>':'')+'</div>'+
+      '<label style="display:block;font-size:13px;margin-bottom:6px;"><input type="radio" name="akp-ep" value="ligar" checked> <b>Só ligar</b> este pedido ao produto (não altera nada no produto)</label>'+
+      '<label style="display:block;font-size:13px;margin-bottom:10px;"><input type="radio" name="akp-ep" value="atualizar"> <b>Atualizar preço e custo</b> do produto com os deste pedido ('+dinheiro(num(pd.precoUnit))+' / '+dinheiro(num(pd.custoUnit))+')'+((p.fils&&p.fils.length)?'':' e preencher a receita, que está vazia')+'. Quantidade do lote e receita existentes são preservadas.</label>'+
+      '<div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn" data-f>Fechar</button><button class="btn-ok" data-s><i class="ti ti-check"></i> Confirmar</button></div></div>';
+    pos();
+    ov.querySelector('[data-s]').addEventListener('click',function(){
+      var modo=(ov.querySelector('input[name="akp-ep"]:checked')||{}).value, texto='Pedido ligado ao produto <b>'+esc(p.nome)+'</b>.';
+      if(modo==='atualizar'){
+        var pu=num(pd.precoUnit), cu=num(pd.custoUnit); if(pu>0){ p.precoNum=pu; p.preco=dinheiro(pu); } if(cu>0) p.custoNum=cu;
+        if(!(p.fils&&p.fils.length)){ var fs=receitaDoPedido(pd); if(fs.length){ p.fils=fs; p.filNome=pd.filNome||p.filNome; } if((!p.horas||p.horas==='--')&&pd.horas) p.horas=pd.horas; }
+        texto='Produto <b>'+esc(p.nome)+'</b> atualizado e pedido ligado.';
+      }
+      pd.produtoId=p.id; pd.produtoCriado=true; if(!pd.estoqueModo) pd.estoqueModo='producao';
+      S.set('produtos',produtos); S.set('pedidos',pedidos);
+      if(ctl&&pd.estoqueModo==='producao'){ var falta=Math.max(1,inteiro(pd.qtd)||1)-PE.entradasDoPedido(pd.id); if(falta>0&&confirm('Dar entrada de '+falta+' peça(s) no estoque de "'+p.nome+'" por este pedido concluído?')) PE.registrar(p.id,'entrada',falta,'Produção: pedido '+pd.nome,{tipo:'pedido',id:pd.id}); }
+      atualizar(); concluiu(texto);
+    });
+  }
+
+  /* ---------- botao no cartao do pedido (so concluido) ---------- */
+  if(PE){ var oPB=PE.pedidoBotao; PE.pedidoBotao=function(pd){
+    var base=oPB?oPB(pd):'', extra='';
+    if(pd&&pd.status==='concluido'){
+      var x=produtoDoPedido(pd), idq=JSON.stringify(String(pd.id)).replace(/"/g,'&quot;');
+      if(x.p&&x.ligado) extra='<span class="tag tag-green" style="font-size:10px;margin-right:4px;" title="Pedido ligado ao produto '+esc(x.p.nome)+'"><i class="ti ti-box"></i> Produto cadastrado</span>';
+      else if(x.p) extra='<button class="btn" onclick="AKPPedidoProduto.abrir('+idq+')" style="font-size:11px;padding:5px 8px;opacity:.75;" title="Já existe um produto com este nome: ligar ou atualizar"><i class="ti ti-box"></i></button>';
+      else extra='<button class="btn-ok" onclick="AKPPedidoProduto.abrir('+idq+')" style="font-size:11px;padding:5px 10px;" title="Cadastrar este pedido concluído como produto"><i class="ti ti-box"></i> Adicionar produto</button>';
+    }
+    return base+extra; }; }
+
+  /* ---------- regra: produto novo so de pedido concluido ---------- */
+  envolver('salvarComoProduto',function(o,t,a){ if(regraAtiva()){ alert(MSG); return; } return o.apply(t,a); });
+  envolver('produtoHistCalc',function(o,t,a){ if(regraAtiva()){ alert(MSG); return; } return o.apply(t,a); });
+  envolver('salvarPedidoComoProduto',function(o,t,a){
+    var pd=(typeof _pedidoEditIdx!=='undefined'&&_pedidoEditIdx>=0)?pedidos[_pedidoEditIdx]:null; if(!pd) return o.apply(t,a);
+    if(pd.status==='concluido'){ abrir(pd.id); return; }                  // fluxo novo: liga ao pedido, nao sobrescreve, estoque inicial honesto
+    if(regraAtiva()){ alert(MSG); return; }
+    return o.apply(t,a);
+  });
+  envolver('abrirEdicaoPedido',function(o,t,a){
+    var r=o.apply(t,a); try{
+      var pd=pedidos[a[0]], b=document.querySelector('button[onclick="salvarPedidoComoProduto()"]'); if(!b||!pd) return r;
+      if(pd.status==='concluido'){ b.style.display=''; b.innerHTML='<i class="ti ti-box"></i> Adicionar produto'; }
+      else if(regraAtiva()) b.style.display='none'; else { b.style.display=''; b.innerHTML='<i class="ti ti-box"></i> Salvar nos Produtos'; }
+    }catch(e){} return r; });
+
+  /* ---------- aviso discreto ao concluir um pedido que ainda nao e produto ---------- */
+  function snap(){ var m={}; (pedidos||[]).forEach(function(p){ if(p&&p.id!==undefined) m[p.id]=p.status; }); return m; }
+  var prof=0, foto=null;
+  function comAviso(o,t,a){
+    if(prof===0) foto=snap(); prof++; var r; try{ r=o.apply(t,a); } finally{ prof--; }
+    if(prof===0){ var antes=foto; foto=null; (pedidos||[]).forEach(function(pd){ if(pd&&antes[pd.id]!==undefined&&antes[pd.id]!=='concluido'&&pd.status==='concluido'&&!produtoDoPedido(pd).p) toast('Pedido concluído. Para cadastrá-lo como produto, use "Adicionar produto" no cartão do pedido.'); }); }
+    return r;
+  }
+  envolver('updPedSt',comAviso); envolver('salvarEdicaoPedido',comAviso);
+
+  /* ---------- Configuracoes: chave da regra ---------- */
+  function cartaoCfg(){
+    var tab=document.getElementById('tab-config'); if(!tab||document.getElementById('akp-pp-cfg')) return;
+    var c=document.createElement('div'); c.className='card'; c.id='akp-pp-cfg'; c.style.marginTop='1rem';
+    c.innerHTML='<div class="stitle" style="margin-bottom:.6rem;"><i class="ti ti-box"></i> Regras de cadastro de produto</div>'+
+      '<label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;"><input type="checkbox" id="akp-pp-chk" style="margin-top:3px;"> <span>Só permitir <b>adicionar produto a partir de um pedido concluído</b>.<br><span style="font-size:11px;color:var(--text3);">Ligada: bloqueia "Salvar nos Produtos" da Precificação, o produto do histórico de cálculo e o botão antigo na edição de pedido pendente. O cadastro manual (Novo Produto) continua livre.</span></span></label>';
+    tab.appendChild(c); var chk=c.querySelector('#akp-pp-chk'); chk.checked=regraAtiva();
+    chk.addEventListener('change',function(){ cfg.produtoSoConcluido=chk.checked; S.set('cfg',cfg); toast(chk.checked?'Regra ligada: produto só de pedido concluído.':'Regra desligada: produto pode ser salvo a qualquer momento.'); });
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',cartaoCfg); else cartaoCfg();
+
+  window.AKPPedidoProduto={abrir:abrir,regraAtiva:regraAtiva,produtoDoPedido:produtoDoPedido,receitaDoPedido:receitaDoPedido};
+})();
+</script>
 <script id="akp-estoque">
 (function(){
   'use strict';
