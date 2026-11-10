@@ -11263,7 +11263,7 @@ function renderRelProdutos(datas) {
   // Estoque filtrado
   var estEl = document.getElementById('rel-estoque-vendidos');
   if(estEl) {
-    var prodsFiltrados = produtos.filter(function(p){
+    var prodsFiltrados = produtos.filter(function(p){ if(p.oculto) return false; /* AKPProdLayout: oculto fora do catalogo do relatorio */
       if(filtBusca && !(p.nome||'').toUpperCase().includes(filtBusca)) return false;
       if(filtCat && (p.cat||'').toUpperCase() !== filtCat) return false;
       if(filtStatus==='vendido' && !p.vendido) return false;
@@ -12021,7 +12021,7 @@ function _pdfProdutos(doc, datas, y, margin, pageW) {
   doc.autoTable({
     startY: y, margin:{left:margin, right:margin},
     head:[['Produto','Categoria','Custo','Preco','Margem','Status']],
-    body: produtos.map(function(p){
+    body: produtos.filter(function(p){ return !p.oculto; }).map(function(p){ /* AKPProdLayout: oculto fora do PDF */
       var custo = calcularCustoProduto(p);
       var margem = (custo>0&&p.precoNum>0)?((p.precoNum-custo)/p.precoNum*100).toFixed(1)+'%':'--';
       return [p.nome, p.cat||'--', custo>0?fmt(custo):'--', p.preco, margem, p.vendido?'Vendido':'Disponivel'];
