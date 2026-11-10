@@ -16933,6 +16933,111 @@ document.addEventListener('DOMContentLoaded', function() {
   window.AKPPedidoProduto={abrir:abrir,regraAtiva:regraAtiva,produtoDoPedido:produtoDoPedido,receitaDoPedido:receitaDoPedido};
 })();
 </script>
+<script id="akp-clientevenda">
+(function(){
+  'use strict';
+  /* ===== CADASTRAR CLIENTE NA VENDA (so para quem ainda nao esta cadastrado) =====
+     - Sob o campo "Cliente" da venda: se o nome NAO esta no cadastro -> botao "+ Cadastrar cliente" (formulario rapido);
+       se esta -> so um "cadastrado". Os cadastrados viram sugestoes ao digitar.
+     - "Cadastrado?" ignora acento, caixa e espacos extras e tambem olha o apelido. A sincronizacao automatica que
+       cadastra clientes a partir das vendas (sincronizarClientesDasVendas) passa a usar a MESMA regua, para nao criar
+       "JOAO" quando ja existe "JOAO" com telefone.
+     - Ao salvar a venda de um cliente cadastrado, a venda guarda clienteId (ligacao pelo ID, nao so pelo nome).
+     Para desligar: apague este bloco <script id="akp-clientevenda">. */
+  function norm(s){ return String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s+/g,' ').trim(); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function lista(){ return (typeof clientes!=='undefined'&&Array.isArray(clientes))?clientes:[]; }
+  function elegivel(nome){ var n=norm(nome); return !!n&&n!=='PRODUTO AVULSO'; }
+  function cadastrado(nome){ var n=norm(nome); if(!n) return null; var r=null; lista().forEach(function(c){ if(!r&&(norm(c.nome)===n||(c.apelido&&norm(c.apelido)===n))) r=c; }); return r; }
+  function maiusc(s){ return (typeof upper==='function')?upper(s||''):String(s||'').toUpperCase(); }
+  function toast(m){ if(window.akpToast) akpToast(m); }
+  function envolver(nome,fn){ var o=window[nome]; if(typeof o!=='function') return; window[nome]=function(){ return fn(o,this,arguments); }; }
+  function novoId(){ var id=Date.now(); while(lista().some(function(c){ return c.id===id; })) id++; return id; }
+  var INP='border:1px solid var(--border2);border-radius:var(--radius);padding:6px 8px;font-size:13px;background:var(--bg2);color:var(--text);width:100%;';
+
+  /* ---------- aviso e botao sob o campo ---------- */
+  var ultimo=null, ultimoN=-1;
+  function caixa(inp){ var b=inp.parentElement.querySelector('.akp-cli-aviso'); if(!b){ b=document.createElement('div'); b.className='akp-cli-aviso'; b.style.cssText='font-size:11px;margin-top:4px;min-height:0;'; inp.parentElement.appendChild(b); } return b; }
+  function datalist(inp){
+    var dl=document.getElementById('akp-cli-lista'); if(!dl){ dl=document.createElement('datalist'); dl.id='akp-cli-lista'; document.body.appendChild(dl); }
+    if(inp.getAttribute('list')!=='akp-cli-lista') inp.setAttribute('list','akp-cli-lista');
+    dl.innerHTML=lista().map(function(c){ return '<option value="'+esc(c.nome)+'">'; }).join('');
+  }
+  function atualizar(){
+    var inp=document.getElementById('v-cliente'); if(!inp) return; datalist(inp); var b=caixa(inp), v=inp.value;
+    ultimo=v; ultimoN=lista().length;
+    if(!elegivel(v)){ b.innerHTML=''; return; }
+    var c=cadastrado(v);
+    if(c){ b.innerHTML='<span style="color:var(--neon);"><i class="ti ti-check"></i> Cliente cadastrado'+(norm(c.nome)!==norm(v)?': '+esc(c.nome):'')+'</span>'; return; }
+    b.innerHTML='<button type="button" class="btn akp-cli-novo" style="font-size:11px;padding:4px 10px;"><i class="ti ti-user-plus"></i> Cadastrar cliente</button> <span style="color:var(--text3);">"'+esc(v.trim())+'" ainda não está no cadastro</span>';
+    b.querySelector('.akp-cli-novo').addEventListener('click',function(){ abrir(v); });
+  }
+
+  /* ---------- formulario rapido ---------- */
+  function overlay(id){ var ov=document.getElementById(id); if(!ov){ ov=document.createElement('div'); ov.id=id; ov.className='modal-overlay'; ov.addEventListener('click',function(e){ if(e.target===ov) ov.style.display='none'; }); document.body.appendChild(ov); } return ov; }
+  function abrir(nomeInicial){
+    var ov=overlay('modal-cli-venda'), tipos=[].slice.call(document.querySelectorAll('#cli-tipo option')).map(function(o){ return {v:o.value,t:o.textContent}; });
+    if(!tipos.length) tipos=[{v:'consumidor',t:'Consumidor Final'},{v:'lojista',t:'Lojista / Revendedor'}];
+    var L=function(t,c,extra){ return '<label style="font-size:11px;color:var(--text3);'+(extra||'')+'">'+t+'<br>'+c+'</label>'; };
+    ov.innerHTML='<div class="modal-box" style="max-width:520px;max-height:90vh;overflow-y:auto;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem;"><strong style="font-size:16px;color:var(--neon);"><i class="ti ti-user-plus"></i> Cadastrar cliente</strong><button class="btn" data-f><i class="ti ti-x"></i></button></div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'+
+        L('Nome *','<input type="text" class="akp-cv-nome" value="'+esc(maiusc(String(nomeInicial||'').trim()))+'" style="'+INP+'">','grid-column:1/3;')+
+        L('WhatsApp / Telefone','<input type="text" class="akp-cv-tel" placeholder="(45) 99999-9999" style="'+INP+'">')+
+        L('Cidade','<input type="text" class="akp-cv-cidade" placeholder="Cascavel" style="'+INP+'">')+
+        L('Tipo de cliente','<select class="akp-cv-tipo" style="'+INP+'">'+tipos.map(function(t){ return '<option value="'+esc(t.v)+'">'+esc(t.t)+'</option>'; }).join('')+'</select>')+
+        L('Apelido / Como chama','<input type="text" class="akp-cv-apelido" style="'+INP+'">')+'</div>'+
+      '<details style="margin-top:10px;"><summary style="font-size:12px;color:var(--text2);cursor:pointer;">Mais dados (e-mail, Pix, observações)</summary><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;">'+
+        L('E-mail','<input type="text" class="akp-cv-email no-upper" style="'+INP+'">')+L('Chave Pix','<input type="text" class="akp-cv-pix" style="'+INP+'">')+L('Observações','<input type="text" class="akp-cv-obs" style="'+INP+'">','grid-column:1/3;')+'</div></details>'+
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;"><button class="btn" data-f>Cancelar</button><button class="btn-ok" data-s><i class="ti ti-check"></i> Cadastrar e usar na venda</button></div></div>';
+    ov.querySelectorAll('[data-f]').forEach(function(b){ b.addEventListener('click',function(){ ov.style.display='none'; }); });
+    ov.querySelector('[data-s]').addEventListener('click',function(){
+      var $=function(c){ return ov.querySelector(c); }, nome=maiusc(($('.akp-cv-nome').value||'').trim()), inp=document.getElementById('v-cliente');
+      if(!nome){ alert('Informe o nome do cliente.'); return; }
+      var ex=cadastrado(nome);
+      if(ex){ alert('Já existe o cliente "'+ex.nome+'". Ele foi selecionado na venda (nenhum cadastro novo foi criado).'); if(inp) inp.value=ex.nome; ov.style.display='none'; atualizar(); return; }
+      var cli={id:novoId(),nome:nome,apelido:maiusc(($('.akp-cv-apelido').value||'').trim()),tel:($('.akp-cv-tel').value||'').trim(),email:($('.akp-cv-email').value||'').trim().toLowerCase(),cidade:maiusc(($('.akp-cv-cidade').value||'').trim()),tipo:$('.akp-cv-tipo').value||'consumidor',obs:maiusc(($('.akp-cv-obs').value||'').trim()),pix:($('.akp-cv-pix').value||'').trim(),dataCadastro:(typeof hoje==='function'?hoje():new Date().toISOString().slice(0,10))};
+      clientes.push(cli); clientes.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||'','pt-BR'); }); S.set('clientes',clientes);
+      if(inp) inp.value=cli.nome; ov.style.display='none'; atualizar(); toast('Cliente cadastrado: '+cli.nome+'.');
+    });
+    ov.style.display='flex';
+  }
+
+  /* ---------- a venda guarda o clienteId (so se o nome bate com um cliente cadastrado) ---------- */
+  envolver('salvarVenda',function(o,t,a){
+    var inp=document.getElementById('v-cliente'), digitado=inp?inp.value:'', antes=vendas.length, primeiro=vendas[0]&&vendas[0].id, r=o.apply(t,a);
+    if(vendas.length>antes&&vendas[0]&&vendas[0].id!==primeiro){ var c=cadastrado(digitado); if(c){ vendas[0].clienteId=c.id; S.set('vendas',vendas); } }
+    setTimeout(atualizar,0); return r;
+  });
+
+  /* ---------- a sincronizacao automatica usa a MESMA regua (sem duplicar por acento/espaco) ---------- */
+  window.sincronizarClientesDasVendas=function(){
+    var alterou=false, vistos={}, ordem=[];
+    function ver(nome,data){ var n=norm(nome); if(!n||n==='PRODUTO AVULSO'||vistos[n]) return; vistos[n]={nome:String(nome).toUpperCase().trim(),data:data||hoje()}; ordem.push(n); }
+    vendas.forEach(function(v){ if(v.cliente) ver(v.cliente,v.data); });
+    pedidos.forEach(function(p){ if(p.clienteVenda&&String(p.clienteVenda).trim()) ver(p.clienteVenda,p.data); });
+    ordem.forEach(function(n){
+      if(cadastrado(vistos[n].nome)) return;
+      clientes.push({id:novoId(),nome:vistos[n].nome,apelido:'',tel:'',email:'',cidade:'',tipo:'consumidor',obs:'',pix:'',dataCadastro:vistos[n].data}); alterou=true;
+    });
+    clientes.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||'','pt-BR'); });
+    if(alterou) S.set('clientes',clientes);
+  };
+
+  /* ---------- ligacoes na tela ---------- */
+  function ligar(){
+    var inp=document.getElementById('v-cliente'); if(!inp||inp.dataset.akpCli) return; inp.dataset.akpCli='1';
+    ['input','change','blur','focus'].forEach(function(ev){ inp.addEventListener(ev,atualizar); });
+    atualizar();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',ligar); else ligar();
+  setInterval(function(){                                                  // o campo tambem e preenchido por codigo (importar pedido, vender produto)
+    var inp=document.getElementById('v-cliente'); if(!inp||!inp.offsetParent) return;
+    if(inp.value!==ultimo||lista().length!==ultimoN) atualizar();
+  },500);
+
+  window.AKPClienteVenda={norm:norm,cadastrado:cadastrado,abrir:abrir,atualizar:atualizar};
+})();
+</script>
 <script id="akp-estoque">
 (function(){
   'use strict';
