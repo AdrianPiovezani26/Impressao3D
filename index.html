@@ -17324,6 +17324,52 @@ document.addEventListener('DOMContentLoaded', function() {
   window.AKPProdLayout={abrir:abrir,fechar:fechar,ocultar:ocultar,restaurar:restaurar,estado:function(){ return st; },visiveis:visiveis,contagens:contagens};
 })();
 </script>
+<script id="akp-impproduto">
+(function(){
+  'use strict';
+  /* ===== IMPRESSAO INTERNA -> PRODUTO, no mesmo padrao do "Adicionar produto" do pedido =====
+     Antes: o produto nascia sem lote (peca unica), sem estoque, sem ligacao com a impressao, com a receita COMPARTILHADA
+     com a impressao e sem olhar duplicado. Agora: lote = pecas impressas, receita = peso do LOTE (com cor e preco do rolo),
+     estoque inicial = impressas - ja vendidas avulsas (sem estoque fantasma), impressao ligada ao produto (produtoId),
+     trava de duplicado (inclui ocultos) e aviso se o resultado nao foi "bom".
+     Para desligar: apague este bloco <script id="akp-impproduto">. */
+  var PE=window.AKPProdEstoque, PP=window.AKPPedidoProduto;
+  function norm(s){ return String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s+/g,' ').trim(); }
+  function achar(nome){ var n=norm(nome), r=null; (produtos||[]).forEach(function(p){ if(!r&&norm(p.nome)===n) r=p; }); return r; }
+  function envolver(nome,fn){ var o=window[nome]; if(typeof o!=='function') return; window[nome]=function(){ return fn(o,this,arguments); }; }
+  envolver('transformarImpressaoEmProduto',function(o,t,a){
+    var imp=impressoesInternas[a[0]]; if(!imp||imp.produtoCriado) return o.apply(t,a);
+    var qtd=Math.max(1,parseInt(imp.qtd)||1);
+    if(imp.resultado&&imp.resultado!=='bom'&&!confirm('Esta impressão foi marcada como "'+imp.resultado+'".\n\nCriar um produto a partir dela mesmo assim?')) return;
+    var ex=achar(imp.nome);
+    if(ex){
+      if(confirm('Já existe o produto "'+ex.nome+'"'+(ex.oculto?' (oculto)':'')+'.\n\nLigar esta impressão a ele, sem criar outro? O produto não será alterado.')){
+        imp.produtoCriado=true; imp.produtoId=ex.id; S.set('impressoes_internas',impressoesInternas); try{ renderImpressoes(); }catch(e){}
+      }
+      return;
+    }
+    var antes={}; (produtos||[]).forEach(function(p){ antes[p.id]=1; });
+    var r=o.apply(t,a);
+    if(!imp.produtoCriado) return r;                                         // o preco foi cancelado: nada foi criado
+    var prod=null; (produtos||[]).forEach(function(p){ if(!prod&&!antes[p.id]&&norm(p.nome)===norm(imp.nome)) prod=p; });
+    if(!prod) return r;
+    prod.fils=PP?PP.receitaDoPedido({qtd:qtd,filsEstoque:imp.filsEstoque}):JSON.parse(JSON.stringify(imp.filsEstoque||[]));   // copia, peso do lote
+    prod.qtd=qtd; imp.produtoId=prod.id;
+    S.set('produtos',produtos); S.set('impressoes_internas',impressoesInternas);
+    if(qtd>1&&PE){
+      var vend=Math.min(qtd,Math.max(0,parseInt(imp.vendidas)||0)), est=qtd-vend;
+      if(confirm('Controlar o estoque deste produto?\n\nForam impressas '+qtd+' peças'+(vend?' ('+vend+' já vendidas avulsas)':'')+'. Estoque inicial: '+est+' peça(s).')){
+        prod.controlarEstoque=true; prod.estoqueMin=Math.max(1,Math.ceil(qtd*0.2)); S.set('produtos',produtos);
+        PE.registrar(prod.id,'entrada',qtd,'Produção: impressão interna '+imp.nome+' (produto criado)',{tipo:'impressao',id:imp.id});
+        if(vend>0) PE.registrar(prod.id,'saida',vend,'Já vendidas avulsas antes de virar produto',{tipo:'baixa'});
+      }
+    }
+    try{ if(typeof renderProds==='function') renderProds(); renderImpressoes(); }catch(e){}
+    return r;
+  });
+  window.AKPImpProduto={norm:norm,achar:achar};
+})();
+</script>
 <script id="akp-estoque">
 (function(){
   'use strict';
