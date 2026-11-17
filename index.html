@@ -18367,19 +18367,45 @@ document.addEventListener('DOMContentLoaded', function() {
     var n=(v.itens&&v.itens.length)?v.itens.map(function(i){ return i.nome; }).join(', '):(v.prodNome||'');
     var s=dm(v.data)+' · '+(v.cliente||'?')+' · '+moeda(v.valor)+' · '+n; return s.length>95?s.slice(0,92)+'...':s;
   }
+  function citadosObs(v){                    // nomes de pedido citados na observacao: "Pedido(s): A, B | ..." (o import antigo gravava isso)
+    var m=String(v.obs||'').match(/^\s*pedidos?\s*:\s*([^|]*)/i); if(!m) return [];
+    return m[1].split(/\s*,\s+/).map(norm).filter(Boolean);
+  }
   function candidatas(p){
-    var di=isoDeBR(p.data), nm=norm(p.nome), sug=[], outras=[];
+    var di=isoDeBR(p.data), nm=norm(p.nome), sug=[], outras=[], obs=[];
     lVen().filter(function(v){ return v&&v.statusPgto!=='cancelado'&&(!v.data||!di||String(v.data).slice(0,10)>=di); }).forEach(function(v){
       var ja=(v.ligacoes||[]).some(function(l){ return String(l.pedidoId)===String(p.id); })||(v.itens||[]).some(function(i){ return i&&String(i.pedidoId)===String(p.id); });
-      if(ja) return; (nomesVenda(v).indexOf(nm)>=0?sug:outras).push(v);
+      if(ja) return;
+      if(citadosObs(v).indexOf(nm)>=0) obs.push(v); else if(nomesVenda(v).indexOf(nm)>=0) sug.push(v); else outras.push(v);
     });
     var asc=function(a,b){ return String(a.data||'')<String(b.data||'')?-1:1; };
-    sug.sort(asc); outras.sort(function(a,b){ return -asc(a,b); });
-    return {sug:sug,outras:outras.slice(0,80)};
+    obs.sort(asc); sug.sort(asc); outras.sort(function(a,b){ return -asc(a,b); });
+    return {obs:obs,sug:sug,outras:outras.slice(0,80)};
   }
   function opcoesVenda(c){
-    return c.sug.map(function(v){ return '<option value="'+v.id+'">★ '+esc(descVenda(v))+'</option>'; }).join('')+
+    return c.obs.map(function(v){ return '<option value="'+v.id+'">★★ '+esc(descVenda(v))+'</option>'; }).join('')+
+      c.sug.map(function(v){ return '<option value="'+v.id+'">★ '+esc(descVenda(v))+'</option>'; }).join('')+
       c.outras.map(function(v){ return '<option value="'+v.id+'">'+esc(descVenda(v))+'</option>'; }).join('');
+  }
+  function planoObs(){                       // 1 venda -> 1 pedido por nome citado (o mais antigo ainda sem ligacao, de data <= venda)
+    var ab=abertos().sort(function(a,b){ return isoDeBR(a.data)<isoDeBR(b.data)?-1:1; }), usados={}, plano=[];
+    lVen().filter(function(v){ return v&&v.statusPgto!=='cancelado'; }).sort(function(a,b){ return String(a.data||'')<String(b.data||'')?-1:1; }).forEach(function(v){
+      var ligados={}, vistos={};                                       // citacao ja atendida por ligacao existente nao se repete (idempotente)
+      (v.ligacoes||[]).concat((v.itens||[]).filter(function(i){ return i&&i.pedidoId!=null; })).forEach(function(l){ var q=achar(l.pedidoId); if(q){ var k=norm(q.nome); ligados[k]=(ligados[k]||0)+1; } });
+      citadosObs(v).forEach(function(nm){
+        vistos[nm]=(vistos[nm]||0)+1; if((ligados[nm]||0)>=vistos[nm]) return;
+        var c=ab.filter(function(p){ return !usados[p.id]&&norm(p.nome)===nm&&(!v.data||isoDeBR(p.data)<=String(v.data).slice(0,10)); })[0];
+        if(c){ usados[c.id]=1; plano.push({p:c,v:v}); }
+      });
+    });
+    return plano;
+  }
+  function ligarPorObs(){
+    var pl=planoObs(); if(!pl.length){ toast('Nenhuma observação de venda cita pedido sem ligação.'); return; }
+    var ex=pl.slice(0,12).map(function(x){ return '- '+x.p.nome+'  →  venda de '+dm(x.v.data)+' ('+(x.v.cliente||'?')+')'; }).join('\n');
+    if(!confirm('Ligar '+pl.length+' pedido(s) às vendas que os citam na observação?\n\n'+ex+(pl.length>12?'\n... e mais '+(pl.length-12):'')+'\n\nCada ligação pode ser desfeita depois.')) return;
+    var n=0; pl.forEach(function(x){ if(ligar(x.p.id,x.v.id)) n++; });
+    toast(n+' pedido(s) ligado(s) pelas observações.'); rerev();
   }
   function ligar(pedId,vendaId){
     var v=lVen().find(function(x){ return String(x.id)===String(vendaId); }), p=achar(pedId); if(!v||!p) return false;
@@ -18412,13 +18438,13 @@ document.addEventListener('DOMContentLoaded', function() {
   /* revisao do historico */
   function linhaRev(p){
     var c=candidatas(p), q=qtdPed(p);
-    var sel=(c.sug.length||c.outras.length)?'<select id="pv-sel-'+p.id+'" style="'+SEL+'">'+opcoesVenda(c)+'</select>':'<span style="font-size:11px;color:var(--text3);">Nenhuma venda depois da data do pedido.</span>';
+    var sel=(c.obs.length||c.sug.length||c.outras.length)?'<select id="pv-sel-'+p.id+'" style="'+SEL+'">'+opcoesVenda(c)+'</select>':'<span style="font-size:11px;color:var(--text3);">Nenhuma venda depois da data do pedido.</span>';
     return '<div style="padding:10px;background:var(--bg3);border-radius:var(--radius);margin-bottom:8px;">'+
       '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;"><div><strong style="font-size:13px;">'+esc(p.nome)+'</strong> <span style="font-size:11px;color:var(--text3);">'+esc(p.data||'')+' · '+q+' un</span></div>'+
       '<strong style="color:var(--neon);">'+moeda(precoTotalPed(p)||valorRest(p))+'</strong></div>'+
-      (c.sug.length?'<div style="font-size:11px;color:var(--amber-text);margin-top:3px;">★ Há '+c.sug.length+' venda(s) com este nome. Confira se é a mesma.</div>':'')+
+      (c.obs.length?'<div style="font-size:11px;color:var(--neon);margin-top:3px;">★★ A observação de '+c.obs.length+' venda(s) cita este pedido.</div>':(c.sug.length?'<div style="font-size:11px;color:var(--amber-text);margin-top:3px;">★ Há '+c.sug.length+' venda(s) com este nome. Confira se é a mesma.</div>':''))+
       '<div style="display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap;"><div style="flex:1;min-width:220px;">'+sel+'</div>'+
-      ((c.sug.length||c.outras.length)?'<button class="btn-ok" style="'+BTN+'" onclick="AKPPedidoVenda.revLigar('+p.id+')">Ligar a esta venda</button>':'')+
+      ((c.obs.length||c.sug.length||c.outras.length)?'<button class="btn-ok" style="'+BTN+'" onclick="AKPPedidoVenda.revLigar('+p.id+')">Ligar a esta venda</button>':'')+
       '<button class="btn" style="'+BTN+'" onclick="AKPPedidoVenda.revResolver('+p.id+')">Já vendido / não gera venda</button></div></div>';
   }
   function corpoRev(){
@@ -18430,6 +18456,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var rodape='<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border2);display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'+
       '<label style="font-size:12px;color:var(--text2);">Cobrar pedidos feitos a partir de</label><input type="date" id="pv-desde" value="'+(ativo||hj())+'" style="border:1px solid var(--border2);border-radius:var(--radius);padding:5px 8px;font-size:12px;background:var(--bg2);color:var(--text);">'+
       '<button class="btn-ok" style="'+BTN+'" onclick="AKPPedidoVenda.ativar()">'+(ativo?'Atualizar data':'Ativar cobrança')+'</button>'+
+      (planoObs().length?'<button class="btn-ok" style="'+BTN+'" onclick="AKPPedidoVenda.ligarPorObs()" title="Usa o texto &quot;Pedidos: ...&quot; que o sistema gravava na observação das vendas">Ligar pelas observações ('+planoObs().length+')</button>':'')+
       (h.length?'<button class="btn" style="'+BTN+'margin-left:auto;" onclick="AKPPedidoVenda.revTodos()">Marcar os '+h.length+' restantes como sem venda</button>':'')+'</div>';
     return topo+lista+rodape;
   }
@@ -18442,7 +18469,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var atuais=lVen().filter(function(v){ return (v.ligacoes||[]).some(function(l){ return String(l.pedidoId)===String(p.id); }); });
     var corpo='<p style="font-size:12px;color:var(--text2);margin:0 0 .6rem;"><b>'+esc(p.nome)+'</b> · '+esc(p.data||'')+' · '+qtdPed(p)+' un ('+vendidas(p)+' já vendida(s))</p>'+
       (atuais.length?'<div style="margin-bottom:.8rem;font-size:12px;">Ligado a:'+atuais.map(function(v){ return '<div style="display:flex;gap:8px;align-items:center;margin-top:4px;"><span style="flex:1;">'+esc(descVenda(v))+'</span><button class="btn" style="'+BTN+'" onclick="AKPPedidoVenda.desfazer('+p.id+','+v.id+')">Desfazer</button></div>'; }).join('')+'</div>':'')+
-      ((c.sug.length||c.outras.length)?'<select id="pv-sel-one" style="'+SEL+'">'+opcoesVenda(c)+'</select><div style="margin-top:10px;"><button class="btn-ok" onclick="AKPPedidoVenda.ligarUm('+p.id+')">Ligar a esta venda</button></div>':'<div class="empty" style="padding:1rem;">Nenhuma venda registrada depois da data deste pedido.</div>');
+      ((c.obs.length||c.sug.length||c.outras.length)?'<select id="pv-sel-one" style="'+SEL+'">'+opcoesVenda(c)+'</select><div style="margin-top:10px;"><button class="btn-ok" onclick="AKPPedidoVenda.ligarUm('+p.id+')">Ligar a esta venda</button></div>':'<div class="empty" style="padding:1rem;">Nenhuma venda registrada depois da data deste pedido.</div>');
     overlay('Ligar pedido a uma venda',corpo,680);
   }
   /* ligar uma venda a pedidos */
@@ -18544,7 +18571,7 @@ document.addEventListener('DOMContentLoaded', function() {
       S.set('pedidos',pedidos); abrirSeletor(); atualizarTelas();
     },
     reativarId:function(id){ var p=achar(id); if(!p) return; delete p.semVenda; delete p.semVendaEm; S.set('pedidos',pedidos); atualizarTelas(); },
-    pendentes:pendentes, historico:historico,
+    pendentes:pendentes, historico:historico, planoObs:function(){ return planoObs().map(function(x){ return {pedidoId:x.p.id,vendaId:x.v.id}; }); }, ligarPorObs:ligarPorObs,
     contar:function(){ var l=pendentes(); return {n:l.length,valor:l.reduce(function(s,x){ return s+x.valor; },0),antigos:historico().length}; },
     gerar:gerar, naoGera:naoGera, fecharAviso:fecharAviso, verAFaturar:verAFaturar, fechar:fechar, revisar:revisar,
     filtrar:function(v){ soFaturar=!!v; if(v&&window._pedGrpCol) window._pedGrpCol.concluido=false; if(typeof renderPedidos==='function') renderPedidos(); },
