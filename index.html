@@ -18037,5 +18037,250 @@ document.addEventListener('DOMContentLoaded', function() {
   },true);                                        // fase de captura: os outros ouvintes já enxergam o valor em maiúsculas
 })();
 </script>
+<script id="akp-pedidovenda">
+(function(){
+  'use strict';
+  /* ===== LIGACAO PEDIDO <-> VENDA =====
+     - Ao gerar a venda a partir de pedidos (botao "Importar Pedidos" da tela de Vendas ou "Vender" dentro do pedido),
+       cada item da venda guarda o ID do seu pedido (itens[].pedidoId) e a venda guarda a lista (pedidoIds).
+       Varios pedidos podem entrar na MESMA venda; um pedido pode ser vendido em partes (soma das quantidades).
+     - O estado do pedido nao e gravado: e CALCULADO a partir das vendas (ignora vendas canceladas). Se a venda for
+       excluida ou cancelada, o pedido volta sozinho para "A faturar".
+         A faturar  = nada vendido | Parcial = vendido < quantidade do pedido | Faturado = vendido >= quantidade
+         Resolvido  = marcado a mao como "ja vendido / nao gera venda" (campo semVenda no pedido)
+     - Importar um pedido com a venda ja aberta SOMA os itens (antes apagava os que estavam la).
+     - O seletor de pedidos mostra so os "A faturar" e "Parcial" (caixa para ver tambem os faturados/resolvidos).
+     Para desligar: apague este bloco <script id="akp-pedidovenda"> (as vendas ja gravadas continuam intactas). */
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function envolver(nome,fn){ var o=window[nome]; if(typeof o!=='function') return; window[nome]=function(){ return fn(o,this,arguments); }; }
+  function toast(m){ if(window.akpToast) akpToast(m); }
+  function lPed(){ return (typeof pedidos!=='undefined'&&Array.isArray(pedidos))?pedidos:[]; }
+  function lVen(){ return (typeof vendas!=='undefined'&&Array.isArray(vendas))?vendas:[]; }
+  function qtdPed(p){ return parseInt(p&&p.qtd)||1; }
+  function achar(id){ var r=null; lPed().forEach(function(p){ if(!r&&String(p.id)===String(id)) r=p; }); return r; }
+  function moeda(v){ return (typeof fmt==='function')?fmt(v):'R$ '+(parseFloat(v)||0).toFixed(2).replace('.',','); }
+  function precoTotalPed(p){ return parseFloat((p.preco||'0').toString().replace('R$ ','').replace(/\./g,'').replace(',','.'))||0; }
+
+  /* ---------- estado calculado ---------- */
+  function mapa(){                      // id do pedido -> quantidade ja vendida (vendas nao canceladas)
+    var m={};
+    lVen().forEach(function(v){
+      if(!v||v.statusPgto==='cancelado') return;
+      (v.itens||[]).forEach(function(it){
+        if(it&&it.pedidoId!=null&&it.pedidoId!==''){ var k=String(it.pedidoId); m[k]=(m[k]||0)+(parseInt(it.qtd)||1); }
+      });
+    });
+    return m;
+  }
+  function vendidas(p,m){ m=m||mapa(); return m[String(p.id)]||0; }
+  function estado(p,m){
+    if(!p) return 'afaturar';
+    var v=vendidas(p,m), q=qtdPed(p);
+    if(v>=q) return 'faturado';
+    if(p.semVenda) return 'resolvido';
+    return v>0?'parcial':'afaturar';
+  }
+
+  /* ---------- marcar o item da venda com o pedido ---------- */
+  var fila=[], filaT=null;
+  function enfileirar(l){ fila=l; clearTimeout(filaT); filaT=setTimeout(function(){ fila=[]; },1200); }
+  function marcar(d,e){
+    d.dataset.pedidoId=String(e.id); d.dataset.pedidoNome=e.nome||'';
+    var tag=document.createElement('span'); tag.className='tag tag-blue akp-pv-tag';
+    tag.style.cssText='font-size:10px;align-self:center;'; tag.textContent='PEDIDO'; tag.title='Ligado ao pedido: '+(e.nome||'');
+    d.insertBefore(tag,d.querySelector('.rm')||null);
+  }
+  envolver('addItemVenda',function(o,t,a){
+    var r=o.apply(t,a);
+    if(fila.length){
+      var nome=a[3], i=-1;
+      for(var k=0;k<fila.length;k++){ if(fila[k].nome===nome){ i=k; break; } }
+      if(i>=0){
+        var e=fila.splice(i,1)[0], l=document.querySelectorAll('#v-itens-lista .fil-multi-item'), d=l[l.length-1];
+        if(d){
+          marcar(d,e);
+          if(e.qtd){ var inp=d.querySelectorAll('input')[0]; if(inp){ inp.value=e.qtd; if(typeof calcTotalVenda==='function') calcTotalVenda(); } }
+        }
+      }
+    }
+    return r;
+  });
+
+  /* ---------- importar SOMA na venda aberta ---------- */
+  function guardar(){
+    var f=document.getElementById('form-venda'), l=document.getElementById('v-itens-lista');
+    if(!f||!l||f.style.display==='none') return [];
+    return Array.prototype.slice.call(l.children);
+  }
+  function restaurar(keep){
+    if(!keep.length) return;
+    var l=document.getElementById('v-itens-lista'); if(!l) return;
+    var jaTem={}; keep.forEach(function(n){ if(n.dataset&&n.dataset.pedidoId) jaTem[n.dataset.pedidoId]=true; });
+    var dup=0;
+    Array.prototype.slice.call(l.children).forEach(function(n){
+      var k=n.dataset&&n.dataset.pedidoId;
+      if(k&&jaTem[k]&&keep.indexOf(n)<0){ n.parentNode.removeChild(n); dup++; }
+    });
+    for(var i=keep.length-1;i>=0;i--) l.insertBefore(keep[i],l.firstChild);
+    var nomes=[]; Array.prototype.slice.call(l.children).forEach(function(n){ if(n.dataset&&n.dataset.pedidoId) nomes.push(n.dataset.pedidoNome); });
+    var ob=document.getElementById('v-obs');
+    if(ob&&nomes.length) ob.value=(nomes.length>1?'Pedidos: ':'Pedido: ')+nomes.join(', ');
+    if(typeof calcTotalVenda==='function') calcTotalVenda();
+    if(dup) toast(dup+' pedido(s) ja estava(m) nesta venda e nao foi(ram) repetido(s).');
+  }
+  function comPreservar(o,t,a,entradas){
+    var keep=guardar();
+    enfileirar(entradas);
+    var r=o.apply(t,a);
+    setTimeout(function(){ restaurar(keep); },480);
+    return r;
+  }
+  function lista(p){ return p.map(function(x){ return '- '+x; }).join('\n'); }
+
+  envolver('confirmarSeletorPedidos',function(o,t,a){
+    var m=mapa(), sel=[];
+    lPed().forEach(function(p,i){ var c=document.getElementById('chk-ped-'+i); if(c&&c.checked) sel.push(p); });
+    if(!sel.length) return o.apply(t,a);
+    var ja=sel.filter(function(p){ return estado(p,m)==='faturado'; });
+    if(ja.length&&!confirm('ATENCAO: estes pedidos ja foram faturados:\n\n'+lista(ja.map(function(p){ return p.nome; }))+'\n\nGerar outra venda mesmo assim?')) return;
+    var ent=sel.map(function(p){
+      var e={id:p.id,nome:p.nome};
+      if(estado(p,m)==='parcial') e.qtd=Math.max(qtdPed(p)-vendidas(p,m),1);
+      return e;
+    });
+    return comPreservar(o,t,a,ent);
+  });
+  envolver('importarPedidoVenda',function(o,t,a){
+    if(typeof _pedidoEditIdx==='undefined'||_pedidoEditIdx<0) return o.apply(t,a);
+    var p=lPed()[_pedidoEditIdx]; if(!p) return o.apply(t,a);
+    var est=estado(p);
+    if(est==='faturado'&&!confirm('Este pedido ja foi faturado ('+vendidas(p)+' un vendida(s)).\n\nGerar outra venda mesmo assim?')) return;
+    if(est==='resolvido'&&!confirm('Este pedido foi marcado como "ja vendido / nao gera venda".\n\nGerar a venda mesmo assim?')) return;
+    var ne=document.getElementById('mp-nome'), nome=((ne&&ne.value)||'').trim()||p.nome||'';
+    return comPreservar(o,t,a,[{id:p.id,nome:nome}]);
+  });
+
+  /* ---------- salvar: grava pedidoId em cada item ---------- */
+  envolver('salvarVenda',function(o,t,a){
+    var lst=document.getElementById('v-itens-lista'), ligs=[];
+    if(lst) lst.querySelectorAll('.fil-multi-item').forEach(function(item){
+      var inp=item.querySelectorAll('input'), preco=parseFloat(inp[1]&&inp[1].value)||0;
+      if(preco>0) ligs.push({id:item.dataset.pedidoId||null,qtd:parseInt(inp[0]&&inp[0].value)||1});   // mesmo filtro do salvarVenda
+    });
+    var ped=ligs.filter(function(x){ return x.id; });
+    if(ped.length){
+      var m=mapa(), soma={}, exc=[];
+      ped.forEach(function(x){ soma[x.id]=(soma[x.id]||0)+x.qtd; });
+      Object.keys(soma).forEach(function(id){
+        var p=achar(id); if(!p) return;
+        var q=qtdPed(p), ja=m[id]||0;
+        if(ja+soma[id]>q) exc.push(p.nome+': pedido de '+q+' un, '+ja+' ja vendida(s) + '+soma[id]+' nesta venda');
+      });
+      if(exc.length&&!confirm('ATENCAO: quantidade maior que a do pedido:\n\n'+lista(exc)+'\n\nSalvar a venda mesmo assim?')) return;
+    }
+    var antes=lVen().length, primeiro=lVen()[0]&&lVen()[0].id;
+    var r=o.apply(t,a);
+    var vs=lVen();
+    if(ped.length&&vs.length>antes&&vs[0]&&vs[0].id!==primeiro){          // a venda foi realmente salva
+      var v=vs[0];
+      if(v.itens&&v.itens.length===ligs.length){
+        var ids=[];
+        v.itens.forEach(function(it,k){
+          if(!ligs[k].id) return;
+          var p=achar(ligs[k].id), id=p?p.id:(isFinite(Number(ligs[k].id))?Number(ligs[k].id):ligs[k].id);
+          it.pedidoId=id; if(ids.indexOf(id)<0) ids.push(id);
+        });
+        v.pedidoIds=ids;
+        S.set('vendas',vs);
+        if(typeof renderPedidos==='function'){ try{ renderPedidos(); }catch(e){} }
+      } else if(window.console) console.warn('[akp-pedidovenda] itens da venda diferem do formulario; ligacao nao gravada');
+    }
+    return r;
+  });
+
+  /* ---------- seletor de pedidos: so A faturar / Parcial ---------- */
+  var mostrarTodos=false;
+  function abrirSeletor(){
+    var box=document.getElementById('sel-pedidos-lista'); if(!box) return;
+    try{ _pedidosSelecionados=[]; }catch(e){}
+    var m=mapa(), ps=lPed(), ocultos=0, html='';
+    var CR={pendente:'tag-amber',imprimindo:'tag-blue',concluido:'tag-green'};
+    var EST={afaturar:['tag-amber','A faturar'],parcial:['tag-blue','Parcial'],faturado:['tag-green','Faturado'],resolvido:['tag-blue','Sem venda']};
+    ps.forEach(function(p,i){
+      if(p.status==='cancelado') return;
+      var est=estado(p,m), feito=(est==='faturado'||est==='resolvido');
+      if(feito&&!mostrarTodos){ ocultos++; return; }
+      var qtd=qtdPed(p), v=vendidas(p,m), rest=(est==='parcial')?Math.max(qtd-v,1):qtd;
+      var unit=parseFloat(p.precoUnit)||(qtd>0?precoTotalPed(p)/qtd:precoTotalPed(p));
+      var tot=(est==='parcial')?unit*rest:precoTotalPed(p)||unit*qtd;
+      var tg=EST[est];
+      var acao=feito?(est==='resolvido'?'<button class="btn" style="font-size:10px;padding:3px 8px;margin-top:4px;" onclick="event.stopPropagation();AKPPedidoVenda.reativar('+i+')">Reativar</button>':'')
+                    :'<button class="btn" style="font-size:10px;padding:3px 8px;margin-top:4px;" title="Ja vendido por fora ou pedido que nao gera venda (teste, brinde, embalagem)" onclick="event.stopPropagation();AKPPedidoVenda.resolver('+i+')">Ja vendido / nao gera venda</button>';
+      html+='<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg3);border-radius:var(--radius);margin-bottom:6px;cursor:pointer;" onclick="toggleSelecionarPedido(this,'+i+')">'+
+        '<input type="checkbox" id="chk-ped-'+i+'" style="width:16px;height:16px;cursor:pointer;" onclick="event.stopPropagation()">'+
+        '<div style="flex:1;min-width:0;"><strong style="font-size:13px;">'+esc(p.nome)+'</strong>'+
+        '<span class="tag '+(CR[p.status]||'tag-blue')+'" style="margin-left:6px;font-size:10px;">'+esc(p.status)+'</span>'+
+        '<span class="tag '+tg[0]+'" style="margin-left:4px;font-size:10px;">'+tg[1]+(est==='parcial'?' '+v+'/'+qtd:'')+'</span>'+
+        (qtd>1?'<span class="tag tag-blue" style="margin-left:4px;font-size:10px;">'+(est==='parcial'?rest+' de '+qtd:qtd)+' un</span>':'')+
+        '<br><span style="font-size:11px;color:var(--text3);">'+esc(p.data)+(p.horas&&p.horas!='--'?' | '+esc(p.horas):'')+'</span><br>'+acao+'</div>'+
+        '<div style="text-align:right;flex-shrink:0;"><div style="font-weight:700;color:var(--neon);font-size:14px;">'+moeda(tot)+'</div>'+
+        (qtd>1?'<div style="font-size:11px;color:var(--text3);">'+moeda(unit)+'/un</div>':'')+'</div></div>';
+    });
+    var topo='<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);margin-bottom:8px;cursor:pointer;">'+
+      '<input type="checkbox" '+(mostrarTodos?'checked':'')+' onchange="AKPPedidoVenda.mostrar(this.checked)"> Mostrar tambem os ja faturados / sem venda'+
+      (ocultos?' <span style="margin-left:4px;">('+ocultos+' oculto'+(ocultos>1?'s':'')+')</span>':'')+'</label>';
+    box.innerHTML=topo+(html||'<div class="empty" style="padding:1rem;">Nenhum pedido a faturar.</div>');
+    if(typeof atualizarTotalSeletor==='function') atualizarTotalSeletor();
+    document.getElementById('modal-sel-pedidos').style.display='flex';
+  }
+  window.abrirSeletorPedidos=abrirSeletor;
+  envolver('atualizarTotalSeletor',function(o,t,a){            // o total do rodape usa o id certo (sel-ped-total)
+    var r=o.apply(t,a), m=mapa(), tot=0, n=0;
+    lPed().forEach(function(p,i){
+      var c=document.getElementById('chk-ped-'+i); if(!c||!c.checked) return;
+      var qtd=qtdPed(p), est=estado(p,m), rest=(est==='parcial')?Math.max(qtd-vendidas(p,m),1):qtd;
+      var unit=parseFloat(p.precoUnit)||(qtd>0?precoTotalPed(p)/qtd:precoTotalPed(p));
+      tot+=(est==='parcial')?unit*rest:(precoTotalPed(p)||unit*qtd); n++;
+    });
+    var a1=document.getElementById('sel-ped-total'), a2=document.getElementById('sel-ped-count');
+    if(a1) a1.textContent=moeda(tot);
+    if(a2) a2.textContent=n?'('+n+' pedido'+(n>1?'s':'')+')':'';
+    return r;
+  });
+
+  /* ---------- etiqueta do estado nos cartoes da lista de pedidos ---------- */
+  function marcarCards(){
+    var m=mapa();
+    document.querySelectorAll('#lista-pedidos .item-card').forEach(function(c){
+      if(c.querySelector('.akp-pv-est')) return;
+      var s=c.querySelector('select[onchange^="updPedSt("]'); if(!s) return;
+      var idx=parseInt(((s.getAttribute('onchange')||'').match(/updPedSt\((\d+)/)||[])[1]), p=lPed()[idx]; if(!p) return;
+      var v=vendidas(p,m), est=estado(p,m);
+      if(p.status!=='concluido'&&!v) return;
+      var cfg={afaturar:['tag-amber','A faturar'],parcial:['tag-blue','Vendido '+v+'/'+qtdPed(p)],faturado:['tag-green','Faturado'],resolvido:['tag-blue','Sem venda']}[est];
+      var head=c.querySelector('.tag'); if(head) head.insertAdjacentHTML('afterend','<span class="tag '+cfg[0]+' akp-pv-est" style="font-size:10px;">'+cfg[1]+'</span>');
+    });
+  }
+  envolver('renderPedidos',function(o,t,a){ var r=o.apply(t,a); try{ marcarCards(); }catch(e){} return r; });
+
+  window.AKPPedidoVenda={
+    estado:function(p){ return estado(p); },
+    vendidas:function(p){ return vendidas(p); },
+    mapa:mapa,
+    mostrar:function(v){ mostrarTodos=!!v; abrirSeletor(); },
+    resolver:function(i){
+      var p=lPed()[i]; if(!p) return;
+      if(!confirm('Marcar "'+p.nome+'" como "ja vendido / nao gera venda"?\n\nEle sai da lista de pedidos a faturar (voce pode reativar depois).')) return;
+      p.semVenda='manual'; p.semVendaEm=(typeof hoje==='function')?hoje():'';
+      S.set('pedidos',pedidos); abrirSeletor(); if(typeof renderPedidos==='function') renderPedidos();
+    },
+    reativar:function(i){
+      var p=lPed()[i]; if(!p) return;
+      delete p.semVenda; delete p.semVendaEm;
+      S.set('pedidos',pedidos); abrirSeletor(); if(typeof renderPedidos==='function') renderPedidos();
+    }
+  };
+})();
+</script>
 </body>
 </html>
